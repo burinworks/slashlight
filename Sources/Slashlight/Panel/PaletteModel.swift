@@ -96,6 +96,21 @@ final class PaletteModel: ObservableObject {
         search(selecting: view.initialSelection)
     }
 
+    /// Shows a terminal tab, replacing the current screen when that is already a terminal.
+    func showTerminal(_ session: TerminalSession) {
+        TerminalManager.shared.shown(session)
+        let isTerminal = EmbeddedScreen.of(currentView).map { e in TerminalManager.shared.sessions.contains { $0.embedded === e } } ?? false
+        if isTerminal || EmbeddedScreen.of(currentView) != nil && current.extensionID == "terminal" {
+            stack[stack.count - 1] = Screen(view: session.screen, extensionID: "terminal")
+            setTextSilently("")
+            search()
+        } else {
+            push(session.screen, extensionID: "terminal")
+        }
+    }
+
+    var embedded: EmbeddedScreen? { EmbeddedScreen.of(currentView) }
+
     func pop() {
         guard stack.count > 1 else { return }
         stack.removeLast()
@@ -422,6 +437,8 @@ final class PaletteModel: ObservableObject {
         let mods = Shortcut.Modifiers(event.modifierFlags)
         let key = KeyCodes.key(for: event)
         let plain = mods.subtracting(.shift).isEmpty
+        if let embedded { return embedded.handleKey(event, self) || editingShortcut(key, mods) }
+        if editingShortcut(key, mods) { return true }
 
         switch (key, mods) {
         case ("escape", _):
@@ -450,6 +467,10 @@ final class PaletteModel: ObservableObject {
             goHome()
         case (",", [.command]):
             openSettings()
+        case ("tab", [.control]):
+            if let s = TerminalManager.shared.lastShown ?? TerminalManager.shared.sessions.last { showTerminal(s) }
+        case ("t", [.command]) where current.extensionID == "terminal" || text.hasPrefix(">"):
+            showTerminal(TerminalManager.shared.start(command: nil))
         case (let k, [.command]) where Int(k).map({ (1...9).contains($0) }) == true:
             runPrimary(Int(k)! - 1)
         default:
@@ -471,7 +492,19 @@ final class PaletteModel: ObservableObject {
 
     // MARK: Footer
 
+    /// The app has no Edit menu (it lives in the menu bar only), so standard editing keys are sent by hand.
+    private func editingShortcut(_ key: String, _ mods: Shortcut.Modifiers) -> Bool {
+        let selectors: [String: Selector] = [
+            "c": #selector(NSText.copy(_:)), "v": #selector(NSText.paste(_:)), "x": #selector(NSText.cut(_:)),
+            "a": #selector(NSText.selectAll(_:)), "z": Selector(("undo:")),
+        ]
+        if mods == [.command], let sel = selectors[key] { return NSApp.sendAction(sel, to: nil, from: nil) }
+        if mods == [.command, .shift], key == "z" { return NSApp.sendAction(Selector(("redo:")), to: nil, from: nil) }
+        return false
+    }
+
     var hints: [Hint] {
+        if let embedded { return embedded.hints() }
         var out: [Hint] = []
         if let item = selectedRow?.item {
             if let p = item.primary { out.append(Hint(keys: "↵", label: p.title)) }

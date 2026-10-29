@@ -4,6 +4,7 @@ import SlashlightKit
 
 struct PaletteView: View {
     @ObservedObject var model: PaletteModel
+    @ObservedObject var terminals = TerminalManager.shared
     let onCreateField: (NSTextField) -> Void
     let onHeight: (CGFloat) -> Void
 
@@ -13,11 +14,24 @@ struct PaletteView: View {
         VStack(spacing: 0) {
             searchRow
             Rectangle().fill(Theme.divider).frame(height: 1)
-            if let detail = model.currentView?.detail {
-                DetailPane(detail: detail)
-                Rectangle().fill(Theme.divider).frame(height: 1)
+            if let embedded = model.embedded {
+                EmbeddedHost(view: embedded.view)
+                    .padding(embedded.focus is NSTextView ? 0 : 8)
+                    .frame(height: embedded.height)
+                    .background(embedded.focus is NSTextView ? Color.clear : Theme.detail)
+            } else {
+                if let detail = model.currentView?.detail {
+                    DetailPane(detail: detail)
+                    Rectangle().fill(Theme.divider).frame(height: 1)
+                }
+                results
+                if !terminals.sessions.isEmpty {
+                    TerminalTabs(manager: terminals, current: nil) { model.showTerminal($0) }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .overlay(alignment: .top) { Rectangle().fill(Theme.divider).frame(height: 1) }
+                }
             }
-            results
             footer
         }
         .frame(width: Theme.width)
@@ -49,8 +63,16 @@ struct PaletteView: View {
                     .font(.system(size: 19, weight: .light))
                     .foregroundStyle(Theme.text)
             }
-            SearchField(text: $model.text, placeholder: model.placeholder, onCreate: onCreateField)
-                .frame(height: 26)
+            if let embedded = model.embedded {
+                if let session = terminals.sessions.first(where: { $0.embedded === embedded }) {
+                    TerminalTabs(manager: terminals, current: session) { model.showTerminal($0) }
+                } else {
+                    Spacer()
+                }
+            } else {
+                SearchField(text: $model.text, placeholder: model.placeholder, onCreate: onCreateField)
+                    .frame(height: 26)
+            }
             if model.isLoading {
                 ProgressView().controlSize(.small).scaleEffect(0.7)
             }
@@ -185,6 +207,64 @@ struct DetailPane: View {
 }
 
 
+
+/// Open terminals as small tabs: a dot for the state (green = task running), the title, and how long it has run.
+struct TerminalTabs: View {
+    @ObservedObject var manager: TerminalManager
+    let current: TerminalSession?
+    let select: (TerminalSession) -> Void
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                if current == nil {
+                    Image(systemName: "terminal").font(.system(size: 11)).foregroundStyle(Theme.secondary)
+                }
+                ForEach(Array(manager.sessions.enumerated()), id: \.element.id) { i, session in
+                    TerminalTab(session: session, index: i, selected: session === current)
+                        .onTapGesture { select(session) }
+                }
+                if current == nil {
+                    Keycap(label: "⌃⇥").padding(.leading, 4)
+                }
+            }
+        }
+    }
+}
+
+private struct TerminalTab: View {
+    @ObservedObject var session: TerminalSession
+    let index: Int
+    let selected: Bool
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Circle().fill(dot).frame(width: 7, height: 7)
+            Text(session.title).font(.system(size: 12, weight: selected ? .semibold : .regular)).lineLimit(1)
+                .frame(maxWidth: 160)
+            if case .busy(_, let since) = session.state {
+                TimelineView(.periodic(from: .now, by: 1)) { _ in
+                    Text(TerminalSession.duration(since)).font(.system(size: 11).monospacedDigit()).foregroundStyle(Theme.secondary)
+                }
+            }
+            if index < 9 { Text("⌘\(index + 1)").font(.system(size: 10)).foregroundStyle(Theme.secondary) }
+        }
+        .foregroundStyle(Theme.text)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 4)
+        .background(selected ? Theme.selection : Theme.tile, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).stroke(selected ? Theme.border : .clear, lineWidth: 1))
+        .help(session.activity)
+    }
+
+    private var dot: Color {
+        switch session.state {
+        case .busy: return .green
+        case .idle: return Theme.secondary
+        case .exited(let code): return code == 0 ? Theme.secondary.opacity(0.4) : .red
+        }
+    }
+}
 
 extension Array {
     subscript(safe i: Int) -> Element? { indices.contains(i) ? self[i] : nil }

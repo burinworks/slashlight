@@ -12,10 +12,14 @@ let package = Package(
         .library(name: "SlashlightSDK", targets: ["SlashlightSDK"]),
         .executable(name: "hello-extension", targets: ["HelloExtension"]),
     ],
+    dependencies: [
+        // Terminal emulator view for the built-in Terminal extension.
+        .package(url: "https://github.com/migueldeicaza/SwiftTerm", from: "1.20.0"),
+    ],
     targets: [
         .target(name: "SlashlightKit"),
         .target(name: "SlashlightSDK", dependencies: ["SlashlightKit"]),
-        .executableTarget(name: "Slashlight", dependencies: ["SlashlightKit"]),
+        .executableTarget(name: "Slashlight", dependencies: ["SlashlightKit", .product(name: "SwiftTerm", package: "SwiftTerm")]),
         .executableTarget(name: "HelloExtension", dependencies: ["SlashlightSDK"], path: "Examples/HelloExtension"),
     ]
 )

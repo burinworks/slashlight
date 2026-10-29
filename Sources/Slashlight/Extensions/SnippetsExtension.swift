@@ -49,8 +49,14 @@ final class SnippetsExtension: Extension {
         var create: [Item] = []
         let name = query.text.trimmingCharacters(in: .whitespaces)
         if !name.isEmpty && !snippets.contains(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) {
-            create.append(Item(id: "create", title: "Create snippet “\(name)”", subtitle: "Next: type the text, or use the clipboard",
-                               icon: .symbol("plus"), primary: Action("Create Snippet") { [unowned self] in .push(self.textScreen(name: name)) }))
+            create.append(Item(id: "create", title: "Create snippet “\(name)”", subtitle: "Opens an editor: multiple lines, ⌘↵ saves",
+                               icon: .symbol("plus"), primary: Action("Create Snippet") { [unowned self] in .push(self.editor(name: name)) }))
+            if let clip = NSPasteboard.general.string(forType: .string), !clip.isEmpty {
+                create.append(Item(id: "create-clip", title: "Create “\(name)” from clipboard", subtitle: String(clip.prefix(90)),
+                                   icon: .symbol("doc.on.clipboard"),
+                                   primary: Action("Save") { [unowned self] in self.store(name: name, text: clip, editing: nil); return .stay },
+                                   secondary: Action("Edit First") { [unowned self] in .push(self.editor(name: name, text: clip)) }))
+            }
         } else if name.isEmpty {
             create.append(Item(id: "create-hint", title: "New snippet…", subtitle: "Type a name in the bar first", icon: .symbol("plus"),
                                primary: Action("Create Snippet") { .stay }))
@@ -58,21 +64,12 @@ final class SnippetsExtension: Extension {
         return [Section("Snippets", list), Section("Create", create)]
     }
 
-    /// Step 2 of creating: the bar now takes the snippet's text.
-    private func textScreen(name: String, editing: UUID? = nil) -> ListView {
-        let existing = snippets.first { $0.id == editing }?.text ?? ""
-        return ListView(title: editing == nil ? "New: \(name)" : "Edit: \(name)", icon: .symbol("text.badge.plus"),
-                        placeholder: "Snippet text — supports {clipboard}, {date}, {time}", initialText: existing) { [unowned self] q in
-            var items: [Item] = []
-            if !q.isEmpty {
-                items.append(Item(id: "typed", title: "Save typed text", subtitle: q.text, icon: .symbol("checkmark"),
-                                  primary: Action("Save") { self.store(name: name, text: q.text, editing: editing); return .pop }))
-            }
-            if let clip = NSPasteboard.general.string(forType: .string), !clip.isEmpty {
-                items.append(Item(id: "clip", title: "Save clipboard contents", subtitle: String(clip.prefix(90)), icon: .symbol("doc.on.clipboard"),
-                                  primary: Action("Save") { self.store(name: name, text: clip, editing: editing); return .pop }))
-            }
-            return [Section("Save", items)]
+    /// Multi-line editor for a snippet's text. ⌘↵ saves.
+    private func editor(name: String, text: String? = nil, editing: UUID? = nil) -> ListView {
+        let existing = text ?? snippets.first { $0.id == editing }?.text ?? ""
+        return TextEditorScreen.make(title: editing == nil ? "New: \(name)" : "Edit: \(name)", icon: .symbol("text.badge.plus"),
+                                     text: existing, placeholder: "Snippet text — supports {clipboard}, {date}, {time}") { [weak self] text in
+            self?.store(name: name, text: text, editing: editing)
         }
     }
 
@@ -84,6 +81,7 @@ final class SnippetsExtension: Extension {
             add(name: name, text: text)
         }
         context.showHUD("Snippet “\(name)” saved")
+        context.refresh()
     }
 
     private func item(_ s: Snippet) -> Item {
@@ -98,7 +96,7 @@ final class SnippetsExtension: Extension {
             secondary: Action("Paste", icon: .symbol("arrow.down.doc")) { .paste(Self.expand(s.text)) },
             more: [
                 Action("Edit Text", icon: .symbol("pencil"), shortcut: Shortcut("e", [.command, .shift])) { [unowned self] in
-                    .push(self.textScreen(name: s.name, editing: s.id))
+                    .push(self.editor(name: s.name, editing: s.id))
                 },
                 Action("Delete Snippet", icon: .symbol("trash"), shortcut: Shortcut("delete", [.command]), destructive: true) { [weak self] in
                     self?.snippets.removeAll { $0.id == s.id }

@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 /// Borderless, non-activating panel: it takes keyboard focus without activating the app,
@@ -15,6 +16,7 @@ final class PanelController: NSObject, NSWindowDelegate {
     private weak var field: NSTextField?
     private var monitor: Any?
     private var contentHeight: CGFloat = 120
+    private var stackObserver: AnyCancellable?
 
     init(model: PaletteModel) {
         self.model = model
@@ -40,6 +42,11 @@ final class PanelController: NSObject, NSWindowDelegate {
         hosting.sizingOptions = []
         panel.contentView = hosting
 
+        // Embedded screens (terminal, editor) take the keyboard; list screens give it back to the search field.
+        stackObserver = model.$stack.sink { [weak self] _ in
+            DispatchQueue.main.async { self?.focusCurrent() }
+        }
+
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { [weak self] event in
             guard let self, event.window === self.panel else { return event }
             if event.type == .flagsChanged {
@@ -60,7 +67,19 @@ final class PanelController: NSObject, NSWindowDelegate {
                                   width: Theme.width, height: contentHeight), display: true)
         }
         panel.makeKeyAndOrderFront(nil)
-        if let field { panel.makeFirstResponder(field) }
+        focusCurrent()
+    }
+
+    private func focusCurrent() {
+        guard panel.isVisible else { return }
+        if let embedded = model.embedded {
+            if let session = TerminalManager.shared.sessions.first(where: { $0.embedded === embedded }) {
+                session.applyTheme(dark: panel.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua)
+            }
+            panel.makeFirstResponder(embedded.focus)
+        } else if let field {
+            panel.makeFirstResponder(field)
+        }
     }
 
     func hide() {

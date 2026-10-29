@@ -49,6 +49,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             host.model.runPrimary()
             try? await Task.sleep(nanoseconds: 1_500_000_000)
         }
+        if let session = TerminalManager.shared.sessions.last {
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            for line in session.view.visibleRowsText(0..<30) where !line.trimmingCharacters(in: .whitespaces).isEmpty { print("│ " + line) }
+            print("state:", session.activity)
+        }
         guard let view = host.panel.panel.contentView, let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { exit(1) }
         view.cacheDisplay(in: view.bounds, to: rep)
         try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
