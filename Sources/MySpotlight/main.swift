@@ -11,7 +11,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task {
             await Host.shared.start()
             _ = Host.shared.panel // build the panel up-front so the first open is instant
+            if CommandLine.arguments.contains("--list-windows") {
+                for w in await WindowSwitcherExtension.scanAllSpaces() {
+                    print(w.onCurrentSpace ? "here " : "other", w.minimized ? "min" : "   ", w.appName, "—", w.title)
+                }
+                exit(0)
+            }
             if let path = argument("--snapshot") { await snapshot(to: path); return }
+            if CommandLine.arguments.contains("--settings") {
+                SettingsWindowController.shared.show(tab: argument("--tab").flatMap(SettingsTab.init(rawValue:)))
+                if let path = argument("--snapshot-settings") {
+                    if CommandLine.arguments.contains("--dark") { NSApp.appearance = NSAppearance(named: .darkAqua) }
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    SettingsWindowController.shared.snapshot(to: path)
+                    exit(0)
+                }
+                return
+            }
             if !CommandLine.arguments.contains("--background") { Host.shared.show() }
         }
     }
@@ -54,54 +70,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func open() { Host.shared.show() }
 
-    @objc private func settings() {
-        Host.shared.show()
-        Host.shared.model.openSettings()
-    }
+    @objc private func settings() { SettingsWindowController.shared.show() }
 
     @objc private func config() { NSWorkspace.shared.open(Paths.support) }
-}
-
-enum SettingsScreen {
-    @MainActor
-    static func make(host: Host) -> ListView {
-        ListView(title: "Settings", icon: .symbol("gearshape"), placeholder: "Search settings…") { q in
-            let perms = Permission.allCases.filter { $0 != .automation }.map { p -> Item in
-                let ok = Permissions.isGranted(p)
-                return Item(id: "perm-\(p.rawValue)", title: Permissions.title(p), subtitle: Permissions.reason(p),
-                            icon: .symbol(p == .accessibility ? "accessibility" : "rectangle.dashed.badge.record"),
-                            accessories: [ok ? .pill("Granted", .green) : .pill("Missing", .orange)],
-                            primary: Action(ok ? "Open System Settings" : "Grant Access") { Permissions.request(p); return .close })
-            }
-            let s = host.settings
-            let general = [
-                Item(id: "hotkey", title: "Open hotkey", subtitle: "\(Shortcut(string: s.hotkey)?.display ?? s.hotkey) · edit settings.json to change",
-                     icon: .symbol("keyboard"),
-                     primary: Action("Edit settings.json") { NSWorkspace.shared.open(Paths.settings); return .close },
-                     secondary: Action("Reload Settings") { host.registerHotkeys(); return .hud("Settings reloaded") }),
-                Item(id: "login", title: "Launch at login", subtitle: "Requires running the bundled .app",
-                     icon: .symbol("power"), accessories: [LoginItem.isEnabled ? .pill("On", .green) : .pill("Off", .gray)],
-                     primary: Action("Toggle") { try LoginItem.toggle(); return .stay }),
-                Item(id: "folder", title: "Open config folder", subtitle: Paths.support.path.replacingOccurrences(of: NSHomeDirectory(), with: "~"),
-                     icon: .symbol("folder"),
-                     primary: Action("Open in Finder") { NSWorkspace.shared.open(Paths.support); return .close }),
-                Item(id: "reload", title: "Reload extensions", subtitle: "\(host.extensions.count) loaded · external ones live in Extensions/",
-                     icon: .symbol("arrow.clockwise"),
-                     primary: Action("Reload") { await host.reload(); return .hud("Extensions reloaded") }),
-                Item(id: "quit", title: "Quit My Spotlight", icon: .symbol("xmark.circle"),
-                     primary: Action("Quit", destructive: true) { NSApp.terminate(nil); return .close }),
-            ]
-            let installed = host.extensions.map { ext in
-                Item(id: "ext-\(ext.manifest.id)", title: ext.manifest.title,
-                     subtitle: [ext.manifest.subtitle, "v\(ext.manifest.version)", ext is ExternalExtension ? "external" : "built-in"]
-                        .compactMap { $0 }.joined(separator: " · "),
-                     icon: ext.manifest.icon,
-                     primary: Action("Open") { [weak ext] in ext?.rootView().map { .push($0) } ?? .stay })
-            }
-            func filter(_ items: [Item]) -> [Item] { items.filter { Fuzzy.score(q.text, [$0.title, $0.subtitle ?? ""]) != nil } }
-            return [Section("Permissions", filter(perms)), Section("General", filter(general)), Section("Extensions", filter(installed))]
-        }
-    }
 }
 
 MainActor.assumeIsolated {

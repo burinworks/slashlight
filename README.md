@@ -37,7 +37,7 @@ The app is ad-hoc signed, so macOS may ask again for these after each rebuild.
 | Tab / ⇧Tab | Cycle filters (by section type, or the screen's own filters) |
 | ⌘1…⌘9 | Run the Nth result |
 | ⌘E | Back to the extension list |
-| ⌘, | Settings |
+| ⌘, | Settings window (also in the menu bar icon) |
 | ⌥Tab | Window switcher. Hold ⌥, tap Tab to move, release to switch |
 | ⌃⌥ ← → ↑ ↓ ↵ C ⌫, D F G E T, U I J K | Window layouts (halves, maximize, center, restore, thirds, quarters) |
 
@@ -51,9 +51,10 @@ The app is ad-hoc signed, so macOS may ask again for these after each rebuild.
 | Clipboard History (`/clipboard`) — in memory, gone after quit | Copy and move to top | Paste (⌘V) |
 | Snippets (`/snippets`) — on disk; `{clipboard}` `{date}` `{time}` | Copy | Paste |
 | Window Layout (`/windows`) | Apply to the focused window | — |
-| Switch Window (`/switch`, ⌥Tab) — thumbnail grid | Switch | Show all app windows |
+| Switch Window (`/switch`, ⌥Tab) — thumbnail grid, every Space and display | Switch | Show all app windows |
 | Terminal (`>` or `/terminal`) | Run inline | Open in Terminal.app |
 
+Settings (⌘,): hotkeys (click and press a new combination), theme, launch at login, turning extensions on and off, permissions.
 Config lives in `~/Library/Application Support/MySpotlight/`: `settings.json`, `commands/commands.json`, `snippets/`, `Extensions/`.
 
 ## Writing an extension
@@ -93,7 +94,8 @@ Sources/MySpotlight      The app: panel, keyboard handling, hotkeys, built-in ex
 Examples/HelloExtension  Out-of-process example
 ```
 
-Debug aid: `.build/debug/MySpotlight --snapshot out.png --query "saf" [--open apps] [--enter] [--dark]` renders the panel to a PNG and quits.
+Debug aids: `.build/debug/MySpotlight --snapshot out.png --query "saf" [--open apps] [--enter] [--dark]` renders the panel to a PNG and quits;
+`--settings --tab General --snapshot-settings out.png` does the same for the Settings window; `--list-windows` prints what the switcher finds on every Space.
 
 ## Known gaps
 

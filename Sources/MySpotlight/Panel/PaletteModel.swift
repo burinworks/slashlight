@@ -112,7 +112,8 @@ final class PaletteModel: ObservableObject {
     }
 
     func openSettings() {
-        push(SettingsScreen.make(host: host), extensionID: nil)
+        host.hide()
+        SettingsWindowController.shared.show()
     }
 
     private func setTextSilently(_ value: String) {
@@ -279,7 +280,7 @@ final class PaletteModel: ObservableObject {
         parts.append((nil, Section("My Spotlight", [
             Item(id: "settings", title: "Settings", subtitle: "Permissions, hotkeys, extensions folder",
                  icon: .symbol("gearshape"), accessories: [.keycap(Shortcut(",", .command))],
-                 primary: Action("Open Settings") { [unowned self] in .push(SettingsScreen.make(host: self.host)) }),
+                 primary: Action("Open Settings") { SettingsWindowController.shared.show(); return .close }),
         ])))
         return parts
     }

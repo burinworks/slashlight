@@ -7,6 +7,8 @@ final class Host {
     static let shared = Host()
 
     private(set) var extensions: [Extension] = []
+    /// Every extension, including turned-off ones (for the Settings window).
+    private(set) var allExtensions: [Extension] = []
     private(set) var settings = Settings.load()
     lazy var model = PaletteModel(host: self)
     lazy var panel = PanelController(model: model)
@@ -22,7 +24,10 @@ final class Host {
 
     func loadExtensions() async {
         for ext in extensions { await ext.deactivate() }
-        extensions = BuiltIns.all() + ExternalExtension.discover(in: Paths.extensions)
+        settings = Settings.load()
+        settings.applyAppearance()
+        allExtensions = BuiltIns.all() + ExternalExtension.discover(in: Paths.extensions)
+        extensions = allExtensions.filter { !settings.disabledExtensions.contains($0.manifest.id) }
         for ext in extensions {
             await ext.start(context: HostContext(id: ext.manifest.id, host: self))
         }
@@ -40,6 +45,17 @@ final class Host {
                 HotKeyCenter.shared.register(hk.shortcut) { hk.run() }
             }
         }
+    }
+
+    /// Saves settings from the Settings window and applies what changed.
+    func update(_ change: (inout Settings) -> Void) {
+        var s = Settings.load()
+        change(&s)
+        let extensionsChanged = s.disabledExtensions != settings.disabledExtensions
+        s.save()
+        settings = s
+        s.applyAppearance()
+        if extensionsChanged { Task { await reload() } } else { registerHotkeys() }
     }
 
     func reload() async {

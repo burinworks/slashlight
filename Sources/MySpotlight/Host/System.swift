@@ -59,20 +59,50 @@ enum Permissions {
 }
 
 /// `~/Library/Application Support/MySpotlight/settings.json`
-struct Settings: Codable {
+struct Settings: Codable, Equatable {
     var hotkey: String = "opt+space"
     var windowSwitcherHotkey: String = "opt+tab"
     var windowManagementHotkeys: Bool = true
+    /// "system" | "light" | "dark"
+    var appearance: String = "system"
+    /// Manifest ids of extensions that are turned off.
+    var disabledExtensions: [String] = []
+
+    init() {}
+
+    // Missing keys keep their defaults, so older settings files still load.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = Settings()
+        hotkey = try c.decodeIfPresent(String.self, forKey: .hotkey) ?? d.hotkey
+        windowSwitcherHotkey = try c.decodeIfPresent(String.self, forKey: .windowSwitcherHotkey) ?? d.windowSwitcherHotkey
+        windowManagementHotkeys = try c.decodeIfPresent(Bool.self, forKey: .windowManagementHotkeys) ?? d.windowManagementHotkeys
+        appearance = try c.decodeIfPresent(String.self, forKey: .appearance) ?? d.appearance
+        disabledExtensions = try c.decodeIfPresent([String].self, forKey: .disabledExtensions) ?? d.disabledExtensions
+    }
 
     static func load() -> Settings {
         if let data = try? Data(contentsOf: Paths.settings), let s = try? JSONDecoder().decode(Settings.self, from: data) {
             return s
         }
         let s = Settings()
+        s.save()
+        return s
+    }
+
+    func save() {
         let enc = JSONEncoder()
         enc.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try? enc.encode(s).write(to: Paths.settings)
-        return s
+        try? enc.encode(self).write(to: Paths.settings)
+    }
+
+    @MainActor
+    func applyAppearance() {
+        switch appearance {
+        case "light": NSApp.appearance = NSAppearance(named: .aqua)
+        case "dark": NSApp.appearance = NSAppearance(named: .darkAqua)
+        default: NSApp.appearance = nil
+        }
     }
 }
 
