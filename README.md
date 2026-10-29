@@ -6,21 +6,23 @@ Every capability is an **extension** built on one public `Extension` class, the 
 ## Run it
 
 ```bash
+scripts/dev-signing-identity.sh   # once: a local signing identity so permissions survive rebuilds
 scripts/build-app.sh --install-example
 open "build/Slashlight.app"
 ```
 
 Press **⌥Space** to open. The app lives in the menu bar (no Dock icon).
 Grant **Accessibility** (window layout, auto-paste) and **Screen Recording** (window thumbnails) when asked, or from Settings (⌘,).
-The app is ad-hoc signed, so macOS may ask again for these after each rebuild.
+Without `scripts/dev-signing-identity.sh` the app is ad-hoc signed and macOS forgets these grants on every rebuild
+(symptoms: no window thumbnails, the window switcher only sees the current Space).
 
 ## What you can type
 
 | Input | What happens |
 |---|---|
-| `claude` | Apps and files (default search) |
+| `claude` | Apps, files, and any extension or command whose name matches (`switch window`, `left half`) |
 | `/` | Command mode: your `/commands`, every extension (`/clipboard`, `/snippets`…), window layouts (`/left-half`) |
-| `> git status` | Runs the shell command, output streams inline |
+| `> npm run dev` | Opens a terminal tab inside Slashlight and runs it there |
 | empty bar | List of all extensions (also in the dropdown at the top right) |
 
 ## Keys
@@ -49,13 +51,28 @@ The app is ad-hoc signed, so macOS may ask again for these after each rebuild.
 | Files (`/files`) — Spotlight index, home folder | Open | Show in Finder |
 | Commands (`/commands`) — `commands.json`: shell, url, shortcut, http, applescript | Run | Copy definition |
 | Clipboard History (`/clipboard`) — in memory, gone after quit | Copy and move to top | Paste (⌘V) |
-| Snippets (`/snippets`) — on disk; `{clipboard}` `{date}` `{time}` | Copy | Paste |
+| Snippets (`/snippets`) — on disk, multi-line editor (⌘↵ saves); `{clipboard}` `{date}` `{time}` | Copy | Paste |
 | Window Layout (`/windows`) | Apply to the focused window | — |
 | Switch Window (`/switch`, ⌥Tab) — thumbnail grid, every Space and display | Switch | Show all app windows |
-| Terminal (`>` or `/terminal`) | Run inline | Open in Terminal.app |
+| Terminal (`>` or `/terminal`) — real terminal tabs that keep running in the background | Run in a new tab | Open in Terminal.app |
 
 Settings (⌘,): hotkeys (click and press a new combination), theme, launch at login, turning extensions on and off, permissions.
 Config lives in `~/Library/Application Support/Slashlight/`: `settings.json`, `commands/commands.json`, `snippets/`, `Extensions/`.
+
+## Terminal tabs
+
+`> command` + ↵ opens a real terminal (your login shell, colors, vim, top all work) inside the panel and runs the command.
+Tabs keep running when you go back to search or close the panel. Open tabs show as a strip at the bottom of the panel:
+green dot = a task is running (with its run time), grey = idle at the prompt, red = exited with an error.
+A task that runs longer than 3 s shows a toast when it finishes while you are elsewhere.
+
+| Key (in a terminal tab) | Action |
+|---|---|
+| ⌘⌫ or ⌘[ | Back to search, tab keeps running |
+| Esc | Closes the panel at an idle prompt; goes to the program while one runs (vim, less) |
+| ⌘T / ⌘W | New tab / close tab |
+| ⌃⇥, ⌃⇧⇥, ⌘1…⌘9 | Switch tabs (⌃⇥ from search jumps back to the last tab) |
+| ⌘C ⌘V ⌘K ⌘+ ⌘− | Copy, paste, clear, font size |
 
 ## Writing an extension
 
@@ -80,7 +97,7 @@ final class Hello: Extension {
 ExtensionRunner.run { Hello() }
 ```
 
-Third-party extensions run as **separate processes** speaking JSON lines over stdin/stdout, so a crash cannot take the launcher down. `SlashlightSDK` wraps that protocol for Swift; any language can implement it directly — see [docs/extension-protocol.md](docs/extension-protocol.md).
+Third-party extensions run as **separate processes** speaking JSON lines over stdin/stdout, and can open their own sub-screens (lists, grids, live text) like built-ins, so a crash cannot take the launcher down. `SlashlightSDK` wraps that protocol for Swift; any language can implement it directly — see [docs/extension-protocol.md](docs/extension-protocol.md).
 Install: put the binary and a `manifest.json` in `~/Library/Application Support/Slashlight/Extensions/<name>/` and choose Settings → Reload extensions. [Examples/HelloExtension](Examples/HelloExtension) is a complete one.
 
 Built-ins subclass the same `Extension` class but run in-process for speed.
@@ -99,6 +116,5 @@ Debug aids: `.build/debug/Slashlight --snapshot out.png --query "saf" [--open ap
 
 ## Known gaps
 
-- Terminal: stdin is `/dev/null`, so interactive commands get EOF. Long-running ones stream and can be stopped.
-- Snippet text is single-line when typed in the bar; for multi-line, copy it first and choose "Save clipboard contents".
-- Protocol v1 has no `push` (sub-screens) for external extensions.
+- Terminal tabs do not survive quitting Slashlight.
+- External extensions cannot declare global hotkeys or permissions yet (see docs/extension-protocol.md).

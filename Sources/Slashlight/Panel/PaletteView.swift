@@ -148,7 +148,7 @@ struct PaletteView: View {
                 if model.isGrid {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: model.gridColumns), spacing: 8) {
                         ForEach(section.rows) { row in
-                            GridTile(row: row, selected: row.index == model.selection)
+                            GridTile(row: row, selected: row.index == model.selection, compact: model.gridColumns >= 6)
                                 .id(row.id)
                                 .onHover { if $0 { model.hover(row.index) } }
                                 .onTapGesture { model.click(row.index) }

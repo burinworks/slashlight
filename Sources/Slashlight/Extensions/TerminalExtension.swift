@@ -131,6 +131,9 @@ final class TerminalManager: ObservableObject {
 
     private func poll() {
         let visible = Host.shared.isVisible ? EmbeddedScreen.of(Host.shared.model.currentView).flatMap { s in sessions.first { $0.embedded === s } } : nil
+        // Tabs and footer hints show each tab's state; redraw them when any tab changes.
+        let before = sessions.map(\.state)
+        defer { if sessions.map(\.state) != before { objectWillChange.send() } }
         for s in sessions {
             if let finished = s.poll(), s !== visible {
                 Host.shared.showHUD("✓ \(finished) finished in “\(s.title)”")

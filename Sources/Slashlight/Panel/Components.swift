@@ -112,27 +112,31 @@ struct ResultRow: View {
 struct GridTile: View {
     let row: PaletteModel.Row
     let selected: Bool
+    /// Many columns (emoji): small square tiles with a large glyph and no subtitle.
+    var compact = false
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: compact ? 3 : 6) {
             ZStack {
                 RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Theme.tile)
                 switch row.item.icon {
                 case .image(let img):
                     Image(nsImage: img).resizable().aspectRatio(contentMode: .fit).padding(4)
+                case .text(let glyph):
+                    Text(glyph).font(.system(size: compact ? 30 : 48))
                 default:
-                    IconView(icon: row.item.icon, size: 56)
+                    IconView(icon: row.item.icon, size: compact ? 30 : 56)
                 }
             }
-            .frame(height: 118)
+            .frame(height: compact ? 54 : 118)
             .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .stroke(selected ? Color.accentColor : .clear, lineWidth: 2))
-            Text(row.item.title).font(.system(size: 12)).foregroundStyle(Theme.text).lineLimit(1)
-            if let sub = row.item.subtitle {
+            Text(row.item.title).font(.system(size: compact ? 10 : 12)).foregroundStyle(compact ? Theme.secondary : Theme.text).lineLimit(1)
+            if !compact, let sub = row.item.subtitle {
                 Text(sub).font(.system(size: 11)).foregroundStyle(Theme.secondary).lineLimit(1)
             }
         }
-        .padding(6)
+        .padding(compact ? 3 : 6)
         .background(selected ? Theme.selection : .clear, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .contentShape(Rectangle())
     }
