@@ -179,28 +179,68 @@ final class PaletteModel: ObservableObject {
             }
         }
 
-        stream(providers: host.extensions.filter { $0.triggers.contains(.defaultSearch) },
-               query: Query(text: text, mode: .default), gen: gen, keep: keep)
+        // Plain typing: quick answers and apps first, then extensions and commands whose name matches
+        // ("switch window", "left half"), then files and the web fallback.
+        let late: Set<String> = ["files", "web-search"]
+        let defaults = host.extensions.filter { $0.triggers.contains(.defaultSearch) }
+        let query = Query(text: text, mode: .default)
+        let commandQuery = Query(text: text, mode: .command)
+        let commandProviders = host.extensions.filter { $0.triggers.contains(.commands) && !$0.triggers.contains(.defaultSearch) }
+        let entries: [(String?, Section)] = host.extensions
+            .compactMap { ext -> (Int, Extension)? in
+                guard ext.rootView() != nil,
+                      let score = Fuzzy.score(text, [commandName(ext) ?? "", ext.manifest.title]), score >= Self.nameMatch else { return nil }
+                return (score, ext)
+            }
+            .sorted { $0.0 > $1.0 }
+            .map { (_, ext) in (ext.manifest.id, Section("Extensions", [entryItem(ext)])) }
+        stream(defaults.filter { !late.contains($0.manifest.id) }.map { Job(ext: $0, query: query) },
+               fixed: entries,
+               after: (text.count >= 2 ? commandProviders.map { Job(ext: $0, query: commandQuery, nameMatchesOnly: 3) } : [])
+                   + defaults.filter { late.contains($0.manifest.id) }.map { Job(ext: $0, query: query) },
+               gen: gen, keep: keep)
     }
 
-    /// Runs providers concurrently; results appear as each finishes, in provider order.
+    /// A name counts as matching typed text in the root search only when it contains it, not by subsequence.
+    private static let nameMatch = 400
+
+    private struct Job {
+        let ext: Extension
+        let query: Query
+        /// When set, keep only items whose title contains the query, at most this many.
+        var nameMatchesOnly: Int?
+    }
+
     private func stream(providers: [Extension], query: Query, fixedAfter: [(String?, Section)] = [],
                         more: [Extension] = [], gen: Int, keep: Int) {
-        let all = providers + more
+        stream(providers.map { Job(ext: $0, query: query) }, fixed: fixedAfter,
+               after: more.map { Job(ext: $0, query: query) }, gen: gen, keep: keep)
+    }
+
+    /// Runs jobs concurrently; results appear as each finishes, in job order with `fixed` in between.
+    private func stream(_ before: [Job], fixed: [(String?, Section)], after: [Job], gen: Int, keep: Int) {
+        let all = before + after
         var parts = [[(String?, Section)]?](repeating: nil, count: all.count)
         let assemble = { () -> [(String?, Section)] in
-            let head = parts.prefix(providers.count).compactMap { $0 }.flatMap { $0 }
-            let tail = parts.suffix(more.count).compactMap { $0 }.flatMap { $0 }
-            return head + fixedAfter + tail
+            let head = parts.prefix(before.count).compactMap { $0 }.flatMap { $0 }
+            let tail = parts.suffix(after.count).compactMap { $0 }.flatMap { $0 }
+            return head + fixed + tail
         }
-        publish(fixedAfter, selecting: keep)
+        publish(fixed, selecting: keep)
         isLoading = !all.isEmpty
         var remaining = all.count
-        for (i, ext) in all.enumerated() {
+        for (i, job) in all.enumerated() {
             tasks.append(Task {
-                let results = (try? await ext.search(query)) ?? []
+                var results = (try? await job.ext.search(job.query)) ?? []
                 guard gen == self.generation, !Task.isCancelled else { return }
-                parts[i] = results.map { (ext.manifest.id, $0) }
+                if let limit = job.nameMatchesOnly {
+                    results = results.map { section in
+                        var s = section
+                        s.items = Array(section.items.filter { (Fuzzy.score(job.query.text, $0.title) ?? 0) >= Self.nameMatch }.prefix(limit))
+                        return s
+                    }
+                }
+                parts[i] = results.map { (job.ext.manifest.id, $0) }
                 remaining -= 1
                 self.isLoading = remaining > 0
                 self.publish(assemble(), selecting: keep)

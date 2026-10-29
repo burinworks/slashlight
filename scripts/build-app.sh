@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds build/Slashlight.app (release, ad-hoc signed) and the example extension.
+# Builds build/Slashlight.app (release) and the example extension.
 # Usage: scripts/build-app.sh [--install-example]
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -32,7 +32,13 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-codesign --force --deep --sign - "$APP"
+# A stable identity keeps macOS permission grants across rebuilds; see scripts/dev-signing-identity.sh.
+if security find-identity -p codesigning 2>/dev/null | grep -q '"Slashlight Dev"'; then
+  codesign --force --deep --sign "Slashlight Dev" "$APP"
+else
+  codesign --force --deep --sign - "$APP"
+  echo "Note: ad-hoc signed. Run scripts/dev-signing-identity.sh once so permissions survive rebuilds."
+fi
 echo "Built $APP"
 
 if [[ "${1:-}" == "--install-example" ]]; then

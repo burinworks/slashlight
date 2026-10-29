@@ -16,6 +16,8 @@ final class WindowSwitcherExtension: Extension {
         var ax: AXUIElement? = nil
         var onCurrentSpace = true
         var minimized = false
+        /// The whole app is hidden (⌘H).
+        var appHidden = false
     }
 
     private var thumbnails: [CGWindowID: NSImage] = [:]
@@ -77,8 +79,8 @@ final class WindowSwitcherExtension: Extension {
             guard let self else { return }
             self.scanning = false
             self.scannedAt = Date()
-            let changed = fresh.map { "\($0.id)|\($0.title)|\($0.minimized)|\($0.onCurrentSpace)" }
-                != self.cached.map { "\($0.id)|\($0.title)|\($0.minimized)|\($0.onCurrentSpace)" }
+            let key = { (w: WindowInfo) in "\(w.id)|\(w.title)|\(w.minimized)|\(w.onCurrentSpace)|\(w.appHidden)" }
+            let changed = fresh.map(key) != self.cached.map(key)
             self.cached = fresh
             if changed { self.context.refresh() }
         }
@@ -88,7 +90,9 @@ final class WindowSwitcherExtension: Extension {
         let app = NSRunningApplication(processIdentifier: w.pid)
         let icon: Icon = thumbnails[w.id].map { .image($0) } ?? app?.bundleURL.map { .file($0.path) } ?? .symbol("macwindow")
         var accessories: [Accessory] = []
-        if w.minimized { accessories.append(.pill("Minimized", .gray)) } else if !w.onCurrentSpace { accessories.append(.pill("Other Space", .blue)) }
+        if w.appHidden { accessories.append(.pill("Hidden", .gray)) }
+        else if w.minimized { accessories.append(.pill("Minimized", .gray)) }
+        else if !w.onCurrentSpace { accessories.append(.pill("Other Space", .blue)) }
         return Item(
             id: "\(w.id)", title: w.title.isEmpty ? w.appName : w.title, subtitle: w.title.isEmpty ? nil : w.appName, icon: icon,
             accessories: accessories,
@@ -156,7 +160,7 @@ final class WindowSwitcherExtension: Extension {
         let me = ProcessInfo.processInfo.processIdentifier
         let apps = NSWorkspace.shared.runningApplications
             .filter { $0.activationPolicy == .regular && $0.processIdentifier != me && !$0.isTerminated }
-            .map { (pid: $0.processIdentifier, name: $0.localizedName ?? "App") }
+            .map { (pid: $0.processIdentifier, name: $0.localizedName ?? "App", hidden: $0.isHidden) }
         return await withCheckedContinuation { cont in
             DispatchQueue.global(qos: .userInitiated).async {
                 let all = cgWindows(onScreenOnly: false)
@@ -176,7 +180,7 @@ final class WindowSwitcherExtension: Extension {
                         // Untitled windows that are neither visible nor minimized are hidden helpers, not user windows.
                         if title.isEmpty && !onScreen && !minimized { return nil }
                         return WindowInfo(id: id, pid: app.pid, appName: app.name, title: title, bounds: bounds(d), ax: ax,
-                                          onCurrentSpace: onScreen, minimized: minimized)
+                                          onCurrentSpace: onScreen, minimized: minimized, appHidden: app.hidden)
                     }
                     lock.lock(); found += windows; lock.unlock()
                 }
@@ -194,11 +198,13 @@ final class WindowSwitcherExtension: Extension {
     }
 
     static func focus(_ w: WindowInfo) {
+        let app = NSRunningApplication(processIdentifier: w.pid)
+        if w.appHidden { app?.unhide() }
         let ax = axWindow(for: w)
         if let ax, w.minimized { AXUIElementSetAttributeValue(ax, kAXMinimizedAttribute as CFString, kCFBooleanFalse) }
         // Raise first: activating then switches to the Space that holds the now-main window.
         if let ax { AX.raise(ax) }
-        NSRunningApplication(processIdentifier: w.pid)?.activate()
+        app?.activate()
         if let ax { DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { AX.raise(ax) } }
     }
 
