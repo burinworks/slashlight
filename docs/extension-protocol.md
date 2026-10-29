@@ -2,11 +2,11 @@
 
 An external extension is a process the host starts on first use. Messages are single-line JSON objects, one per line:
 host → extension on **stdin**, extension → host on **stdout**. Write logs to **stderr** only.
-The Swift types are in `Sources/SpotlightKit/WireProtocol.swift`; `SpotlightSDK` implements the extension side.
+The Swift types are in `Sources/SlashlightKit/WireProtocol.swift`; `SlashlightSDK` implements the extension side.
 
 ## Install
 
-`~/Library/Application Support/MySpotlight/Extensions/<folder>/manifest.json`:
+`~/Library/Application Support/Slashlight/Extensions/<folder>/manifest.json`:
 
 ```json
 {
@@ -31,7 +31,7 @@ The Swift types are in `Sources/SpotlightKit/WireProtocol.swift`; `SpotlightSDK`
 ## Host → extension
 
 ```json
-{"type":"search","id":2,"query":"alex","mode":"command","filter":null,"supportDirectory":"/Users/…/MySpotlight/hello"}
+{"type":"search","id":2,"query":"alex","mode":"command","filter":null,"supportDirectory":"/Users/…/Slashlight/hello"}
 {"type":"run","id":3,"itemId":"greet","actionId":"say-hello"}
 {"type":"shutdown","id":4}
 ```

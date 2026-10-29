@@ -1,6 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
-import SpotlightKit
+import SlashlightKit
 
 /// System-wide hotkeys via Carbon `RegisterEventHotKey` (no Accessibility permission needed).
 @MainActor
@@ -15,7 +15,7 @@ final class HotKeyCenter {
     @discardableResult
     func register(_ shortcut: Shortcut, handler: @escaping () -> Void) -> Bool {
         guard let code = KeyCodes.code(for: shortcut.key) else {
-            NSLog("MySpotlight: unknown hotkey key \(shortcut.key)")
+            NSLog("Slashlight: unknown hotkey key \(shortcut.key)")
             return false
         }
         installIfNeeded()
@@ -31,7 +31,7 @@ final class HotKeyCenter {
         let status = RegisterEventHotKey(UInt32(code), mods, EventHotKeyID(signature: OSType(0x4D595350), id: id),
                                          GetApplicationEventTarget(), 0, &ref)
         guard status == noErr, let ref else {
-            NSLog("MySpotlight: could not register hotkey \(shortcut.display) (\(status))")
+            NSLog("Slashlight: could not register hotkey \(shortcut.display) (\(status))")
             return false
         }
         refs.append(ref)

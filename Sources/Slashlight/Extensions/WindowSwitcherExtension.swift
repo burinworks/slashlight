@@ -1,6 +1,6 @@
 import AppKit
 import ScreenCaptureKit
-import SpotlightKit
+import SlashlightKit
 
 /// ⌘Tab alternative with live thumbnails. ⌥⇥ opens it; keep ⌥ held and press ⇥ to move, release to switch.
 /// ⌘Tab alternative with live thumbnails. ⌥⇥ opens it; keep ⌥ held and press ⇥ to move, release to switch.

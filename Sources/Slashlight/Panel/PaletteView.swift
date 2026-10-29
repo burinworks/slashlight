@@ -1,6 +1,6 @@
 import AppKit
 import SwiftUI
-import SpotlightKit
+import SlashlightKit
 
 struct PaletteView: View {
     @ObservedObject var model: PaletteModel

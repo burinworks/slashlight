@@ -1,6 +1,6 @@
 import AppKit
 import SwiftUI
-import SpotlightKit
+import SlashlightKit
 
 /// Design tokens from the visual-design note. Every color has a light and a dark value.
 enum Theme {

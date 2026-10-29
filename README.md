@@ -1,13 +1,13 @@
-# My Spotlight
+# Slashlight
 
-Open-source, keyboard-first Spotlight replacement for macOS. Native Swift (AppKit + SwiftUI), macOS 14+.
+Open-source, keyboard-first Spotlight replacement (and Raycast alternative) for macOS. Native Swift (AppKit + SwiftUI), macOS 14+.
 Every capability is an **extension** built on one public `Extension` class, the built-ins included.
 
 ## Run it
 
 ```bash
 scripts/build-app.sh --install-example
-open "build/My Spotlight.app"
+open "build/Slashlight.app"
 ```
 
 Press **⌥Space** to open. The app lives in the menu bar (no Dock icon).
@@ -55,14 +55,14 @@ The app is ad-hoc signed, so macOS may ask again for these after each rebuild.
 | Terminal (`>` or `/terminal`) | Run inline | Open in Terminal.app |
 
 Settings (⌘,): hotkeys (click and press a new combination), theme, launch at login, turning extensions on and off, permissions.
-Config lives in `~/Library/Application Support/MySpotlight/`: `settings.json`, `commands/commands.json`, `snippets/`, `Extensions/`.
+Config lives in `~/Library/Application Support/Slashlight/`: `settings.json`, `commands/commands.json`, `snippets/`, `Extensions/`.
 
 ## Writing an extension
 
-Subclass `Extension` from `SpotlightKit`. Return sections of items; each item's first action is ↵, the second ⌘↵, the rest live under ⌘K.
+Subclass `Extension` from `SlashlightKit`. Return sections of items; each item's first action is ↵, the second ⌘↵, the rest live under ⌘K.
 
 ```swift
-import SpotlightSDK
+import SlashlightSDK
 
 final class Hello: Extension {
     override var manifest: Manifest { Manifest(id: "hello", title: "Hello", icon: .symbol("hand.wave")) }
@@ -80,21 +80,21 @@ final class Hello: Extension {
 ExtensionRunner.run { Hello() }
 ```
 
-Third-party extensions run as **separate processes** speaking JSON lines over stdin/stdout, so a crash cannot take the launcher down. `SpotlightSDK` wraps that protocol for Swift; any language can implement it directly — see [docs/extension-protocol.md](docs/extension-protocol.md).
-Install: put the binary and a `manifest.json` in `~/Library/Application Support/MySpotlight/Extensions/<name>/` and choose Settings → Reload extensions. [Examples/HelloExtension](Examples/HelloExtension) is a complete one.
+Third-party extensions run as **separate processes** speaking JSON lines over stdin/stdout, so a crash cannot take the launcher down. `SlashlightSDK` wraps that protocol for Swift; any language can implement it directly — see [docs/extension-protocol.md](docs/extension-protocol.md).
+Install: put the binary and a `manifest.json` in `~/Library/Application Support/Slashlight/Extensions/<name>/` and choose Settings → Reload extensions. [Examples/HelloExtension](Examples/HelloExtension) is a complete one.
 
 Built-ins subclass the same `Extension` class but run in-process for speed.
 
 ## Layout
 
 ```
-Sources/SpotlightKit     Public API: Extension, Item, Action, Outcome, ListView, Wire protocol types
-Sources/SpotlightSDK     ExtensionRunner — runs an Extension as a JSON-over-stdio process
-Sources/MySpotlight      The app: panel, keyboard handling, hotkeys, built-in extensions
+Sources/SlashlightKit     Public API: Extension, Item, Action, Outcome, ListView, Wire protocol types
+Sources/SlashlightSDK     ExtensionRunner — runs an Extension as a JSON-over-stdio process
+Sources/Slashlight      The app: panel, keyboard handling, hotkeys, built-in extensions
 Examples/HelloExtension  Out-of-process example
 ```
 
-Debug aids: `.build/debug/MySpotlight --snapshot out.png --query "saf" [--open apps] [--enter] [--dark]` renders the panel to a PNG and quits;
+Debug aids: `.build/debug/Slashlight --snapshot out.png --query "saf" [--open apps] [--enter] [--dark]` renders the panel to a PNG and quits;
 `--settings --tab General --snapshot-settings out.png` does the same for the Settings window; `--list-windows` prints what the switcher finds on every Space.
 
 ## Known gaps

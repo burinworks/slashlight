@@ -1,5 +1,5 @@
 import AppKit
-import SpotlightKit
+import SlashlightKit
 
 /// Owns the extensions, the panel and the HUD. Everything UI-facing goes through here.
 @MainActor

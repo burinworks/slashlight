@@ -1,6 +1,6 @@
 import AppKit
 import SwiftUI
-import SpotlightKit
+import SlashlightKit
 
 struct Keycap: View {
     let label: String

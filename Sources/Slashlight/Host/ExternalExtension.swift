@@ -1,9 +1,9 @@
 import AppKit
-import SpotlightKit
+import SlashlightKit
 
 /// Adapter for an extension that runs as its own process and speaks `Wire` JSON over stdin/stdout.
 ///
-/// Installed as `~/Library/Application Support/MySpotlight/Extensions/<name>/manifest.json`:
+/// Installed as `~/Library/Application Support/Slashlight/Extensions/<name>/manifest.json`:
 /// ```json
 /// { "id": "hello", "title": "Hello", "icon": "sf:hand.wave",
 ///   "triggers": ["commands", "command:hello"], "exec": ["./hello-extension"] }
@@ -46,7 +46,7 @@ final class ExternalExtension: Extension {
             do {
                 return ExternalExtension(file: try JSONDecoder().decode(FileManifest.self, from: data), directory: dir)
             } catch {
-                NSLog("MySpotlight: bad manifest in \(dir.path): \(error)")
+                NSLog("Slashlight: bad manifest in \(dir.path): \(error)")
                 return nil
             }
         }
@@ -163,7 +163,7 @@ final class ExternalExtension: Extension {
             let line = buffer[buffer.startIndex..<nl]
             buffer.removeSubrange(buffer.startIndex...nl)
             guard let msg = try? JSONDecoder().decode(Wire.Message.self, from: line) else {
-                NSLog("MySpotlight: [\(file.id)] bad message: \(String(decoding: line, as: UTF8.self))")
+                NSLog("Slashlight: [\(file.id)] bad message: \(String(decoding: line, as: UTF8.self))")
                 continue
             }
             if let id = msg.id, let cont = pending.removeValue(forKey: id) {

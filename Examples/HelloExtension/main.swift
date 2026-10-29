@@ -1,6 +1,6 @@
-import SpotlightSDK
+import SlashlightSDK
 
-/// A complete out-of-process extension: type `/hello` or `/hello Alex` in My Spotlight.
+/// A complete out-of-process extension: type `/hello` or `/hello Alex` in Slashlight.
 final class HelloExtension: Extension {
     override var manifest: Manifest {
         Manifest(id: "hello", title: "Hello", subtitle: "Example out-of-process extension", icon: .symbol("hand.wave"))

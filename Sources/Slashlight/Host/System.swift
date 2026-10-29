@@ -1,12 +1,17 @@
 import AppKit
 import ApplicationServices
 import ServiceManagement
-import SpotlightKit
+import SlashlightKit
 
 enum Paths {
     static let support: URL = {
-        let url = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("MySpotlight", isDirectory: true)
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        let url = base.appendingPathComponent("Slashlight", isDirectory: true)
+        // The app was called My Spotlight before; carry its settings, commands and snippets over once.
+        let old = base.appendingPathComponent("MySpotlight", isDirectory: true)
+        if !FileManager.default.fileExists(atPath: url.path), FileManager.default.fileExists(atPath: old.path) {
+            try? FileManager.default.moveItem(at: old, to: url)
+        }
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
     }()
@@ -58,7 +63,7 @@ enum Permissions {
     }
 }
 
-/// `~/Library/Application Support/MySpotlight/settings.json`
+/// `~/Library/Application Support/Slashlight/settings.json`
 struct Settings: Codable, Equatable {
     var hotkey: String = "opt+space"
     var windowSwitcherHotkey: String = "opt+tab"
@@ -145,7 +150,7 @@ enum Shell {
         """
         var error: NSDictionary?
         NSAppleScript(source: source)?.executeAndReturnError(&error)
-        if let error { NSLog("MySpotlight: Terminal AppleScript failed: \(error)") }
+        if let error { NSLog("Slashlight: Terminal AppleScript failed: \(error)") }
     }
 }
 

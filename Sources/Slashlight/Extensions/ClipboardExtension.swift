@@ -1,5 +1,5 @@
 import AppKit
-import SpotlightKit
+import SlashlightKit
 
 /// Text clipboard history, kept in memory only (lost on quit, by design).
 /// ↵ copies the entry and moves it to the top; ⌘↵ pastes it into the frontmost app.

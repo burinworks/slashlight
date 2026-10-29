@@ -1,5 +1,5 @@
 import AppKit
-import SpotlightKit
+import SlashlightKit
 
 /// Named text you can paste anywhere. Stored on disk, so it survives restarts.
 /// Placeholders expanded on use: {clipboard}, {date}, {time}.

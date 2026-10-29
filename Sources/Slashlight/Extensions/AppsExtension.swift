@@ -1,5 +1,5 @@
 import AppKit
-import SpotlightKit
+import SlashlightKit
 
 /// App search (part of default search) and the All Apps list sorted by recently opened / recently added.
 final class AppsExtension: Extension {
@@ -13,7 +13,7 @@ final class AppsExtension: Extension {
 
     private var apps: [App] = []
     private var indexedAt = Date.distantPast
-    /// Launches made through My Spotlight, which macOS may not have reflected in Spotlight metadata yet.
+    /// Launches made through Slashlight, which macOS may not have reflected in Spotlight metadata yet.
     private var launches: [String: Date] = [:]
 
     override var manifest: Manifest {

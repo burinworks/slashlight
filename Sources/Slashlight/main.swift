@@ -1,5 +1,5 @@
 import AppKit
-import SpotlightKit
+import SlashlightKit
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -38,7 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return args[i + 1]
     }
 
-    /// Debug aid: `MySpotlight --snapshot out.png [--query text] [--open ext-id] [--enter] [--dark]` renders the panel and quits.
+    /// Debug aid: `Slashlight --snapshot out.png [--query text] [--open ext-id] [--enter] [--dark]` renders the panel and quits.
     private func snapshot(to path: String) async {
         if CommandLine.arguments.contains("--dark") { NSApp.appearance = NSAppearance(named: .darkAqua) }
         let host = Host.shared
@@ -57,13 +57,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setUpStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        item.button?.image = NSImage(systemSymbolName: "sparkle.magnifyingglass", accessibilityDescription: "My Spotlight")
+        item.button?.image = NSImage(systemSymbolName: "sparkle.magnifyingglass", accessibilityDescription: "Slashlight")
         let menu = NSMenu()
-        menu.addItem(withTitle: "Open My Spotlight", action: #selector(open), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "Open Slashlight", action: #selector(open), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Settings…", action: #selector(settings), keyEquivalent: ",").target = self
         menu.addItem(withTitle: "Open Config Folder", action: #selector(config), keyEquivalent: "").target = self
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Quit My Spotlight", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(withTitle: "Quit Slashlight", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         item.menu = menu
         statusItem = item
     }

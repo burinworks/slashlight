@@ -4,7 +4,7 @@
   "subtitle": "Example out-of-process extension",
   "icon": "sf:hand.wave",
   "version": "1.0",
-  "author": "My Spotlight",
+  "author": "Slashlight",
   "triggers": ["commands", "command:hello"],
   "exec": ["./hello-extension"]
 }

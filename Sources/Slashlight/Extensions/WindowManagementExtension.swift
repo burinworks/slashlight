@@ -1,6 +1,6 @@
 import AppKit
 import ApplicationServices
-import SpotlightKit
+import SlashlightKit
 
 /// Moves and resizes the focused window of the frontmost app (Accessibility API).
 /// Works from the panel (`/left-half`, or the Window Layout screen) and via ⌃⌥ global hotkeys.

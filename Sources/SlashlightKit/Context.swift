@@ -7,7 +7,7 @@ public protocol ExtensionContext: AnyObject {
     /// `.persistent` survives restarts (snippets).
     func storage(_ kind: StorageKind) -> KeyValueStorage
 
-    /// `~/Library/Application Support/MySpotlight/<extension id>/`, created on demand.
+    /// `~/Library/Application Support/Slashlight/<extension id>/`, created on demand.
     var supportDirectory: URL { get }
 
     /// The app that was in front before the panel opened — the target for window and paste actions.

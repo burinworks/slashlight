@@ -1,7 +1,7 @@
 import AppKit
-@_exported import SpotlightKit
+@_exported import SlashlightKit
 
-/// Runs a `SpotlightKit.Extension` as a separate process: reads JSON requests from stdin,
+/// Runs a `SlashlightKit.Extension` as a separate process: reads JSON requests from stdin,
 /// writes JSON replies to stdout (one object per line). Log with `ExtensionRunner.log`, never `print`.
 ///
 /// ```swift

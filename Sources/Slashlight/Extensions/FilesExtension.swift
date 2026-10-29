@@ -1,5 +1,5 @@
 import AppKit
-import SpotlightKit
+import SlashlightKit
 
 /// File search through the Spotlight index (`NSMetadataQuery`), part of default search.
 final class FilesExtension: Extension {

@@ -1,5 +1,5 @@
 import AppKit
-import SpotlightKit
+import SlashlightKit
 import SwiftUI
 
 /// The Settings window (⌘, in the panel, or the menu bar icon → Settings…).
@@ -17,7 +17,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         if window == nil {
             let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 620, height: 520),
                              styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
-            w.title = "My Spotlight Settings"
+            w.title = "Slashlight Settings"
             w.isReleasedWhenClosed = false
             w.delegate = self
             let model = SettingsModel(host: Host.shared)
@@ -170,7 +170,7 @@ private struct GeneralSettings: View {
     var body: some View {
         Form {
             Section("Hotkeys") {
-                LabeledContent("Open My Spotlight") { HotkeyRecorder(value: model.binding(\.hotkey)) }
+                LabeledContent("Open Slashlight") { HotkeyRecorder(value: model.binding(\.hotkey)) }
                 LabeledContent("Switch window") { HotkeyRecorder(value: model.binding(\.windowSwitcherHotkey)) }
                 Toggle(isOn: model.binding(\.windowManagementHotkeys)) {
                     Text("Window layout hotkeys")
@@ -188,7 +188,7 @@ private struct GeneralSettings: View {
             Section("Startup") {
                 Toggle(isOn: Binding(get: { model.loginItem }, set: { _ in model.toggleLoginItem() })) {
                     Text("Launch at login")
-                    Text("Works when running the bundled My Spotlight.app").font(.caption).foregroundStyle(.secondary)
+                    Text("Works when running the bundled Slashlight.app").font(.caption).foregroundStyle(.secondary)
                 }
             }
             Section("Files") {
@@ -321,7 +321,7 @@ private struct PermissionsSettings: View {
                     }
                 }
             } footer: {
-                Text("The app is ad-hoc signed, so macOS may ask again after each rebuild. If a granted permission does not take effect, remove My Spotlight from the list in System Settings and add it again.")
+                Text("The app is ad-hoc signed, so macOS may ask again after each rebuild. If a granted permission does not take effect, remove Slashlight from the list in System Settings and add it again.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -338,7 +338,7 @@ private struct AboutSettings: View {
             Image(systemName: "sparkle.magnifyingglass")
                 .font(.system(size: 44, weight: .light))
                 .foregroundStyle(.tint)
-            Text("My Spotlight").font(.title2.weight(.semibold))
+            Text("Slashlight").font(.title2.weight(.semibold))
             Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev")")
                 .foregroundStyle(.secondary)
             Text("Open-source, keyboard-first launcher for macOS.")

@@ -1,5 +1,5 @@
 import AppKit
-import SpotlightKit
+import SlashlightKit
 
 /// State of the panel: the screen stack, the query, results, selection and keyboard handling.
 @MainActor
@@ -277,7 +277,7 @@ final class PaletteModel: ObservableObject {
         var parts: [(String?, Section)] = host.extensions
             .filter { $0.rootView() != nil }
             .map { ($0.manifest.id, Section("Extensions", [entryItem($0)])) }
-        parts.append((nil, Section("My Spotlight", [
+        parts.append((nil, Section("Slashlight", [
             Item(id: "settings", title: "Settings", subtitle: "Permissions, hotkeys, extensions folder",
                  icon: .symbol("gearshape"), accessories: [.keycap(Shortcut(",", .command))],
                  primary: Action("Open Settings") { SettingsWindowController.shared.show(); return .close }),

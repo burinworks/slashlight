@@ -1,7 +1,7 @@
 import AppKit
-import SpotlightKit
+import SlashlightKit
 
-/// User-defined `/commands` from `~/Library/Application Support/MySpotlight/commands/commands.json`.
+/// User-defined `/commands` from `~/Library/Application Support/Slashlight/commands/commands.json`.
 final class CommandsExtension: Extension {
     struct Command: Codable {
         /// Typed after `/`, e.g. "turn-light-on".
@@ -110,7 +110,7 @@ final class CommandsExtension: Extension {
     private func writeExamples() {
         let examples = [
             Command(name: "turn-light-on", title: "Turn the lights on (runs the Shortcut “Turn Light On”)", type: "shortcut", run: "Turn Light On"),
-            Command(name: "say-hello", title: "Speak a greeting", type: "shell", run: "say 'Hello from My Spotlight'"),
+            Command(name: "say-hello", title: "Speak a greeting", type: "shell", run: "say 'Hello from Slashlight'"),
             Command(name: "my-ip", title: "Show my public IP", type: "shell", run: "curl -s https://api.ipify.org"),
             Command(name: "github", title: "Open GitHub", type: "url", run: "https://github.com"),
             Command(name: "toggle-dark-mode", title: "Toggle dark mode", type: "applescript",

@@ -1,5 +1,5 @@
 import AppKit
-import SpotlightKit
+import SlashlightKit
 
 /// `> command` runs a shell command and streams its output inline. ⌘↵ opens it in Terminal instead.
 /// stdin is /dev/null, so interactive commands get EOF; long-running ones can be stopped with ⌘.
@@ -122,13 +122,5 @@ final class TerminalExtension: Extension {
             ]
             return [Section(detail.isRunning ? "Running" : "Finished", items.filter { Fuzzy.score(q.text, $0.title) != nil })]
         }
-    }
-}
-
-enum BuiltIns {
-    @MainActor
-    static func all() -> [Extension] {
-        [AppsExtension(), FilesExtension(), CommandsExtension(), ClipboardExtension(), SnippetsExtension(),
-         WindowManagementExtension(), WindowSwitcherExtension(), TerminalExtension()]
     }
 }
