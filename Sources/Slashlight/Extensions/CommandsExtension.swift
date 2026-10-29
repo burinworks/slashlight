@@ -2,6 +2,8 @@ import AppKit
 import SlashlightKit
 
 /// User-defined `/commands` from `~/Library/Application Support/Slashlight/commands/commands.json`.
+/// A `{query}` placeholder in `run` turns a command into a quicklink: `/gh slashlight` fills it with "slashlight"
+/// (URL-encoded for url and http, shell-quoted for shell, as typed otherwise).
 final class CommandsExtension: Extension {
     struct Command: Codable {
         /// Typed after `/`, e.g. "turn-light-on".
@@ -35,10 +37,17 @@ final class CommandsExtension: Extension {
 
     override func search(_ query: Query) async throws -> [Section] {
         reloadIfChanged()
+        // "gh slashlight": the first word picks the command, the rest is its {query} argument.
+        let text = query.text.trimmingCharacters(in: .whitespaces)
+        let parts = text.split(separator: " ", maxSplits: 1).map(String.init)
+        let argument = parts.count > 1 ? parts[1].trimmingCharacters(in: .whitespaces) : ""
         let matches = commands
-            .compactMap { c -> (Int, Command)? in Fuzzy.score(query.text, c.name).map { ($0, c) } }
+            .compactMap { c -> (Int, Command, String)? in
+                if !argument.isEmpty && Self.takesArgument(c) { return Fuzzy.score(parts[0], c.name).map { ($0, c, argument) } }
+                return Fuzzy.score(text, c.name).map { ($0, c, "") }
+            }
             .sorted { $0.0 > $1.0 }
-            .map { item($0.1) }
+            .map { item($0.1, argument: $0.2) }
         var sections = [Section("Commands", matches)]
         if query.mode == .scoped || Fuzzy.score(query.text, "edit commands") != nil && !query.isEmpty {
             sections.append(Section("Manage", [
@@ -51,15 +60,37 @@ final class CommandsExtension: Extension {
         return sections
     }
 
-    private func item(_ c: Command) -> Item {
+    private func item(_ c: Command, argument: String) -> Item {
         let symbol = c.icon ?? ["shell": "terminal", "url": "link", "shortcut": "square.stack.3d.up", "http": "network", "applescript": "applescript"][c.type] ?? "bolt"
-        return Item(id: c.name, title: "/\(c.name)", subtitle: [c.title, c.type].compactMap { $0 }.joined(separator: " · "),
+        let takesArgument = Self.takesArgument(c)
+        let hint = takesArgument && argument.isEmpty ? "type /\(c.name) and a search term" : nil
+        return Item(id: c.name, title: argument.isEmpty ? "/\(c.name)" : "/\(c.name) \(argument)",
+                    subtitle: [c.title, hint ?? c.type].compactMap { $0 }.joined(separator: " · "),
                     icon: .symbol(symbol),
-                    primary: Action("Run Command", icon: .symbol("play")) { try await Self.execute(c) },
+                    accessories: takesArgument ? [.pill("{query}", .gray)] : [],
+                    primary: Action("Run Command", icon: .symbol("play")) { try await Self.execute(Self.filling(c, with: argument)) },
                     secondary: Action("Copy Definition", icon: .symbol("doc.on.doc")) { [weak self] in
                         self?.context.copy(c.run)
                         return .hud("Copied")
                     })
+    }
+
+    static func takesArgument(_ c: Command) -> Bool { c.run.contains("{query}") }
+
+    /// Replaces `{query}` in the command, escaped for its type.
+    static func filling(_ c: Command, with argument: String) -> Command {
+        guard takesArgument(c) else { return c }
+        var allowed = CharacterSet.alphanumerics
+        allowed.insert(charactersIn: "-._~")
+        let value: String
+        switch c.type {
+        case "url", "http": value = argument.addingPercentEncoding(withAllowedCharacters: allowed) ?? argument
+        case "shell": value = Shell.quote(argument)
+        default: value = argument
+        }
+        var filled = c
+        filled.run = c.run.replacingOccurrences(of: "{query}", with: value)
+        return filled
     }
 
     static func execute(_ c: Command) async throws -> Outcome {
@@ -113,6 +144,9 @@ final class CommandsExtension: Extension {
             Command(name: "say-hello", title: "Speak a greeting", type: "shell", run: "say 'Hello from Slashlight'"),
             Command(name: "my-ip", title: "Show my public IP", type: "shell", run: "curl -s https://api.ipify.org"),
             Command(name: "github", title: "Open GitHub", type: "url", run: "https://github.com"),
+            Command(name: "gh", title: "Search GitHub", type: "url", run: "https://github.com/search?q={query}"),
+            Command(name: "google", title: "Search Google", type: "url", run: "https://www.google.com/search?q={query}"),
+            Command(name: "maps", title: "Search Apple Maps", type: "url", run: "https://maps.apple.com/?q={query}"),
             Command(name: "toggle-dark-mode", title: "Toggle dark mode", type: "applescript",
                     run: "tell application \"System Events\" to tell appearance preferences to set dark mode to not dark mode"),
         ]
