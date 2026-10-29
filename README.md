@@ -55,9 +55,15 @@ Without `scripts/dev-signing-identity.sh` the app is ad-hoc signed and macOS for
 | Window Layout (`/windows`) | Apply to the focused window | — |
 | Switch Window (`/switch`, ⌥Tab) — thumbnail grid, every Space and display | Switch | Show all app windows |
 | Terminal (`>` or `/terminal`) — real terminal tabs that keep running in the background | Run in a new tab | Open in Terminal.app |
+| Calculator — as you type: `15% of 80`, `(3+4)*2^3`, `5 km in mi`, `100 f to c`, `100 usd to eur` | Copy result | Paste result |
+| System (`/system`, `/lock`, `/sleep`…) — lock, sleep, restart, empty trash, eject, dark mode, quit all… | Run | — |
+| Emoji & Symbols (`/emoji`) — searchable grid, recents first | Copy | Paste |
+| Script Commands (`/scripts`) — Raycast script commands run as-is from `script-commands/` | Run | — |
+| Search the Web — last result for any text | Google | DuckDuckGo |
 
 Settings (⌘,): hotkeys (click and press a new combination), theme, launch at login, turning extensions on and off, permissions.
-Config lives in `~/Library/Application Support/Slashlight/`: `settings.json`, `commands/commands.json`, `snippets/`, `Extensions/`.
+Config lives in `~/Library/Application Support/Slashlight/`: `settings.json`, `commands/commands.json`, `snippets/`, `script-commands/`, `Extensions/`.
+Quicklinks: a `{query}` in a command's `run` takes the text after its name, e.g. `{"name":"gh","type":"url","run":"https://github.com/search?q={query}"}` makes `/gh slashlight` search GitHub.
 
 ## Terminal tabs
 
