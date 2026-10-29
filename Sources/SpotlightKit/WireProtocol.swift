@@ -3,11 +3,11 @@ import Foundation
 /// JSON messages exchanged with out-of-process extensions, one object per line over stdin/stdout.
 /// Spec: docs/extension-protocol.md.
 public enum Wire {
-    public static let version = 1
+    public static let version = 2
 
     /// Host → extension.
     public struct Request: Codable {
-        /// "hello" | "search" | "run" | "shutdown"
+        /// "hello" | "search" | "run" | "dispose" | "shutdown"
         public var type: String
         public var id: Int
         public var query: String?
@@ -17,28 +17,39 @@ public enum Wire {
         public var itemId: String?
         public var actionId: String?
         public var supportDirectory: String?
+        /// v2: the pushed screen a `search` / `run` / `dispose` belongs to. Absent for the root screen.
+        public var view: String?
 
         public init(type: String, id: Int, query: String? = nil, mode: String? = nil, filter: String? = nil,
-                    itemId: String? = nil, actionId: String? = nil, supportDirectory: String? = nil) {
+                    itemId: String? = nil, actionId: String? = nil, supportDirectory: String? = nil, view: String? = nil) {
             self.type = type; self.id = id; self.query = query; self.mode = mode; self.filter = filter
-            self.itemId = itemId; self.actionId = actionId; self.supportDirectory = supportDirectory
+            self.itemId = itemId; self.actionId = actionId; self.supportDirectory = supportDirectory; self.view = view
         }
     }
 
     /// Extension → host. `id` echoes the request; messages without `id` are unsolicited.
     public struct Message: Codable {
-        /// "hello" | "results" | "outcome" | "error" | "refresh" | "hud"
+        /// "hello" | "results" | "outcome" | "error" | "refresh" | "hud" | "detail"
         public var type: String
         public var id: Int?
         public var version: Int?
         public var sections: [WSection]?
         public var outcome: WOutcome?
         public var message: String?
+        /// v2: the pushed screen a `refresh` / `detail` targets.
+        public var view: String?
+        /// v2 `detail`: new text for the screen's detail area; appended when `append` is true.
+        public var text: String?
+        public var append: Bool?
+        /// v2 `detail`: shows or hides the screen's running indicator.
+        public var running: Bool?
 
         public init(type: String, id: Int? = nil, version: Int? = nil, sections: [WSection]? = nil,
-                    outcome: WOutcome? = nil, message: String? = nil) {
+                    outcome: WOutcome? = nil, message: String? = nil, view: String? = nil,
+                    text: String? = nil, append: Bool? = nil, running: Bool? = nil) {
             self.type = type; self.id = id; self.version = version; self.sections = sections
-            self.outcome = outcome; self.message = message
+            self.outcome = outcome; self.message = message; self.view = view
+            self.text = text; self.append = append; self.running = running
         }
     }
 
@@ -82,10 +93,35 @@ public enum Wire {
     }
 
     public struct WOutcome: Codable {
-        /// "close" | "stay" | "pop" | "hud" | "paste"
+        /// "close" | "stay" | "push" | "pop" | "hud" | "paste"
         public var type: String
         public var value: String?
-        public init(type: String, value: String? = nil) { self.type = type; self.value = value }
+        /// The screen to open, for `push`.
+        public var view: WView?
+        public init(type: String, value: String? = nil, view: WView? = nil) { self.type = type; self.value = value; self.view = view }
+    }
+
+    /// v2: a sub-screen opened by a `push` outcome. Its searches and runs carry `id` as `view`.
+    public struct WView: Codable {
+        public var id: String
+        public var title: String
+        public var icon: String?
+        public var placeholder: String?
+        /// "list" | "grid:<columns>"
+        public var layout: String?
+        public var filters: [String]?
+        public var initialText: String?
+        public var initialSelection: Int?
+        /// Present (even empty) when the screen has a detail area; the initial text.
+        public var detail: String?
+        public var running: Bool?
+        public init(id: String, title: String, icon: String? = nil, placeholder: String? = nil, layout: String? = nil,
+                    filters: [String]? = nil, initialText: String? = nil, initialSelection: Int? = nil,
+                    detail: String? = nil, running: Bool? = nil) {
+            self.id = id; self.title = title; self.icon = icon; self.placeholder = placeholder; self.layout = layout
+            self.filters = filters; self.initialText = initialText; self.initialSelection = initialSelection
+            self.detail = detail; self.running = running
+        }
     }
 
     // MARK: Conversions shared by host and SDK
@@ -121,6 +157,18 @@ public enum Wire {
         case "keycap": return Shortcut(string: a.value).map { .keycap($0) } ?? .text(a.value)
         default: return .text(a.value)
         }
+    }
+
+    public static func encode(_ layout: ListView.Layout) -> String {
+        switch layout {
+        case .list: return "list"
+        case .grid(let columns): return "grid:\(columns)"
+        }
+    }
+
+    public static func decodeLayout(_ s: String?) -> ListView.Layout {
+        guard let s, s.hasPrefix("grid") else { return .list }
+        return .grid(columns: Int(s.split(separator: ":").last ?? "") ?? 3)
     }
 
     public static func modeString(_ mode: Query.Mode) -> String {

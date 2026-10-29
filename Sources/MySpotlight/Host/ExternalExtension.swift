@@ -29,6 +29,8 @@ final class ExternalExtension: Extension {
     private var buffer = Data()
     private var nextID = 1
     private var pending: [Int: CheckedContinuation<Wire.Message, Error>] = [:]
+    /// Detail areas of pushed screens that are still open, by view id. Dropped when the screen is.
+    private var details: [String: DetailModel] = [:]
 
     struct ProtocolError: LocalizedError {
         var errorDescription: String?
@@ -66,18 +68,23 @@ final class ExternalExtension: Extension {
     }
 
     override func search(_ query: Query) async throws -> [Section] {
+        try await search(query, view: nil)
+    }
+
+    /// `view` is the pushed screen the query belongs to; `nil` for the root screen (v1).
+    private func search(_ query: Query, view: String?) async throws -> [Section] {
         let reply = try await request(Wire.Request(type: "search", id: 0, query: query.text,
-                                                    mode: Wire.modeString(query.mode), filter: query.filter))
+                                                    mode: Wire.modeString(query.mode), filter: query.filter, view: view))
         return (reply.sections ?? []).map { s in
-            Section(s.title, s.items.map(item))
+            Section(s.title, s.items.map { item($0, view: view) })
         }
     }
 
-    private func item(_ w: Wire.WItem) -> Item {
+    private func item(_ w: Wire.WItem, view: String?) -> Item {
         let actions = w.actions.map { a in
             Action(a.title, id: a.id, shortcut: a.shortcut.flatMap(Shortcut.init(string:)), destructive: a.destructive ?? false) { [weak self] in
                 guard let self else { return .close }
-                let reply = try await self.request(Wire.Request(type: "run", id: 0, itemId: w.id, actionId: a.id))
+                let reply = try await self.request(Wire.Request(type: "run", id: 0, itemId: w.id, actionId: a.id, view: view))
                 return self.outcome(reply.outcome)
             }
         }
@@ -94,8 +101,29 @@ final class ExternalExtension: Extension {
         case "pop": return .pop
         case "hud": return .hud(o?.value ?? "")
         case "paste": return .paste(o?.value ?? "")
+        case "push":
+            guard let v = o?.view else { return .stay }
+            return .push(listView(v))
         default: return .close
         }
+    }
+
+    private func listView(_ v: Wire.WView) -> ListView {
+        // The lease lives as long as the screen's search closure, i.e. as long as the panel keeps the screen.
+        let lease = ViewLease(id: v.id, owner: self)
+        return ListView(title: v.title, icon: v.icon.map(Wire.decodeIcon) ?? manifest.icon,
+                        placeholder: v.placeholder ?? "Search \(v.title)…", layout: Wire.decodeLayout(v.layout),
+                        filters: v.filters ?? [], initialText: v.initialText ?? "", initialSelection: v.initialSelection ?? 0,
+                        detail: details[v.id]) { [weak self] query in
+            guard let self else { return [] }
+            return try await self.search(query, view: lease.id)
+        }
+    }
+
+    /// The panel dropped a pushed screen: let the extension free it.
+    fileprivate func dispose(view id: String) {
+        details.removeValue(forKey: id)
+        if process?.isRunning == true { send(Wire.Request(type: "dispose", id: 0, view: id)) }
     }
 
     // MARK: Process plumbing
@@ -166,16 +194,40 @@ final class ExternalExtension: Extension {
                 NSLog("MySpotlight: [\(file.id)] bad message: \(String(decoding: line, as: UTF8.self))")
                 continue
             }
+            // Create a pushed screen's detail area now, so `detail` messages right behind the outcome have a target.
+            if let v = msg.outcome?.view, let text = v.detail {
+                details[v.id] = DetailModel(text: text, isRunning: v.running ?? false)
+            }
             if let id = msg.id, let cont = pending.removeValue(forKey: id) {
                 cont.resume(returning: msg)
                 continue
             }
             switch msg.type {
             case "refresh": context.refresh()
+            case "detail":
+                guard let detail = details[msg.view ?? ""] else { break }
+                if let text = msg.text { detail.text = msg.append == true ? detail.text + text : text }
+                if let running = msg.running { detail.isRunning = running }
             case "hud": context.showHUD(msg.message ?? "")
             case "outcome" where msg.outcome?.type == "close": context.close()
             default: break
             }
         }
+    }
+}
+
+/// Captured by a pushed screen's search closure; tells the extension when the screen is gone.
+private final class ViewLease {
+    let id: String
+    weak var owner: ExternalExtension?
+
+    init(id: String, owner: ExternalExtension) {
+        self.id = id
+        self.owner = owner
+    }
+
+    deinit {
+        let id = id, owner = owner
+        DispatchQueue.main.async { MainActor.assumeIsolated { owner?.dispose(view: id) } }
     }
 }
