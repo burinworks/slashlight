@@ -134,4 +134,4 @@ Pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md). It cov
 
 ## License
 
-[MIT](LICENSE) © 2026 Alex Ikonnikov
+[MIT](LICENSE) © 2026 Alexander Ikonnikov
