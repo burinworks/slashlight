@@ -1,0 +1,39 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+
+      - name: Test
+        run: scripts/test.sh
+
+      - name: Build
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}" BUILD_NUMBER=${{ github.run_number }} UNIVERSAL=1 scripts/build-app.sh
+          BIN="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)"
+          mkdir -p dist/hello-extension
+          cp "$BIN/hello-extension" Examples/HelloExtension/manifest.json dist/hello-extension/
+          ditto -c -k --keepParent build/Slashlight.app "dist/Slashlight-${GITHUB_REF_NAME}.zip"
+          (cd dist && zip -qr "hello-extension-${GITHUB_REF_NAME}.zip" hello-extension)
+          (cd dist && shasum -a 256 *.zip > SHA256SUMS.txt)
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*.zip dist/SHA256SUMS.txt \
+            --title "Slashlight $GITHUB_REF_NAME" --generate-notes \
+            $([[ "$GITHUB_REF_NAME" == *-* ]] && echo --prerelease)

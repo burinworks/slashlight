@@ -1,0 +1,9 @@
+{
+  "id": "uuid",
+  "title": "UUID Generator",
+  "subtitle": "Example extension written in Python",
+  "icon": "sf:number",
+  "version": "1.0",
+  "triggers": ["commands", "command:uuid"],
+  "exec": ["/usr/bin/env", "python3", "extension.py"]
+}

@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 # Builds build/Slashlight.app (release) and the example extension.
 # Usage: scripts/build-app.sh [--install-example]
+# Environment: VERSION (default 0.0.0-dev), UNIVERSAL=1 for an arm64 + x86_64 binary (needs Xcode).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-swift build -c release
-BIN="$(swift build -c release --show-bin-path)"
+VERSION="${VERSION:-0.0.0-dev}"
+ARCHS=()
+[[ "${UNIVERSAL:-}" == "1" ]] && ARCHS=(--arch arm64 --arch x86_64)
+swift build -c release ${ARCHS[@]+"${ARCHS[@]}"}
+BIN="$(swift build -c release ${ARCHS[@]+"${ARCHS[@]}"} --show-bin-path)"
 
 APP="build/Slashlight.app"
 rm -rf "$APP"
@@ -22,8 +26,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleDisplayName</key><string>Slashlight</string>
   <key>CFBundleExecutable</key><string>Slashlight</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.1.0</string>
-  <key>CFBundleVersion</key><string>1</string>
+  <key>CFBundleShortVersionString</key><string>${VERSION%%-*}</string>
+  <key>CFBundleVersion</key><string>${BUILD_NUMBER:-1}</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>

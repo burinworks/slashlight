@@ -1,0 +1,43 @@
+name: Bug report
+description: Something does not work the way it should
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you typed or pressed, what you expected, what you got instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Press ⌥Space
+        2. Type `> npm run dev`
+        3. …
+  - type: input
+    id: version
+    attributes:
+      label: Slashlight version
+      description: Menu bar icon → About, or the release you downloaded.
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version and chip
+      placeholder: macOS 26.1, Apple M3
+    validations:
+      required: true
+  - type: checkboxes
+    id: permissions
+    attributes:
+      label: Permissions (Settings → Permissions)
+      options:
+        - label: Accessibility granted
+        - label: Screen Recording granted
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      render: text

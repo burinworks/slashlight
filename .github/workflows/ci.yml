@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build & test
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+          swift --version
+
+      - uses: actions/cache@v4
+        with:
+          path: .build
+          key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: Build (debug)
+        run: swift build
+
+      - name: Test
+        run: scripts/test.sh
+
+      - name: Build app bundle (universal)
+        run: UNIVERSAL=1 VERSION=0.0.0-ci BUILD_NUMBER=${{ github.run_number }} scripts/build-app.sh
+
+      - name: Smoke test
+        run: |
+          plutil -lint build/Slashlight.app/Contents/Info.plist
+          lipo -archs build/Slashlight.app/Contents/MacOS/Slashlight
+          codesign --verify --verbose build/Slashlight.app
+
+      - name: Zip
+        run: ditto -c -k --keepParent build/Slashlight.app Slashlight.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Slashlight-${{ github.sha }}
+          path: Slashlight.zip
+          retention-days: 14

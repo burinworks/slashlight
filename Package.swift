@@ -21,5 +21,7 @@ let package = Package(
         .target(name: "SlashlightSDK", dependencies: ["SlashlightKit"]),
         .executableTarget(name: "Slashlight", dependencies: ["SlashlightKit", .product(name: "SwiftTerm", package: "SwiftTerm")]),
         .executableTarget(name: "HelloExtension", dependencies: ["SlashlightSDK"], path: "Examples/HelloExtension"),
+        .testTarget(name: "SlashlightKitTests", dependencies: ["SlashlightKit"]),
+        .testTarget(name: "SlashlightTests", dependencies: ["Slashlight"]),
     ]
 )

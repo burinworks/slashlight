@@ -1,88 +1,76 @@
+<div align="center">
+
 # Slashlight
 
-Open-source, keyboard-first Spotlight replacement (and Raycast alternative) for macOS. Native Swift (AppKit + SwiftUI), macOS 14+.
-Every capability is an **extension** built on one public `Extension` class, the built-ins included.
+**A keyboard-first launcher for macOS. Open-source, native, and built to be extended.**
 
-## Run it
+Apps, files, windows on every Space, a calculator, snippets, clipboard history and real terminal tabs, all one shortcut away.
+
+[![CI](https://github.com/burinworks/slashlight/actions/workflows/ci.yml/badge.svg)](https://github.com/burinworks/slashlight/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/burinworks/slashlight?include_prereleases&sort=semver)](https://github.com/burinworks/slashlight/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![macOS 14+](https://img.shields.io/badge/macOS-14%2B-black?logo=apple)
+![Swift](https://img.shields.io/badge/Swift-5.9%2B-F05138?logo=swift&logoColor=white)
+
+<img src="docs/images/home-dark.png" alt="Slashlight home screen: recently used extensions above the full list" width="720">
+
+</div>
+
+## Why Slashlight
+
+- **Native and fast.** AppKit + SwiftUI, no Electron and no web views. The panel is built at launch and opens instantly.
+- **Everything is an extension.** The built-ins use the same public `Extension` API you do. There is no private fast path.
+- **Crash-proof plugins.** Third-party extensions run as separate processes speaking JSON over stdin/stdout, in any language.
+- **Raycast-friendly.** Raycast [script commands](https://github.com/raycast/script-commands) run unchanged.
+- **Yours.** MIT licensed, no account, no telemetry. Config is plain JSON in `~/Library/Application Support/Slashlight/`.
+
+## Features
+
+| | |
+|---|---|
+| <img src="docs/images/calculator.png" alt="Calculator converting 100 USD to EUR" width="420"> | **Calculator as you type.** Math (`(3+4)*2^3`, `15% of 80`), units (`5 km in mi`, `100 f to c`) and live currency rates (`100 usd to eur`). ↵ copies, ⌘↵ pastes. |
+| <img src="docs/images/commands.png" alt="Command mode listing all extensions" width="420"> | **Command mode.** Type `/` for every extension and your own commands: shell scripts, URLs with `{query}` quicklinks, Shortcuts, HTTP calls and AppleScript. |
+| <img src="docs/images/emoji-dark.png" alt="Emoji picker grid" width="420"> | **Emoji & symbols.** A searchable grid with recents first, plus ⌘ ⌥ → © and friends. |
+| <img src="docs/images/system-dark.png" alt="System commands" width="420"> | **System commands.** Lock, sleep, restart, empty trash, eject disks, toggle dark mode, quit all apps. |
+
+Also built in:
+
+- **Window switcher** (⌥Tab). Thumbnails of every window on every Space and display, including minimized windows and hidden apps.
+- **Window layouts.** Halves, thirds, quarters, center and maximize on ⌃⌥ + arrow keys and letters.
+- **Terminal tabs.** `> npm run dev` opens a real terminal inside the panel. It keeps running when you go back to search, and a tab strip shows which tasks are busy, idle or failed.
+- **Clipboard history, snippets** (multi-line, with `{clipboard}` `{date}` `{time}` placeholders), **file search** and **web search fallback**.
+- **Settings window.** Hotkey recorder, light/dark theme, launch at login, per-extension on/off switches and permission status.
+
+The [user guide](docs/user-guide.md) has every key and command.
+
+## Install
+
+### Download
+
+1. Download `Slashlight-vX.Y.Z.zip` from [Releases](https://github.com/burinworks/slashlight/releases) and move `Slashlight.app` to `/Applications`.
+2. Builds are not notarized yet, so clear the quarantine flag once:
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/Slashlight.app
+   ```
+3. Open it and press **⌥Space**. The app lives in the menu bar.
+4. Grant **Accessibility** (window layouts, paste) and **Screen Recording** (window thumbnails) from Settings (⌘,) → Permissions.
+
+### Build from source
+
+You need macOS 14+ and Swift 5.9+ (Xcode or just the Command Line Tools).
 
 ```bash
-scripts/dev-signing-identity.sh   # once: a local signing identity so permissions survive rebuilds
+git clone https://github.com/burinworks/slashlight.git && cd slashlight
+scripts/dev-signing-identity.sh       # once: a local signing identity so permissions survive rebuilds
 scripts/build-app.sh --install-example
-open "build/Slashlight.app"
+open build/Slashlight.app
 ```
 
-Press **⌥Space** to open. The app lives in the menu bar (no Dock icon).
-Grant **Accessibility** (window layout, auto-paste) and **Screen Recording** (window thumbnails) when asked, or from Settings (⌘,).
-Without `scripts/dev-signing-identity.sh` the app is ad-hoc signed and macOS forgets these grants on every rebuild
-(symptoms: no window thumbnails, the window switcher only sees the current Space).
+`scripts/test.sh` runs the tests.
 
-## What you can type
+## Write an extension
 
-| Input | What happens |
-|---|---|
-| `claude` | Apps, files, and any extension or command whose name matches (`switch window`, `left half`) |
-| `/` | Command mode: your `/commands`, every extension (`/clipboard`, `/snippets`…), window layouts (`/left-half`) |
-| `> npm run dev` | Opens a terminal tab inside Slashlight and runs it there |
-| empty bar | List of all extensions (also in the dropdown at the top right) |
-
-## Keys
-
-| Key | Action |
-|---|---|
-| ⌥Space | Open / close (change in `settings.json`) |
-| ↑ ↓, ⌃N ⌃P | Move selection |
-| ↵ / click | Primary action |
-| ⌘↵ / ⌘-click | Secondary action |
-| ⌘K | All actions of the selected item |
-| ⌫ on an empty bar | Back one screen |
-| Esc | Close everything |
-| Tab / ⇧Tab | Cycle filters (by section type, or the screen's own filters) |
-| ⌘1…⌘9 | Run the Nth result |
-| ⌘E | Back to the extension list |
-| ⌘, | Settings window (also in the menu bar icon) |
-| ⌥Tab | Window switcher. Hold ⌥, tap Tab to move, release to switch |
-| ⌃⌥ ← → ↑ ↓ ↵ C ⌫, D F G E T, U I J K | Window layouts (halves, maximize, center, restore, thirds, quarters) |
-
-## Built-in extensions
-
-| Extension | ↵ | ⌘↵ |
-|---|---|---|
-| All Apps (`/apps`) — Tab: recently opened / recently added / A–Z | Open | Show in Finder |
-| Files (`/files`) — Spotlight index, home folder | Open | Show in Finder |
-| Commands (`/commands`) — `commands.json`: shell, url, shortcut, http, applescript | Run | Copy definition |
-| Clipboard History (`/clipboard`) — in memory, gone after quit | Copy and move to top | Paste (⌘V) |
-| Snippets (`/snippets`) — on disk, multi-line editor (⌘↵ saves); `{clipboard}` `{date}` `{time}` | Copy | Paste |
-| Window Layout (`/windows`) | Apply to the focused window | — |
-| Switch Window (`/switch`, ⌥Tab) — thumbnail grid, every Space and display | Switch | Show all app windows |
-| Terminal (`>` or `/terminal`) — real terminal tabs that keep running in the background | Run in a new tab | Open in Terminal.app |
-| Calculator — as you type: `15% of 80`, `(3+4)*2^3`, `5 km in mi`, `100 f to c`, `100 usd to eur` | Copy result | Paste result |
-| System (`/system`, `/lock`, `/sleep`…) — lock, sleep, restart, empty trash, eject, dark mode, quit all… | Run | — |
-| Emoji & Symbols (`/emoji`) — searchable grid, recents first | Copy | Paste |
-| Script Commands (`/scripts`) — Raycast script commands run as-is from `script-commands/` | Run | — |
-| Search the Web — last result for any text | Google | DuckDuckGo |
-
-Settings (⌘,): hotkeys (click and press a new combination), theme, launch at login, turning extensions on and off, permissions.
-Config lives in `~/Library/Application Support/Slashlight/`: `settings.json`, `commands/commands.json`, `snippets/`, `script-commands/`, `Extensions/`.
-Quicklinks: a `{query}` in a command's `run` takes the text after its name, e.g. `{"name":"gh","type":"url","run":"https://github.com/search?q={query}"}` makes `/gh slashlight` search GitHub.
-
-## Terminal tabs
-
-`> command` + ↵ opens a real terminal (your login shell, colors, vim, top all work) inside the panel and runs the command.
-Tabs keep running when you go back to search or close the panel. Open tabs show as a strip at the bottom of the panel:
-green dot = a task is running (with its run time), grey = idle at the prompt, red = exited with an error.
-A task that runs longer than 3 s shows a toast when it finishes while you are elsewhere.
-
-| Key (in a terminal tab) | Action |
-|---|---|
-| ⌘⌫ or ⌘[ | Back to search, tab keeps running |
-| Esc | Closes the panel at an idle prompt; goes to the program while one runs (vim, less) |
-| ⌘T / ⌘W | New tab / close tab |
-| ⌃⇥, ⌃⇧⇥, ⌘1…⌘9 | Switch tabs (⌃⇥ from search jumps back to the last tab) |
-| ⌘C ⌘V ⌘K ⌘+ ⌘− | Copy, paste, clear, font size |
-
-## Writing an extension
-
-Subclass `Extension` from `SlashlightKit`. Return sections of items; each item's first action is ↵, the second ⌘↵, the rest live under ⌘K.
+Subclass `Extension`, return sections of items, and give each item actions. ↵ runs the first action, ⌘↵ the second, and ⌘K lists all of them.
 
 ```swift
 import SlashlightSDK
@@ -103,24 +91,47 @@ final class Hello: Extension {
 ExtensionRunner.run { Hello() }
 ```
 
-Third-party extensions run as **separate processes** speaking JSON lines over stdin/stdout, and can open their own sub-screens (lists, grids, live text) like built-ins, so a crash cannot take the launcher down. `SlashlightSDK` wraps that protocol for Swift; any language can implement it directly — see [docs/extension-protocol.md](docs/extension-protocol.md).
-Install: put the binary and a `manifest.json` in `~/Library/Application Support/Slashlight/Extensions/<name>/` and choose Settings → Reload extensions. [Examples/HelloExtension](Examples/HelloExtension) is a complete one.
+Drop the binary and a `manifest.json` into `~/Library/Application Support/Slashlight/Extensions/hello/`, then choose Settings → Extensions → Reload. Extensions can open their own screens: lists, grids with Tab filters, and live streaming output.
 
-Built-ins subclass the same `Extension` class but run in-process for speed.
+- [Writing extensions](docs/writing-extensions.md): a step-by-step guide
+- [Extension protocol](docs/extension-protocol.md): the JSON wire format, for Python, Node, Go or Rust extensions
+- [Examples/HelloExtension](Examples/HelloExtension): a complete working example
 
-## Layout
+## How it works
 
 ```
-Sources/SlashlightKit     Public API: Extension, Item, Action, Outcome, ListView, Wire protocol types
-Sources/SlashlightSDK     ExtensionRunner — runs an Extension as a JSON-over-stdio process
-Sources/Slashlight      The app: panel, keyboard handling, hotkeys, built-in extensions
-Examples/HelloExtension  Out-of-process example
+┌──────────────── Slashlight.app ────────────────┐
+│ Panel (SwiftUI)  ←→  PaletteModel  ←→  Host    │
+│                          │                     │
+│          ┌───────────────┼────────────────┐    │
+│      built-ins      ExternalExtension  hotkeys │
+│   (in-process)          │ JSON lines           │
+└─────────────────────────┼──────────────────────┘
+                          ▼
+              your-extension (any language)
 ```
 
-Debug aids: `.build/debug/Slashlight --snapshot out.png --query "saf" [--open apps] [--enter] [--dark]` renders the panel to a PNG and quits;
-`--settings --tab General --snapshot-settings out.png` does the same for the Settings window; `--list-windows` prints what the switcher finds on every Space.
+Read [Architecture](docs/architecture.md) for the module layout, the search pipeline and the threading model.
 
-## Known gaps
+## Roadmap
 
-- Terminal tabs do not survive quitting Slashlight.
-- External extensions cannot declare global hotkeys or permissions yet (see docs/extension-protocol.md).
+- [ ] Signed and notarized releases, plus a Homebrew cask
+- [ ] Terminal tabs that survive a restart
+- [ ] Global hotkeys and permissions for external extensions
+- [ ] Extension store: browse and install from a GitHub index
+- [ ] AI command: ask a model about the selection or clipboard
+
+Have an idea? [Open a feature request](https://github.com/burinworks/slashlight/issues/new/choose).
+
+## Contributing
+
+Pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md). It covers setup, tests, the snapshot tool for UI changes, and the code style. Please follow the [Code of Conduct](CODE_OF_CONDUCT.md), and report security issues as described in [SECURITY.md](SECURITY.md).
+
+## Acknowledgements
+
+- [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) by Miguel de Icaza powers the terminal tabs.
+- [Raycast](https://www.raycast.com) set the bar for launchers and defined the script-command format Slashlight supports.
+
+## License
+
+[MIT](LICENSE) © 2026 Alex Ikonnikov
