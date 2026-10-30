@@ -23,16 +23,4 @@ struct SettingsTests {
         let fresh = try JSONDecoder().decode(Settings.self, from: JSONEncoder().encode(Settings()))
         #expect(fresh.onboardingCompleted == false)
     }
-
-    @Test func statisticsStayUnaskedUntilChosen() throws {
-        #expect(Settings().shareStatistics == nil)
-        let old = try JSONDecoder().decode(Settings.self, from: Data(#"{"hotkey": "opt+space"}"#.utf8))
-        #expect(old.shareStatistics == nil)
-        for choice in [true, false] {
-            var s = Settings()
-            s.shareStatistics = choice
-            let back = try JSONDecoder().decode(Settings.self, from: JSONEncoder().encode(s))
-            #expect(back.shareStatistics == choice)
-        }
-    }
 }

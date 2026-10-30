@@ -34,7 +34,7 @@ Apps, files, windows on every Space, a calculator, snippets, clipboard history a
 | <img src="docs/images/commands.png" alt="Command mode listing all extensions" width="420"> | **Command mode.** Type `/` for every extension and your own commands: shell scripts, URLs with `{query}` quicklinks, Shortcuts, HTTP calls and AppleScript. |
 | <img src="docs/images/emoji-dark.png" alt="Emoji picker grid" width="420"> | **Emoji & symbols.** A searchable grid with recents first, plus ⌘ ⌥ → © and friends. |
 | <img src="docs/images/system-dark.png" alt="System commands" width="420"> | **System commands.** Lock, sleep, restart, empty trash, eject disks, toggle dark mode, quit all apps. |
-| <img src="docs/images/onboarding-dark.png" alt="Welcome tour showing a mock search for 5 km in mi" width="420"> | **Welcome tour.** On first launch, seven short steps set your hotkey (with help freeing ⌘Space from Spotlight), show what you can type and where extensions live, offer the two optional permissions and ask whether to share anonymous statistics. |
+| <img src="docs/images/onboarding-dark.png" alt="Welcome tour showing a mock search for 5 km in mi" width="420"> | **Welcome tour.** On first launch, six short steps set your hotkey (with help freeing ⌘Space from Spotlight), show what you can type and where extensions live, and offer the two optional permissions. |
 
 Also built in:
 

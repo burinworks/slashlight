@@ -648,67 +648,7 @@ private struct PermissionCard: View {
     }
 }
 
-// MARK: 6. Statistics
-
-/// Consent for anonymous statistics. Both answers look the same and neither is chosen up front:
-/// consent has to be an active, free choice. Skipping leaves the setting nil, which sends nothing.
-struct StatisticsStep: View {
-    @ObservedObject var model: OnboardingModel
-
-    var body: some View {
-        VStack(spacing: 26) {
-            Image(systemName: "chart.bar.xaxis")
-                .font(.system(size: 26, weight: .medium))
-                .foregroundStyle(.white)
-                .frame(width: 60, height: 60)
-                .background(LinearGradient(colors: [Brand.glow, Brand.indigo], startPoint: .top, endPoint: .bottom),
-                            in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .shadow(color: Brand.glow.opacity(0.4), radius: 14, y: 4)
-                .appear(0)
-            StepHeader(title: "Help improve Slashlight",
-                       subtitle: "Share anonymous usage statistics: which extensions are used, app and macOS versions. No search text, no file names, no clipboard. Everything collected is published on a public dashboard anyone can see.")
-            HStack(spacing: 12) {
-                ConsentButton(title: "Share statistics", symbol: "checkmark.circle", chosen: model.shareStatistics == true) {
-                    model.setShareStatistics(true)
-                }
-                ConsentButton(title: "Don't share", symbol: "xmark.circle", chosen: model.shareStatistics == false) {
-                    model.setShareStatistics(false)
-                }
-            }
-            .appear(0.15)
-            Text("You can change this any time in Settings → General.")
-                .font(.system(size: 12))
-                .foregroundStyle(Brand.secondary)
-                .appear(0.22)
-        }
-        .padding(.top, 6)
-    }
-}
-
-/// One of the two consent answers. Both use this same style; the chosen one gets an outline.
-private struct ConsentButton: View {
-    let title: String
-    let symbol: String
-    let chosen: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Label(title, systemImage: chosen ? symbol + ".fill" : symbol)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(chosen ? Brand.accent : Color.primary)
-                .frame(width: 200, height: 44)
-                .card(radius: 12)
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Brand.accent, lineWidth: chosen ? 2 : 0))
-                .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .animation(.spring(response: 0.35, dampingFraction: 0.7), value: chosen)
-        .accessibilityAddTraits(chosen ? .isSelected : [])
-    }
-}
-
-// MARK: 7. Done
+// MARK: 6. Done
 
 struct DoneStep: View {
     @ObservedObject var model: OnboardingModel

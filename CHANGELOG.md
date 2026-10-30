@@ -5,7 +5,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
-- Welcome tour on first launch: pick a hotkey (with a shortcut to free ⌘Space from Spotlight), see what you can type, where extensions live and which optional permissions help, and choose whether to share anonymous statistics (`shareStatistics` in settings.json; unset means nothing is sent). Replay it from the menu bar icon or Settings → About. Existing installs skip it.
+- Welcome tour on first launch: pick a hotkey (with a shortcut to free ⌘Space from Spotlight), see what you can type, where extensions live and which optional permissions help. Replay it from the menu bar icon or Settings → About. Existing installs skip it.
 - `--onboarding --step N --snapshot-onboarding out.png` renders a tour step for checking UI changes.
 - Home screen shows your 5 most recently used extensions above the full A–Z list.
 - Test suites for fuzzy ranking, the wire protocol and the calculator parser.

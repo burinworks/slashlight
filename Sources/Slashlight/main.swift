@@ -28,7 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
                 return
             }
-            // Debug aid: `--onboarding [--step 1…7] [--snapshot-onboarding out.png] [--dark]` opens the welcome tour at a
+            // Debug aid: `--onboarding [--step 1…6] [--snapshot-onboarding out.png] [--dark]` opens the welcome tour at a
             // step; with a path it renders that step with animations at rest and quits.
             if CommandLine.arguments.contains("--onboarding") {
                 let step = argument("--step").flatMap(Int.init).flatMap { OnboardingStep(rawValue: $0 - 1) } ?? .welcome
