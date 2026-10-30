@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, beta, test]
   pull_request:
   workflow_dispatch:
 
@@ -36,7 +36,7 @@ jobs:
         run: scripts/test.sh
 
       - name: Build app bundle (universal)
-        run: UNIVERSAL=1 VERSION=0.0.0-ci BUILD_NUMBER=${{ github.run_number }} scripts/build-app.sh
+        run: UNIVERSAL=1 VERSION="$(cat VERSION)-ci" BUILD_NUMBER=${{ github.run_number }} scripts/build-app.sh
 
       - name: Smoke test
         run: |
@@ -49,6 +49,6 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Slashlight-${{ github.sha }}
+          name: Slashlight-${{ github.ref_name == 'test' && 'test-' || '' }}${{ github.sha }}
           path: build/Slashlight.dmg
-          retention-days: 14
+          retention-days: ${{ github.ref_name == 'test' && 30 || 14 }}

@@ -1,18 +1,98 @@
 name: Release
 
+# Release channels (see CONTRIBUTING.md):
+#   push to beta  → pre-release vX.Y.Z-beta.N, appcast channel "beta"
+#   push to main  → stable vX.Y.Z, once per VERSION; waits for approval in the "stable" environment
+#   tag v*        → that tag (a hyphen makes it a pre-release)
+# Each release ships Slashlight-<tag>.dmg and SHA256SUMS.txt, and adds an EdDSA-signed item
+# to the Sparkle appcast on the gh-pages branch (https://burinworks.github.io/slashlight/appcast.xml).
 on:
   push:
+    branches: [main, beta]
     tags: ["v*"]
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
-  release:
-    runs-on: macos-26
-    timeout-minutes: 30
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.plan.outputs.tag }}
+      channel: ${{ steps.plan.outputs.channel }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Pick the tag
+        id: plan
+        run: |
+          VERSION="$(tr -d '[:space:]' < VERSION)"
+          TAG=""
+          CHANNEL=stable
+          released() { git rev-parse -q --verify "refs/tags/$1" >/dev/null; }
+          case "$GITHUB_REF" in
+            refs/tags/v*)
+              TAG="$GITHUB_REF_NAME"
+              [[ "$TAG" == *-* ]] && CHANNEL=beta
+              ;;
+            refs/heads/beta)
+              CHANNEL=beta
+              LAST="$(git tag -l "v$VERSION-beta.*" --sort=-v:refname | head -1)"
+              if released "v$VERSION"; then
+                echo "::notice::v$VERSION is already stable; bump VERSION on test for the next beta."
+              elif [[ -n "$LAST" ]] && git diff --quiet "$LAST" HEAD; then
+                echo "::notice::Nothing changed since $LAST."
+              else
+                N="${LAST##*-beta.}"
+                TAG="v$VERSION-beta.$(( ${N:-0} + 1 ))"
+              fi
+              ;;
+            refs/heads/main)
+              if released "v$VERSION"; then
+                echo "::notice::v$VERSION is already released; nothing to publish."
+              else
+                TAG="v$VERSION"
+              fi
+              ;;
+          esac
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "channel=$CHANNEL" >> "$GITHUB_OUTPUT"
+          echo "Release: ${TAG:-none} ($CHANNEL)" >> "$GITHUB_STEP_SUMMARY"
+
+  release:
+    name: Release ${{ needs.plan.outputs.tag }}
+    needs: plan
+    if: needs.plan.outputs.tag != ''
+    runs-on: macos-26
+    timeout-minutes: 40
+    # Add required reviewers to the "stable" environment so every stable release waits for a maintainer.
+    environment: ${{ needs.plan.outputs.channel }}
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ needs.plan.outputs.tag }}
+      CHANNEL: ${{ needs.plan.outputs.channel }}
+      BUILD_NUMBER: ${{ github.run_number }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check update signing keys
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          SPARKLE_PUBLIC_KEY: ${{ vars.SPARKLE_PUBLIC_KEY }}
+        run: |
+          if [[ -z "$SPARKLE_PRIVATE_KEY" || -z "$SPARKLE_PUBLIC_KEY" ]]; then
+            echo "::error::Set the SPARKLE_PRIVATE_KEY secret and the SPARKLE_PUBLIC_KEY variable (CONTRIBUTING.md → Update signing keys)."
+            exit 1
+          fi
 
       - name: Toolchain
         run: sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
@@ -21,15 +101,43 @@ jobs:
         run: scripts/test.sh
 
       - name: Build
+        env:
+          SPARKLE_PUBLIC_KEY: ${{ vars.SPARKLE_PUBLIC_KEY }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}" BUILD_NUMBER=${{ github.run_number }} UNIVERSAL=1 scripts/build-app.sh
-          scripts/make-dmg.sh "dist/Slashlight-${GITHUB_REF_NAME}.dmg"
-          (cd dist && shasum -a 256 *.dmg > SHA256SUMS.txt)
+          VERSION="${TAG#v}" UNIVERSAL=1 scripts/build-app.sh
+          scripts/make-dmg.sh "dist/Slashlight-$TAG.dmg"
+          (cd dist && shasum -a 256 ./*.dmg > SHA256SUMS.txt)
+
+      - name: Sign the update
+        id: sign
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          KEY="$RUNNER_TEMP/sparkle.key"
+          (umask 077 && printf '%s' "$SPARKLE_PRIVATE_KEY" > "$KEY")
+          SIGNATURE="$(.build/artifacts/sparkle/Sparkle/bin/sign_update --ed-key-file "$KEY" "dist/Slashlight-$TAG.dmg")"
+          rm -f "$KEY"
+          echo "signature=$SIGNATURE" >> "$GITHUB_OUTPUT"
 
       - name: Publish release
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/*.dmg dist/SHA256SUMS.txt \
-            --title "Slashlight $GITHUB_REF_NAME" --generate-notes \
-            $([[ "$GITHUB_REF_NAME" == *-* ]] && echo --prerelease)
+          PRERELEASE=()
+          [[ "$CHANNEL" == beta ]] && PRERELEASE=(--prerelease)
+          gh release create "$TAG" "dist/Slashlight-$TAG.dmg" dist/SHA256SUMS.txt \
+            --target "$GITHUB_SHA" --title "Slashlight $TAG" --generate-notes "${PRERELEASE[@]}"
+
+      - name: Update appcast
+        env:
+          SIGNATURE: ${{ steps.sign.outputs.signature }}
+        run: |
+          FEED="$RUNNER_TEMP/appcast.xml"
+          API="repos/$GITHUB_REPOSITORY/contents/appcast.xml"
+          SHA="$(gh api "$API?ref=gh-pages" --jq .sha 2>/dev/null || true)"
+          [[ -n "$SHA" ]] && gh api "$API?ref=gh-pages" -H "Accept: application/vnd.github.raw" > "$FEED"
+          URL="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/Slashlight-$TAG.dmg"
+          ITEM_CHANNEL=""
+          [[ "$CHANNEL" == beta ]] && ITEM_CHANNEL=beta
+          swift scripts/appcast.swift "$FEED" "$TAG" "$BUILD_NUMBER" "$URL" "$SIGNATURE" $ITEM_CHANNEL
+          ARGS=(-f branch=gh-pages -f "message=Appcast: $TAG" -f "content=$(base64 -i "$FEED")")
+          [[ -n "$SHA" ]] && ARGS+=(-f "sha=$SHA")
+          gh api -X PUT "$API" "${ARGS[@]}" --jq .commit.html_url

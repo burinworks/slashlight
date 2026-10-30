@@ -191,6 +191,7 @@ private struct GeneralSettings: View {
                     Text("Works when running the bundled Slashlight.app").font(.caption).foregroundStyle(.secondary)
                 }
             }
+            UpdateSettings(model: model)
             Section("Files") {
                 LabeledContent("Config folder") {
                     Button("Open in Finder") { NSWorkspace.shared.open(Paths.support) }
