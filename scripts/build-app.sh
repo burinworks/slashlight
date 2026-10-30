@@ -1,15 +1,29 @@
 #!/usr/bin/env bash
 # Builds build/Slashlight.app (release) and the example extension.
 # Usage: scripts/build-app.sh [--install-example]
-# Environment: VERSION (default 0.0.0-dev), UNIVERSAL=1 for an arm64 + x86_64 binary (needs Xcode).
+# Environment: VERSION (default 0.0.0-dev), BUILD_NUMBER, UNIVERSAL=1 for an arm64 + x86_64 binary.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 VERSION="${VERSION:-0.0.0-dev}"
-ARCHS=()
-[[ "${UNIVERSAL:-}" == "1" ]] && ARCHS=(--arch arm64 --arch x86_64)
-swift build -c release ${ARCHS[@]+"${ARCHS[@]}"}
-BIN="$(swift build -c release ${ARCHS[@]+"${ARCHS[@]}"} --show-bin-path)"
+# Products end up in build/bin. A universal build compiles each architecture separately and merges them with lipo
+# (`swift build --arch a --arch b` goes through Xcode's build system, which cannot resolve SwiftTerm's build plugin).
+mkdir -p build/bin
+if [[ "${UNIVERSAL:-}" == "1" ]]; then
+  DIRS=()
+  for ARCH in arm64 x86_64; do
+    swift build -c release --triple "$ARCH-apple-macosx14.0"
+    DIRS+=("$(swift build -c release --triple "$ARCH-apple-macosx14.0" --show-bin-path)")
+  done
+  for PRODUCT in Slashlight hello-extension; do
+    lipo -create "${DIRS[0]}/$PRODUCT" "${DIRS[1]}/$PRODUCT" -output "build/bin/$PRODUCT"
+  done
+else
+  swift build -c release
+  BIN="$(swift build -c release --show-bin-path)"
+  cp "$BIN/Slashlight" "$BIN/hello-extension" build/bin/
+fi
+BIN="build/bin"
 
 APP="build/Slashlight.app"
 rm -rf "$APP"

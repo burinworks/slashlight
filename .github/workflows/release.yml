@@ -23,9 +23,8 @@ jobs:
       - name: Build
         run: |
           VERSION="${GITHUB_REF_NAME#v}" BUILD_NUMBER=${{ github.run_number }} UNIVERSAL=1 scripts/build-app.sh
-          BIN="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)"
           mkdir -p dist/hello-extension
-          cp "$BIN/hello-extension" Examples/HelloExtension/manifest.json dist/hello-extension/
+          cp build/bin/hello-extension Examples/HelloExtension/manifest.json dist/hello-extension/
           ditto -c -k --keepParent build/Slashlight.app "dist/Slashlight-${GITHUB_REF_NAME}.zip"
           (cd dist && zip -qr "hello-extension-${GITHUB_REF_NAME}.zip" hello-extension)
           (cd dist && shasum -a 256 *.zip > SHA256SUMS.txt)
