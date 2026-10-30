@@ -9,7 +9,8 @@ The first time Slashlight starts, it opens a short tour instead of the panel:
 3. **What you can type:** apps, the calculator, `/` commands and `>` terminal commands.
 4. **Where extensions live:** the empty bar, `/` command mode and Settings → Extensions.
 5. **Permissions:** Accessibility and Screen Recording, with live status. Both are optional.
-6. **Done:** your hotkey, and a button that opens the panel.
+6. **Help improve Slashlight:** choose whether to share anonymous usage statistics (which extensions are used, app and macOS versions; never search text, file names or clipboard). Nothing is chosen for you, and nothing is sent until you choose. Change it any time in Settings → General.
+7. **Done:** your hotkey, and a button that opens the panel.
 
 Return moves forward and ← goes back. Closing the window ends the tour too; it does not come back by itself. To see it again, use **Show Welcome Tour** in the menu bar icon or in Settings → About. The tour follows Reduce Motion.
 

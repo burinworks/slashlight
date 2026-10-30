@@ -3,7 +3,7 @@ import SlashlightKit
 import SwiftUI
 
 enum OnboardingStep: Int, CaseIterable {
-    case welcome, hotkey, search, extensions, permissions, done
+    case welcome, hotkey, search, extensions, permissions, statistics, done
 }
 
 /// The welcome tour: opens by itself on first launch, and again from the menu bar icon or Settings → About.
@@ -74,6 +74,8 @@ final class OnboardingModel: ObservableObject {
     @Published private(set) var hotkey: String
     @Published private(set) var permissions: [Permission: Bool] = [:]
     @Published private(set) var spotlightOwnsCommandSpace = false
+    /// nil until the user picks one on the statistics step.
+    @Published private(set) var shareStatistics: Bool?
     let still: Bool
     var onFinish: ((_ openPanel: Bool) -> Void)?
     private var timer: Timer?
@@ -82,6 +84,7 @@ final class OnboardingModel: ObservableObject {
         self.step = step
         self.still = still
         hotkey = Host.shared.settings.hotkey
+        shareStatistics = Host.shared.settings.shareStatistics
         refresh()
         // Permissions and the Spotlight shortcut change in System Settings; poll so the tour reflects them live.
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
@@ -113,6 +116,11 @@ final class OnboardingModel: ObservableObject {
     func setHotkey(_ value: String) {
         withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { hotkey = value }
         if !still { Host.shared.update { $0.hotkey = value } }
+    }
+
+    func setShareStatistics(_ value: Bool) {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { shareStatistics = value }
+        if !still { Host.shared.update { $0.shareStatistics = value } }
     }
 
     func refresh() {

@@ -91,6 +91,8 @@ struct Settings: Codable, Equatable {
     var disabledExtensions: [String] = []
     /// False until the welcome tour has been finished or closed once.
     var onboardingCompleted: Bool = false
+    /// Anonymous usage statistics. nil means the user has not been asked yet, and nothing is sent.
+    var shareStatistics: Bool?
 
     init() {}
 
@@ -105,6 +107,7 @@ struct Settings: Codable, Equatable {
         disabledExtensions = try c.decodeIfPresent([String].self, forKey: .disabledExtensions) ?? d.disabledExtensions
         // A settings file from before the tour existed belongs to someone who has already set the app up.
         onboardingCompleted = try c.decodeIfPresent(Bool.self, forKey: .onboardingCompleted) ?? true
+        shareStatistics = try c.decodeIfPresent(Bool.self, forKey: .shareStatistics)
     }
 
     static func load() -> Settings {

@@ -58,6 +58,7 @@ struct OnboardingView: View {
         case .search: SearchStep()
         case .extensions: ExtensionsStep()
         case .permissions: PermissionsStep(model: model)
+        case .statistics: StatisticsStep(model: model)
         case .done: DoneStep(model: model)
         }
     }
