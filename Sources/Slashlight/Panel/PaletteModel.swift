@@ -83,6 +83,7 @@ final class PaletteModel: ObservableObject {
 
     func open(_ ext: Extension) {
         guard let view = ext.rootView() else { return }
+        RecentExtensions.record(ext.manifest.id)
         push(view, extensionID: ext.manifest.id)
     }
 
@@ -318,9 +319,9 @@ final class PaletteModel: ObservableObject {
         return nil
     }
 
-    private func entryItem(_ ext: Extension) -> Item {
+    private func entryItem(_ ext: Extension, idPrefix: String = "") -> Item {
         let m = ext.manifest
-        return Item(id: "open-\(m.id)", title: m.title, subtitle: m.subtitle, icon: m.icon,
+        return Item(id: "\(idPrefix)open-\(m.id)", title: m.title, subtitle: m.subtitle, icon: m.icon,
                     accessories: commandName(ext).map { [.text("/\($0)")] } ?? [],
                     primary: Action("Open", icon: .symbol("arrow.right")) { [weak ext] in
                         guard let view = ext?.rootView() else { return .stay }
@@ -329,9 +330,15 @@ final class PaletteModel: ObservableObject {
     }
 
     private func home() -> [(String?, Section)] {
-        var parts: [(String?, Section)] = host.extensions
-            .filter { $0.rootView() != nil }
-            .map { ($0.manifest.id, Section("Extensions", [entryItem($0)])) }
+        // Up to five recently used extensions, then every extension A to Z.
+        let openable = host.extensions.filter { $0.rootView() != nil }
+        let byID = Dictionary(openable.map { ($0.manifest.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let recent = RecentExtensions.ids.compactMap { byID[$0] }.prefix(5)
+        var parts: [(String?, Section)] = recent
+            .map { ($0.manifest.id, Section("Recent", [entryItem($0, idPrefix: "recent-")])) }
+        parts += openable
+            .sorted { $0.manifest.title.localizedCaseInsensitiveCompare($1.manifest.title) == .orderedAscending }
+            .map { ($0.manifest.id, Section("All Extensions", [entryItem($0)])) }
         parts.append((nil, Section("Slashlight", [
             Item(id: "settings", title: "Settings", subtitle: "Permissions, hotkeys, extensions folder",
                  icon: .symbol("gearshape"), accessories: [.keycap(Shortcut(",", .command))],
@@ -353,6 +360,7 @@ final class PaletteModel: ObservableObject {
     // MARK: Running actions
 
     func run(_ action: Action, from row: Row?) {
+        if let id = row?.extensionID ?? current.extensionID { RecentExtensions.record(id) }
         Task {
             do {
                 handle(try await action.run(), extensionID: row?.extensionID)

@@ -18,6 +18,23 @@ enum Paths {
 
     static var extensions: URL { support.appendingPathComponent("Extensions", isDirectory: true) }
     static var settings: URL { support.appendingPathComponent("settings.json") }
+    static var recentExtensions: URL { support.appendingPathComponent("recent-extensions.json") }
+}
+
+/// Extension ids, most recently used first. Used to sort the home screen.
+enum RecentExtensions {
+    private static let limit = 20
+    private(set) static var ids: [String] = {
+        (try? Data(contentsOf: Paths.recentExtensions)).flatMap { try? JSONDecoder().decode([String].self, from: $0) } ?? []
+    }()
+
+    static func record(_ id: String) {
+        guard ids.first != id else { return }
+        ids.removeAll { $0 == id }
+        ids.insert(id, at: 0)
+        if ids.count > limit { ids.removeLast(ids.count - limit) }
+        try? JSONEncoder().encode(ids).write(to: Paths.recentExtensions, options: .atomic)
+    }
 }
 
 enum Permissions {
