@@ -34,7 +34,7 @@ Apps, files, windows on every Space, a calculator, snippets, clipboard history a
 | <img src="docs/images/commands.png" alt="Command mode listing all extensions" width="420"> | **Command mode.** Type `/` for every extension and your own commands: shell scripts, URLs with `{query}` quicklinks, Shortcuts, HTTP calls and AppleScript. |
 | <img src="docs/images/emoji-dark.png" alt="Emoji picker grid" width="420"> | **Emoji & symbols.** A searchable grid with recents first, plus ⌘ ⌥ → © and friends. |
 | <img src="docs/images/system-dark.png" alt="System commands" width="420"> | **System commands.** Lock, sleep, restart, empty trash, eject disks, toggle dark mode, quit all apps. |
-| <img src="docs/images/insights-dark.png" alt="Usage Insights dashboard" width="420"> | **Usage Insights.** `/insights` shows what you use most, when you're busiest, your streak and how much time the keyboard saves you. The data stays on your Mac. |
+| <img src="docs/images/insights-dark.png" alt="Usage Insights dashboard" width="420"> | **Usage Insights.** `/insights` shows what you use most, when you're busiest, your streak and how fast you get from opening the panel to an action. The data stays on your Mac. |
 
 Also built in:
 

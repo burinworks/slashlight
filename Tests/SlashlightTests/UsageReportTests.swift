@@ -90,11 +90,6 @@ struct UsageReportTests {
         // Latencies over a minute (panel left open) are ignored.
         #expect(r.medianLatency == 1000)
     }
-
-    @Test func minutesSaved() {
-        let r = report((0..<40).map { _ in run("apps", "Safari") })
-        #expect(r.minutesSaved == 2)
-    }
 }
 
 @Suite("Usage event format")

@@ -160,7 +160,7 @@ struct InsightsDashboard: View {
         HStack(spacing: 10) {
             tile("Actions", "\(r.actions)", "bolt.fill")
             tile("Panel opens", "\(r.opens)", "rectangle.and.text.magnifyingglass")
-            tile("Time saved", r.minutesSaved < 60 ? "\(Int(r.minutesSaved.rounded())) min" : String(format: "%.1f h", r.minutesSaved / 60), "hourglass")
+            tile("Open → action", r.medianLatency.map { String(format: "%.1f s", Double($0) / 1000) } ?? "—", "timer")
             tile("Streak", "\(r.streak) day\(r.streak == 1 ? "" : "s")", "flame.fill")
         }
     }
@@ -264,7 +264,6 @@ struct InsightsDashboard: View {
                 HStack(spacing: 14) {
                     if let s = r.firstResultShare { metric("First-result picks", "\(Int(s * 100))%") }
                     if let s = r.keyboardShare { metric("From the keyboard", "\(Int(s * 100))%") }
-                    if let l = r.medianLatency { metric("Open → action", String(format: "%.1f s", Double(l) / 1000)) }
                     metric("Active days", "\(r.activeDays)")
                 }
                 .padding(.top, 4)
