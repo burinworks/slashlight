@@ -181,9 +181,6 @@ struct UsageReport {
         let count: Int
     }
 
-    /// Rough time a keyboard launch saves over finding the same thing with the mouse.
-    static let secondsSavedPerAction = 3.0
-
     let period: Period
     let opens: Int
     let actions: Int
@@ -202,8 +199,6 @@ struct UsageReport {
     /// Median milliseconds from opening the panel to running an action.
     let medianLatency: Int?
     let unused: [String]
-
-    var minutesSaved: Double { Double(actions) * Self.secondsSavedPerAction / 60 }
 
     /// `extensions` maps every enabled extension id to its title; the ones never used show up in `unused`.
     init(events: [UsageEvent], period: Period, extensions: [String: String], now: Date = Date(), calendar: Calendar = .current) {
@@ -276,7 +271,6 @@ struct UsageReport {
         if let share = keyboardShare, share < 0.8 {
             out.append("\(Int((1 - share) * 100))% of picks were mouse clicks. ↵ runs the selection and ⌘1…⌘9 run any of the first nine.")
         }
-        if minutesSaved >= 1 { out.append("That's about \(Int(minutesSaved.rounded())) minutes saved versus reaching for the mouse.") }
         if let idea = unused.first { out.append("Haven't tried \(idea) yet? Type / to find it.") }
         return out
     }

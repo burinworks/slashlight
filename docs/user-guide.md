@@ -80,7 +80,7 @@ When a task that ran longer than 3 s finishes while you are elsewhere, you get a
 
 `/insights` opens a dashboard of how you use Slashlight:
 
-- totals, plus the time saved (estimated at 3 s per action);
+- totals, plus the median time from opening the panel to running an action;
 - your streak, actions per day and the busiest hours;
 - top extensions and the items you open most;
 - how often the first result was the right one, and keyboard versus mouse;

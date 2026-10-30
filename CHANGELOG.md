@@ -6,9 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 - Anonymous, opt-in usage statistics with a self-hosted collector and a public dashboard (`server/`, `docs/telemetry.md`). Settings → General → Privacy has the toggle, a preview of the exact report, and an ID reset.
-- Usage Insights (`/insights`): a dashboard of your own usage, with actions per day, busiest hours, top extensions and items, streak, time saved and tips. Recorded locally only.
-
-### Added
+- Usage Insights (`/insights`): a dashboard of your own usage, with actions per day, busiest hours, top extensions and items, streak, median time to action and tips. Recorded locally only.
 - Home screen shows your 5 most recently used extensions above the full A–Z list.
 - Test suites for fuzzy ranking, the wire protocol and the calculator parser.
 - CI (build, test, universal app artifact), CodeQL and tag-driven GitHub releases.
