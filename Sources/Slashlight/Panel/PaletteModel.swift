@@ -359,8 +359,20 @@ final class PaletteModel: ObservableObject {
 
     // MARK: Running actions
 
+    /// How the next action was triggered, for usage insights; anything not set elsewhere is a key press.
+    private var pendingInput: UsageEvent.Input?
+    /// The ⌘K screen and the item it belongs to, so its actions are recorded against that item.
+    private weak var actionsMenu: ListView?
+    private var actionsMenuItem: String?
+
     func run(_ action: Action, from row: Row?) {
-        if let id = row?.extensionID ?? current.extensionID { RecentExtensions.record(id) }
+        let extensionID = row?.extensionID ?? current.extensionID
+        if let id = extensionID { RecentExtensions.record(id) }
+        let fromMenu = actionsMenu != nil && actionsMenu === currentView
+        UsageStore.shared.actionRan(extensionID: extensionID, item: fromMenu ? actionsMenuItem : row?.item.title,
+                                    action: action.title, rank: fromMenu ? nil : row?.index,
+                                    queryLength: text.count, input: fromMenu ? .shortcut : pendingInput ?? .key)
+        pendingInput = nil
         Task {
             do {
                 handle(try await action.run(), extensionID: row?.extensionID)
@@ -410,6 +422,8 @@ final class PaletteModel: ObservableObject {
                             })
             })]
         }
+        actionsMenu = view
+        actionsMenuItem = item.title
         push(view, extensionID: row.extensionID)
     }
 
@@ -437,6 +451,7 @@ final class PaletteModel: ObservableObject {
 
     func click(_ index: Int) {
         selection = index
+        pendingInput = .click
         if NSEvent.modifierFlags.contains(.command) { runSecondary() } else { runPrimary(index) }
     }
 
@@ -480,11 +495,13 @@ final class PaletteModel: ObservableObject {
         case ("t", [.command]) where current.extensionID == "terminal" || text.hasPrefix(">"):
             showTerminal(TerminalManager.shared.start(command: nil))
         case (let k, [.command]) where Int(k).map({ (1...9).contains($0) }) == true:
+            pendingInput = .number
             runPrimary(Int(k)! - 1)
         default:
             if plain { return false }
             guard let row = selectedRow,
                   let action = row.item.actions.first(where: { $0.shortcut == Shortcut(key, mods) }) else { return false }
+            pendingInput = .shortcut
             run(action, from: row)
         }
         return true
@@ -494,6 +511,7 @@ final class PaletteModel: ObservableObject {
         guard let hold = holdModifier else { return }
         if Shortcut.Modifiers(event.modifierFlags).isDisjoint(with: hold) {
             holdModifier = nil
+            pendingInput = .hold
             runPrimary()
         }
     }

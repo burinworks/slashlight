@@ -45,6 +45,7 @@
 | **System** (`/system`, `/lock`, `/sleep`…) | Run | — |
 | **Emoji & Symbols** (`/emoji`) | Copy | Paste |
 | **Script Commands** (`/scripts`): Raycast script commands from `script-commands/` | Run | — |
+| **Usage Insights** (`/insights`, `/stats`): a dashboard of your own usage | Open | — |
 | **Search the Web**: always the last result | Google | DuckDuckGo |
 
 Turn any extension except All Apps on or off in Settings → Extensions.
@@ -74,6 +75,30 @@ When a task that ran longer than 3 s finishes while you are elsewhere, you get a
 | ⌘T / ⌘W | New tab / close tab |
 | ⌃⇥, ⌃⇧⇥, ⌘1…⌘9 | Switch tabs. From search, ⌃⇥ jumps back to the last tab |
 | ⌘C ⌘V ⌘K ⌘+ ⌘− | Copy, paste, clear, font size |
+
+## Usage Insights
+
+`/insights` opens a dashboard of how you use Slashlight:
+
+- totals, plus the time saved (estimated at 3 s per action);
+- your streak, actions per day and the busiest hours;
+- top extensions and the items you open most;
+- how often the first result was the right one, and keyboard versus mouse;
+- short tips, for example extensions you haven't tried.
+
+| Key | Action |
+|---|---|
+| Tab / ⇧Tab | 7 days, 30 days, all time |
+| ↑ ↓ | Scroll |
+| ⌘⇧⌫ twice | Delete all recorded usage |
+| ⌘⌫ | Back |
+
+What is recorded:
+
+- when the panel opens;
+- for each action: the extension, the item's title, the action, the row's position, how many characters you had typed, the time since the panel opened, and whether you used the keyboard or the mouse.
+
+Titles are not recorded for Clipboard History, Calculator, Files and web searches, because those titles are your own content. What you type in the search bar is stored only as its length, and as part of a terminal tab's title (`Run  npm run dev`) when you run a command. Events live in `usage/events.jsonl` and are deleted after a year. Turning Usage Insights off in Settings → Extensions stops recording.
 
 ## Your own commands
 
@@ -116,6 +141,7 @@ Everything lives in `~/Library/Application Support/Slashlight/`:
 | `script-commands/` | Raycast-style scripts |
 | `Extensions/<name>/` | External extensions (`manifest.json` + executable) |
 | `recent-extensions.json` | Order of the Recent section |
+| `usage/events.jsonl` | Usage Insights events (stays on this Mac) |
 
 `settings.json` defaults:
 
