@@ -191,6 +191,7 @@ private struct GeneralSettings: View {
                     Text("Works when running the bundled Slashlight.app").font(.caption).foregroundStyle(.secondary)
                 }
             }
+            PrivacySection(model: model)
             Section("Files") {
                 LabeledContent("Config folder") {
                     Button("Open in Finder") { NSWorkspace.shared.open(Paths.support) }
@@ -206,6 +207,57 @@ private struct GeneralSettings: View {
             }
         }
         .formStyle(.grouped)
+    }
+}
+
+/// Anonymous statistics: the consent toggle, the exact JSON that would be sent, and the public dashboard.
+private struct PrivacySection: View {
+    @ObservedObject var model: SettingsModel
+    @State private var preview: String?
+
+    var body: some View {
+        Section("Privacy") {
+            Toggle(isOn: Binding(get: { model.settings.shareStatistics == true },
+                                 set: { on in model.update { $0.shareStatistics = on } })) {
+                Text("Share anonymous usage statistics")
+                Text("Counts only: which extensions you use, app and macOS versions. Never search text, names or files. Everything collected is published on a public dashboard.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            LabeledContent("What's sent") {
+                HStack {
+                    Button("Show") { preview = Telemetry.shared.preview() }
+                    Button("Reset ID") { Telemetry.shared.resetID() }
+                        .disabled(model.settings.shareStatistics != true)
+                    if let url = Telemetry.shared.dashboard { Link("Public dashboard", destination: url) }
+                }
+            }
+        }
+        .sheet(item: Binding(get: { preview.map(PreviewText.init) }, set: { preview = $0?.text })) { p in
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Today's report so far").font(.headline)
+                ScrollView {
+                    Text(p.text).font(.system(size: 11, design: .monospaced)).textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(height: 320)
+                .padding(8)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.05)))
+                HStack {
+                    Text(Telemetry.shared.endpoint == nil ? "This build has no collector URL, so it never sends anything."
+                                                         : "Sent once a day, for finished days only.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Done") { preview = nil }.keyboardShortcut(.defaultAction)
+                }
+            }
+            .padding(16)
+            .frame(width: 520)
+        }
+    }
+
+    private struct PreviewText: Identifiable {
+        let text: String
+        var id: String { text }
     }
 }
 

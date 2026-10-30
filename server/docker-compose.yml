@@ -1,0 +1,43 @@
+# Slashlight statistics: collector + hourly aggregator + public dashboard behind Caddy (automatic HTTPS).
+# Usage: cp .env.example .env && edit it && docker compose up -d
+services:
+  collector:
+    build: .
+    restart: unless-stopped
+    environment:
+      SECRET: ${SECRET:?set SECRET in .env}
+      TRUST_PROXY: "1"
+    volumes:
+      - data:/data
+
+  aggregator:
+    build: .
+    restart: unless-stopped
+    environment:
+      SECRET: ${SECRET}
+      K_THRESHOLD: ${K_THRESHOLD:-5}
+    # Copy the dashboard into the public volume, then rebuild stats.json every hour.
+    command: >
+      sh -c "cp -R /app/dashboard/. /public/ &&
+             while true; do python aggregate.py; sleep 3600; done"
+    volumes:
+      - data:/data
+      - public:/public
+    depends_on: [collector]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - public:/srv:ro
+      - caddy:/data
+    depends_on: [collector, aggregator]
+
+volumes:
+  data:
+  public:
+  caddy:

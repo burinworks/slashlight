@@ -89,6 +89,8 @@ struct Settings: Codable, Equatable {
     var appearance: String = "system"
     /// Manifest ids of extensions that are turned off.
     var disabledExtensions: [String] = []
+    /// Anonymous statistics (docs/telemetry.md). nil = the user has not been asked, and nothing is sent.
+    var shareStatistics: Bool?
 
     init() {}
 
@@ -101,6 +103,7 @@ struct Settings: Codable, Equatable {
         windowManagementHotkeys = try c.decodeIfPresent(Bool.self, forKey: .windowManagementHotkeys) ?? d.windowManagementHotkeys
         appearance = try c.decodeIfPresent(String.self, forKey: .appearance) ?? d.appearance
         disabledExtensions = try c.decodeIfPresent([String].self, forKey: .disabledExtensions) ?? d.disabledExtensions
+        shareStatistics = try c.decodeIfPresent(Bool.self, forKey: .shareStatistics)
     }
 
     static func load() -> Settings {

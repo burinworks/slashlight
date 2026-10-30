@@ -9,7 +9,7 @@ struct UsageReportTests {
         c.timeZone = TimeZone(identifier: "UTC")!
         return c
     }()
-    // Thursday 30 Oct 2026, 15:00 UTC.
+    // Friday 30 Oct 2026, 15:00 UTC.
     private let now = Date(timeIntervalSince1970: 1_793_372_400)
 
     private func at(daysAgo: Int, hour: Int) -> Date {

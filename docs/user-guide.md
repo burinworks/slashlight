@@ -155,6 +155,12 @@ Everything lives in `~/Library/Application Support/Slashlight/`:
 }
 ```
 
+## Anonymous statistics
+
+If you agree in onboarding, or turn on Settings → General → "Share anonymous usage statistics", Slashlight sends one small report per day to the project's self-hosted server. The report contains counts only: actions per built-in extension, app and macOS version, hotkey and theme. It never contains search text, item names, files or clipboard contents.
+
+Everything collected is published on the public dashboard. "Show" displays the exact report, and "Reset ID" makes your install look new. Turning sharing off deletes the ID. [docs/telemetry.md](telemetry.md) has the details.
+
 ## Permissions
 
 | Permission | Used for | Without it |

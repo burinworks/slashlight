@@ -118,6 +118,10 @@ Drop the binary and a `manifest.json` into `~/Library/Application Support/Slashl
 
 Read [Architecture](docs/architecture.md) for the module layout, the search pipeline and the threading model.
 
+## Privacy
+
+Slashlight works offline and sends nothing by default. Onboarding asks whether you want to share anonymous usage statistics, and you can change the answer in Settings → General. Those statistics contain counts only, never search text, names or files. Everything collected is published on a public, self-hosted dashboard. [docs/telemetry.md](docs/telemetry.md) lists every field, and Settings → General → "Show" displays the exact report before it is sent.
+
 ## Roadmap
 
 - [ ] Signed and notarized releases, plus a Homebrew cask

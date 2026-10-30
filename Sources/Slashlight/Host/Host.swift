@@ -20,6 +20,7 @@ final class Host {
     func start() async {
         await loadExtensions()
         registerHotkeys()
+        Telemetry.shared.start()
     }
 
     func loadExtensions() async {
@@ -52,10 +53,12 @@ final class Host {
         var s = Settings.load()
         change(&s)
         let extensionsChanged = s.disabledExtensions != settings.disabledExtensions
+        let sharingChanged = s.shareStatistics != settings.shareStatistics
         s.save()
         settings = s
         s.applyAppearance()
         if extensionsChanged { Task { await reload() } } else { registerHotkeys() }
+        if sharingChanged { Telemetry.shared.sharingChanged(s.shareStatistics == true) }
     }
 
     func reload() async {

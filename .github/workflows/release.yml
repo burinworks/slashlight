@@ -22,7 +22,8 @@ jobs:
 
       - name: Build
         run: |
-          VERSION="${GITHUB_REF_NAME#v}" BUILD_NUMBER=${{ github.run_number }} UNIVERSAL=1 scripts/build-app.sh
+          VERSION="${GITHUB_REF_NAME#v}" BUILD_NUMBER=${{ github.run_number }} UNIVERSAL=1 \
+            TELEMETRY_URL="${{ vars.TELEMETRY_URL }}" scripts/build-app.sh
           scripts/make-dmg.sh "dist/Slashlight-${GITHUB_REF_NAME}.dmg"
           (cd dist && shasum -a 256 *.dmg > SHA256SUMS.txt)
 

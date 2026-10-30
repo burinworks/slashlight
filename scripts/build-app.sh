@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Builds build/Slashlight.app (release) and the example extension.
 # Usage: scripts/build-app.sh [--install-example]
-# Environment: VERSION (default 0.0.0-dev), BUILD_NUMBER, UNIVERSAL=1 for an arm64 + x86_64 binary.
+# Environment: VERSION (default 0.0.0-dev), BUILD_NUMBER, UNIVERSAL=1 for an arm64 + x86_64 binary,
+# TELEMETRY_URL (collector endpoint; empty = the app never sends statistics, see docs/telemetry.md).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -47,6 +48,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>
+  <key>SLTelemetryURL</key><string>${TELEMETRY_URL:-}</string>
   <key>NSAppleEventsUsageDescription</key><string>Slashlight runs your commands in Terminal and your AppleScript commands.</string>
 </dict>
 </plist>
