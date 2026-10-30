@@ -47,7 +47,7 @@ jobs:
       - name: Zip
         run: ditto -c -k --keepParent build/Slashlight.app Slashlight.zip
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: Slashlight-${{ github.sha }}
           path: Slashlight.zip
