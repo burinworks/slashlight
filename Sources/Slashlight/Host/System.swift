@@ -89,6 +89,8 @@ struct Settings: Codable, Equatable {
     var appearance: String = "system"
     /// Manifest ids of extensions that are turned off.
     var disabledExtensions: [String] = []
+    /// False until the welcome tour has been finished or closed once.
+    var onboardingCompleted: Bool = false
 
     init() {}
 
@@ -101,6 +103,8 @@ struct Settings: Codable, Equatable {
         windowManagementHotkeys = try c.decodeIfPresent(Bool.self, forKey: .windowManagementHotkeys) ?? d.windowManagementHotkeys
         appearance = try c.decodeIfPresent(String.self, forKey: .appearance) ?? d.appearance
         disabledExtensions = try c.decodeIfPresent([String].self, forKey: .disabledExtensions) ?? d.disabledExtensions
+        // A settings file from before the tour existed belongs to someone who has already set the app up.
+        onboardingCompleted = try c.decodeIfPresent(Bool.self, forKey: .onboardingCompleted) ?? true
     }
 
     static func load() -> Settings {
