@@ -1,5 +1,18 @@
 # User guide
 
+## Welcome tour
+
+The first time Slashlight starts, it opens a short tour instead of the panel:
+
+1. **Welcome.**
+2. **Pick your hotkey:** ⌘Space, ⌥Space (the default), ⌃Space or your own. ⌘Space belongs to Spotlight until you turn Spotlight's shortcut off in System Settings → Keyboard → Keyboard Shortcuts → Spotlight; the tour links there and picks ⌘Space up as soon as it is free.
+3. **What you can type:** apps, the calculator, `/` commands and `>` terminal commands.
+4. **Where extensions live:** the empty bar, `/` command mode and Settings → Extensions.
+5. **Permissions:** Accessibility and Screen Recording, with live status. Both are optional.
+6. **Done:** your hotkey, and a button that opens the panel.
+
+Return moves forward and ← goes back. Closing the window ends the tour too; it does not come back by itself. To see it again, use **Show Welcome Tour** in the menu bar icon or in Settings → About. The tour follows Reduce Motion.
+
 ## What you can type
 
 | Input | What happens |

@@ -6,8 +6,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Added
 - Usage Insights (`/insights`): a dashboard of your own usage, with actions per day, busiest hours, top extensions and items, streak, median time to action and tips. Recorded locally only.
-
-### Added
+- Welcome tour on first launch: pick a hotkey (with a shortcut to free ⌘Space from Spotlight), see what you can type, where extensions live and which optional permissions help. Replay it from the menu bar icon or Settings → About. Existing installs skip it.
+- `--onboarding --step N --snapshot-onboarding out.png` renders a tour step for checking UI changes.
 - Home screen shows your 5 most recently used extensions above the full A–Z list.
 - Test suites for fuzzy ranking, the wire protocol and the calculator parser.
 - CI (build, test, universal app artifact), CodeQL and tag-driven GitHub releases.
