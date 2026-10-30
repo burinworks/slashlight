@@ -71,4 +71,4 @@ git tag v0.3.0
 git push origin v0.3.0
 ```
 
-The release workflow builds a universal app and publishes the GitHub release.
+The release workflow builds a universal app, packs it into a `.dmg` with `scripts/make-dmg.sh` and publishes the GitHub release.

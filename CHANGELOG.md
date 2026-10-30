@@ -9,6 +9,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - Test suites for fuzzy ranking, the wire protocol and the calculator parser.
 - CI (build, test, universal app artifact), CodeQL and tag-driven GitHub releases.
 - Python example extension and a guide to writing extensions.
+- App icon, and releases ship as a drag-to-Applications `.dmg`.
 
 ## [0.2.0] - 2026-10-29
 

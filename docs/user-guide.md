@@ -149,4 +149,4 @@ If you build from source, run `scripts/dev-signing-identity.sh` once. Otherwise 
 
 - Terminal tabs do not survive quitting Slashlight.
 - External extensions cannot declare global hotkeys or permissions yet.
-- Releases are not notarized yet.
+- Releases are not notarized by Apple, so the first launch needs `xattr -dr com.apple.quarantine /Applications/Slashlight.app`.

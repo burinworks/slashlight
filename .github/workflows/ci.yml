@@ -44,11 +44,11 @@ jobs:
           lipo -archs build/Slashlight.app/Contents/MacOS/Slashlight
           codesign --verify --verbose build/Slashlight.app
 
-      - name: Zip
-        run: ditto -c -k --keepParent build/Slashlight.app Slashlight.zip
+      - name: Disk image
+        run: scripts/make-dmg.sh build/Slashlight.dmg
 
       - uses: actions/upload-artifact@v4
         with:
           name: Slashlight-${{ github.sha }}
-          path: Slashlight.zip
+          path: build/Slashlight.dmg
           retention-days: 14

@@ -23,16 +23,13 @@ jobs:
       - name: Build
         run: |
           VERSION="${GITHUB_REF_NAME#v}" BUILD_NUMBER=${{ github.run_number }} UNIVERSAL=1 scripts/build-app.sh
-          mkdir -p dist/hello-extension
-          cp build/bin/hello-extension Examples/HelloExtension/manifest.json dist/hello-extension/
-          ditto -c -k --keepParent build/Slashlight.app "dist/Slashlight-${GITHUB_REF_NAME}.zip"
-          (cd dist && zip -qr "hello-extension-${GITHUB_REF_NAME}.zip" hello-extension)
-          (cd dist && shasum -a 256 *.zip > SHA256SUMS.txt)
+          scripts/make-dmg.sh "dist/Slashlight-${GITHUB_REF_NAME}.dmg"
+          (cd dist && shasum -a 256 *.dmg > SHA256SUMS.txt)
 
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/*.zip dist/SHA256SUMS.txt \
+          gh release create "$GITHUB_REF_NAME" dist/*.dmg dist/SHA256SUMS.txt \
             --title "Slashlight $GITHUB_REF_NAME" --generate-notes \
             $([[ "$GITHUB_REF_NAME" == *-* ]] && echo --prerelease)

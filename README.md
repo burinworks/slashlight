@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/images/icon.png" alt="" width="128">
+
 # Slashlight
 
 **A keyboard-first launcher for macOS. Open-source, native, and built to be extended.**
@@ -47,8 +49,8 @@ The [user guide](docs/user-guide.md) has every key and command.
 
 ### Download
 
-1. Download `Slashlight-vX.Y.Z.zip` from [Releases](https://github.com/burinworks/slashlight/releases) and move `Slashlight.app` to `/Applications`.
-2. Builds are not notarized yet, so clear the quarantine flag once:
+1. Download `Slashlight-vX.Y.Z.dmg` from [Releases](https://github.com/burinworks/slashlight/releases), open it and drag Slashlight to Applications.
+2. The app is not notarized by Apple, so clear the quarantine flag once:
    ```bash
    xattr -dr com.apple.quarantine /Applications/Slashlight.app
    ```
@@ -65,6 +67,8 @@ scripts/dev-signing-identity.sh       # once: a local signing identity so permis
 scripts/build-app.sh --install-example
 open build/Slashlight.app
 ```
+
+`scripts/make-dmg.sh` packs the built app into the same disk image the releases use.
 
 `scripts/test.sh` runs the tests.
 

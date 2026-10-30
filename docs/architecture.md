@@ -138,9 +138,9 @@ The app binary accepts flags that render without user interaction. They are used
 
 | Workflow | Runs on | Does |
 |---|---|---|
-| `ci.yml` | Every push and PR | Builds, runs tests, builds a universal `.app`, uploads it as an artifact |
+| `ci.yml` | Every push and PR | Builds, runs tests, builds a universal `.app` and packs it into a `.dmg` artifact |
 | `codeql.yml` | Pushes, PRs, weekly | Static analysis for Swift |
-| `release.yml` | Tag `v*` | Tests, builds a universal `.app` and the example extension, publishes a GitHub release with SHA-256 sums |
+| `release.yml` | Tag `v*` | Tests, builds a universal `.app`, publishes a GitHub release with a drag-to-Applications `.dmg` and its SHA-256 sum |
 
 To cut a release:
 
