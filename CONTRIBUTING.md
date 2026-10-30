@@ -53,9 +53,32 @@ Attach before/after snapshots to PRs that change the UI.
 - No new dependencies without discussing them in an issue first.
 - Add tests for pure logic (parsers, ranking, protocol encoding) in `Tests/`. We use [swift-testing](https://github.com/swiftlang/swift-testing).
 
+## Branches and release channels
+
+```
+feature branch ──PR──▶ test ──promote──▶ beta ──promote──▶ main
+                    newest work      beta testers      stable
+```
+
+| Branch | Who gets it | Merging into it |
+|---|---|---|
+| `test` | CI artifacts only | PRs from feature branches, squash or rebase |
+| `beta` | Beta testers: a pre-release `vX.Y.Z-beta.N` on every push | Promotion PR from `test`, merge commit |
+| `main` | Everyone: stable `vX.Y.Z` | Promotion PR from `beta`, merge commit |
+
+All three need a PR, signed commits and a passing **Build & test** check, and can't be force-pushed or deleted. Promotions use merge commits so the branches keep sharing history and never conflict.
+
+To promote, run **Actions → Promote → Run workflow** and pick `test → beta` or `beta → main`. It opens the PR; merge it with **Create a merge commit**. Or from a terminal:
+
+```bash
+gh workflow run promote.yml -f promotion="test → beta"
+```
+
+An urgent fix can go to `main` directly through a `hotfix/…` branch. Afterwards run the `main → beta (back-merge)` and `beta → test (back-merge)` promotions so the fix reaches the other channels.
+
 ## Pull requests
 
-1. Branch from `main`.
+1. Branch from `test` and open the PR against `test`.
 2. Keep each PR to one change.
 3. Make sure `scripts/test.sh` passes; CI runs the same command.
 4. Describe what changed and how you checked it. The PR template has a checklist.
@@ -64,11 +87,31 @@ Commits use the imperative mood: "Add emoji recents", not "Added…".
 
 ## Releasing (maintainers)
 
-Update `CHANGELOG.md`, then push a tag:
+Releases come from branches; you don't push tags.
+
+1. On `test`, set `VERSION` to the next version and move the `CHANGELOG.md` entries from Unreleased to it.
+2. Promote `test → beta`. Each push to `beta` publishes the pre-release `vX.Y.Z-beta.N` for beta testers.
+3. Promote `beta → main`. The release workflow waits for your approval in the `stable` environment (Actions → the run → **Review deployments**), then publishes `vX.Y.Z`.
+
+Each release builds a universal app with `scripts/build-app.sh`, packs `Slashlight-<tag>.dmg` with `scripts/make-dmg.sh`, publishes it with `SHA256SUMS.txt` and adds the signed update to the appcast on `gh-pages`. Pushing a `v*` tag by hand still works; a tag with a hyphen is a pre-release.
+
+### One-time setup
+
+`scripts/setup-release-channels.sh` creates the rulesets, the `beta` and `stable` environments, the `gh-pages` branch with GitHub Pages, and lets Actions open promotion PRs. Run it once as a repository admin.
+
+### Update signing keys
+
+Sparkle accepts only updates signed with the project's EdDSA key. Generate the pair once, on a Mac, with Sparkle's `generate_keys` (after `swift build`, it is in `.build/artifacts/sparkle/Sparkle/bin/`):
 
 ```bash
-git tag v0.3.0
-git push origin v0.3.0
+.build/artifacts/sparkle/Sparkle/bin/generate_keys --account slashlight   # creates the key in your login keychain, prints the public key
+.build/artifacts/sparkle/Sparkle/bin/generate_keys --account slashlight -x sparkle_private.key   # exports the private key to a file
+gh secret set SPARKLE_PRIVATE_KEY < sparkle_private.key
+gh variable set SPARKLE_PUBLIC_KEY --body "<public key printed above>"
+rm sparkle_private.key
 ```
 
-The release workflow builds a universal app, packs it into a `.dmg` with `scripts/make-dmg.sh` and publishes the GitHub release.
+- `SPARKLE_PRIVATE_KEY` (Actions secret) signs each `.dmg`. Never commit it. The keychain item is your backup; if the key is lost, installed copies can't verify new updates.
+- `SPARKLE_PUBLIC_KEY` (Actions variable) goes into the app's Info.plist as `SUPublicEDKey`.
+
+The release workflow fails early when either is missing, so no release ships without working updates.

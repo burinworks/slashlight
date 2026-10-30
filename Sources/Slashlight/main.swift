@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         setUpStatusItem()
+        Updater.shared.start(with: Host.shared.settings)
         Task {
             await Host.shared.start()
             _ = Host.shared.panel // build the panel up-front so the first open is instant
@@ -67,6 +68,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(withTitle: "Open Slashlight", action: #selector(open), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Settings…", action: #selector(settings), keyEquivalent: ",").target = self
         menu.addItem(withTitle: "Open Config Folder", action: #selector(config), keyEquivalent: "").target = self
+        if Updater.shared.isAvailable {
+            menu.addItem(withTitle: "Check for Updates…", action: #selector(Updater.checkForUpdates), keyEquivalent: "").target = Updater.shared
+        }
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit Slashlight", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         item.menu = menu

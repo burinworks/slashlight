@@ -10,6 +10,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - CI (build, test, universal app artifact), CodeQL and tag-driven GitHub releases.
 - Python example extension and a guide to writing extensions.
 - App icon, and releases ship as a drag-to-Applications `.dmg`.
+- In-app updates with Sparkle: **Check for Updates…** in the menu bar menu and Settings → General, plus **Automatically install updates** and **Join the beta program** switches.
+- Release channels: work lands on `test`, is promoted to `beta` (pre-releases `vX.Y.Z-beta.N`) and then `main` (stable releases), each with an EdDSA-signed appcast entry.
 
 ## [0.2.0] - 2026-10-29
 

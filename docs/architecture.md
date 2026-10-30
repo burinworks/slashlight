@@ -138,15 +138,28 @@ The app binary accepts flags that render without user interaction. They are used
 
 | Workflow | Runs on | Does |
 |---|---|---|
-| `ci.yml` | Every push and PR | Builds, runs tests, builds a universal `.app` and packs it into a `.dmg` artifact |
+| `ci.yml` | PRs; pushes to `test`, `beta`, `main` | Builds, runs tests, builds a universal `.app` and packs it into a `.dmg` artifact (`test` builds are kept 30 days) |
 | `codeql.yml` | Pushes, PRs, weekly | Static analysis for Swift |
-| `release.yml` | Tag `v*` | Tests, builds a universal `.app`, publishes a GitHub release with a drag-to-Applications `.dmg` and its SHA-256 sum |
+| `release.yml` | Pushes to `beta` and `main`, tags `v*` | Tests, builds a universal `.app`, publishes a GitHub release with `Slashlight-<tag>.dmg` and `SHA256SUMS.txt`, and adds the EdDSA-signed update to the appcast |
+| `promote.yml` | Manual | Opens the PR that promotes `test → beta` or `beta → main` (or back-merges) |
 
-To cut a release:
+| Branch | Channel | Release |
+|---|---|---|
+| `test` | Newest work | None; CI artifacts only |
+| `beta` | Beta testers | Pre-release `vX.Y.Z-beta.N`, appcast channel `beta` |
+| `main` | Stable | `vX.Y.Z` once per `VERSION`, after a maintainer approves the `stable` environment |
 
-```bash
-git tag v0.3.0
-git push origin v0.3.0
-```
+`X.Y.Z` comes from the `VERSION` file; `N` counts up per beta. `CFBundleVersion` is the release workflow's run number, so it grows across both channels and Sparkle can compare any two builds.
 
-A tag with a hyphen (`v0.3.0-beta.1`) is published as a pre-release.
+### Updates
+
+`Host/Updater.swift` wraps Sparkle's `SPUStandardUpdaterController`. `scripts/build-app.sh` embeds `Sparkle.framework` in `Contents/Frameworks` and writes `SUFeedURL` and `SUPublicEDKey` into Info.plist; a build without `SPARKLE_PUBLIC_KEY` (every local build) never checks for updates.
+
+There is one appcast, `appcast.xml` on the `gh-pages` branch, served at `https://burinworks.github.io/slashlight/appcast.xml`. Stable items have no channel; beta items carry `<sparkle:channel>beta</sparkle:channel>`, and the updater allows that channel when **Join the beta program** is on. `scripts/appcast.swift` adds each release's item, with the `sparkle:edSignature` from Sparkle's `sign_update`.
+
+The app is ad-hoc signed and not notarized. What that means for updates:
+
+- **Trust comes from EdDSA.** Sparkle rejects an update whose archive signature doesn't match `SUPublicEDKey`. For apps without a Developer ID it checks only that the new app's code signature is valid, not that it matches the old one, so ad-hoc builds update fine.
+- **No Gatekeeper prompt on updates.** Sparkle downloads the update itself and removes the quarantine attribute before installing, so only the first manual install needs `xattr -dr com.apple.quarantine`.
+- **Permissions may need granting again.** An ad-hoc signature's designated requirement is the binary's hash, which changes with every build, so macOS treats the updated app as a new one for Accessibility and Screen Recording.
+- **Losing the private key strands users.** Installed copies trust only the key they shipped with. Back it up.

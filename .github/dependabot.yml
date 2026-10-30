@@ -2,9 +2,11 @@ version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
+    target-branch: test # new work lands on test first
     schedule:
       interval: weekly
   - package-ecosystem: swift
     directory: /
+    target-branch: test # new work lands on test first
     schedule:
       interval: weekly
