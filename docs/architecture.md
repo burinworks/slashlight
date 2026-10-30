@@ -89,6 +89,15 @@ An extension declares:
 
 Every provider runs concurrently in its own `Task`. Results stream in as each provider finishes, but they are always assembled in the fixed order above, so rows do not jump around. A generation counter drops results from stale queries.
 
+## Usage events
+
+`UsageStore` (`Host/Usage.swift`) receives events from two places:
+
+- `Host.show()` records each time the panel opens;
+- `PaletteModel.run()` records each action that runs.
+
+Each event is appended to a JSON-lines file. `UsageReport` turns a list of events into everything the Usage Insights dashboard shows. It is a pure function of the events, the period and a clock, so it is unit-tested directly. `--sample-usage` replaces the log with generated data and turns off writing, for screenshots.
+
 ## Threading
 
 - Everything UI-facing is `@MainActor`, including `Extension`, `ListView` and `ExtensionContext`.

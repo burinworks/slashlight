@@ -6,6 +6,6 @@ enum BuiltIns {
     static func all() -> [Extension] {
         [CalculatorExtension(), AppsExtension(), FilesExtension(), SystemCommandsExtension(), CommandsExtension(), ScriptCommandsExtension(),
          ClipboardExtension(), SnippetsExtension(), EmojiExtension(), WindowManagementExtension(), WindowSwitcherExtension(),
-         TerminalExtension(), WebSearchExtension()]
+         TerminalExtension(), InsightsExtension(), WebSearchExtension()]
     }
 }

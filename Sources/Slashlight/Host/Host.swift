@@ -74,6 +74,7 @@ final class Host {
             let front = NSWorkspace.shared.frontmostApplication
             if front?.processIdentifier != ProcessInfo.processInfo.processIdentifier { previousApp = front }
             model.reset()
+            UsageStore.shared.panelOpened(extensionID: extensionID)
         }
         if let extensionID, let ext = extensions.first(where: { $0.manifest.id == extensionID }) {
             model.reset()
