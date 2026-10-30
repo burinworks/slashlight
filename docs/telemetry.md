@@ -8,7 +8,7 @@ Slashlight can send anonymous usage statistics to a self-hosted server. Everythi
 2. **Collect counts, not content.** The app never sends search text, item titles, file names, clipboard contents, terminal commands, window titles or the names of external extensions.
 3. **Publish everything we keep.** The public dashboard and its JSON file contain every aggregate the server computes. Raw reports are deleted after 90 days.
 4. **Small groups stay hidden.** Any bucket with fewer than 5 installs (a rare macOS version or region, for example) is folded into "Other".
-5. **Verifiable.** Settings → General → "Show what's sent" displays the exact JSON of the next report, and the server and dashboard code live in this repository.
+5. **Verifiable.** Settings → General → "Show what's sent" displays the exact JSON of the next report, and the code that builds it (`Sources/Slashlight/Host/Telemetry.swift`) is open source.
 
 ## Identity
 
@@ -73,40 +73,14 @@ The dashboard shows:
 
 Every chart is computed from the same `stats.json`, which is published next to the dashboard so anyone can analyse it.
 
-## Architecture
+## Server
 
-```
-Slashlight.app ── HTTPS POST /v1/report (once a day) ──▶ collector (Python, stdlib only)
-                                                            │ SQLite: reports (90 days), install hashes
-                                                            ▼
-                                                     aggregator (hourly) ──▶ public/stats.json
-                                                                                  │
-                                                     static dashboard (HTML + JS) ◀┘  served by Caddy
-```
+The collector, aggregator and dashboard run on a server operated by the maintainer. Their code is kept outside this repository, so app releases and source archives never include it. It works like this:
 
-- **`server/collector.py`** validates the schema, caps reports at 16 KB, rate-limits per IP in memory, and upserts one row per (install, day).
-- **`server/aggregate.py`** computes the metrics above, applies the 5-install threshold, writes `stats.json`, and deletes raw reports older than 90 days.
-- **`server/dashboard/`** is a static page that renders `stats.json` with no external requests.
-- **`server/docker-compose.yml`** runs the collector, an hourly aggregator and Caddy, which provides automatic HTTPS for your domain.
+- **Collector:** validates each report against the schema above and drops unknown fields. It caps reports at 16 KB, rate-limits per IP in memory, and stores one row per (install, day) under the HMAC of the install ID.
+- **Hourly aggregator:** computes the public metrics with the 5-install threshold, publishes `stats.json` and the dashboard, and deletes raw reports older than 90 days.
+- **Web server:** Caddy, with access logs off, so no IP addresses are written to disk.
 
 Reports are computed from the same local event log as Usage Insights, so turning that extension off also stops statistics.
 
-The app sends to the URL baked in at build time (`TELEMETRY_URL` in `scripts/build-app.sh`). Builds without it, including every local development build, never send anything.
-
-## Self-hosting
-
-[server/README.md](../server/README.md) has the full setup, including AWS. In short:
-
-```bash
-cd server
-cp .env.example .env        # set DOMAIN and SECRET
-docker compose up -d
-```
-
-Point the domain's DNS at the server. The dashboard is then live at `https://<domain>/` and the collector at `https://<domain>/v1/report`. Build the app with:
-
-```bash
-TELEMETRY_URL=https://<domain>/v1/report scripts/build-app.sh
-```
-
-For releases, set `TELEMETRY_URL` as a repository variable; `release.yml` passes it to the build.
+The app sends to the URL baked in at build time (`TELEMETRY_URL` in `scripts/build-app.sh`, set from the `TELEMETRY_URL` repository variable in `release.yml`). Builds without it, including every local development build, never send anything.

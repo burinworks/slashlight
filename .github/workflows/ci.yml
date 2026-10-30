@@ -52,17 +52,3 @@ jobs:
           name: Slashlight-${{ github.sha }}
           path: build/Slashlight.dmg
           retention-days: 14
-
-  server:
-    name: Statistics server
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-      - name: Tests
-        run: python -m unittest discover -s server/tests -v
-      - name: Docker image builds
-        run: docker build -t slashlight-stats server
