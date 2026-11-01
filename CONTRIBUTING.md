@@ -42,6 +42,7 @@ The debug build can render the panel to a PNG:
 .build/debug/Slashlight --snapshot out.png --query "5 km in mi"
 .build/debug/Slashlight --snapshot out.png --open emoji --dark
 .build/debug/Slashlight --settings --tab General --snapshot-settings out.png
+.build/debug/Slashlight --onboarding --step 3 --dark --snapshot-onboarding out.png
 ```
 
 Attach before/after snapshots to PRs that change the UI.

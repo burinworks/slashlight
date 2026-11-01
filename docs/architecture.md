@@ -140,6 +140,7 @@ The app binary accepts flags that render without user interaction. They are used
 ```bash
 .build/debug/Slashlight --snapshot out.png --query "5 km in mi" [--open emoji] [--enter] [--dark]
 .build/debug/Slashlight --settings --tab Extensions --snapshot-settings out.png
+.build/debug/Slashlight --onboarding --step 2 --snapshot-onboarding out.png [--dark]   # welcome tour, steps 1–6
 .build/debug/Slashlight --list-windows
 ```
 

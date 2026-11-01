@@ -28,6 +28,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
                 return
             }
+            // Debug aid: `--onboarding [--step 1…6] [--snapshot-onboarding out.png] [--dark]` opens the welcome tour at a
+            // step; with a path it renders that step with animations at rest and quits.
+            if CommandLine.arguments.contains("--onboarding") {
+                let step = argument("--step").flatMap(Int.init).flatMap { OnboardingStep(rawValue: $0 - 1) } ?? .welcome
+                let path = argument("--snapshot-onboarding")
+                if CommandLine.arguments.contains("--dark") || path != nil {
+                    NSApp.appearance = NSAppearance(named: CommandLine.arguments.contains("--dark") ? .darkAqua : .aqua)
+                }
+                if let path {
+                    OnboardingWindowController.shared.show(step: step, still: true)
+                    try? await Task.sleep(nanoseconds: 1_500_000_000)
+                    OnboardingWindowController.shared.snapshot(to: path)
+                    exit(0)
+                }
+                OnboardingWindowController.shared.show(step: step)
+                return
+            }
+            if !Host.shared.settings.onboardingCompleted {
+                OnboardingWindowController.shared.show()
+                return
+            }
             if !CommandLine.arguments.contains("--background") { Host.shared.show() }
         }
     }
@@ -67,6 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(withTitle: "Open Slashlight", action: #selector(open), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Settings…", action: #selector(settings), keyEquivalent: ",").target = self
         menu.addItem(withTitle: "Open Config Folder", action: #selector(config), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "Show Welcome Tour", action: #selector(tour), keyEquivalent: "").target = self
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit Slashlight", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         item.menu = menu
@@ -76,6 +98,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func open() { Host.shared.show() }
 
     @objc private func settings() { SettingsWindowController.shared.show() }
+
+    @objc private func tour() { OnboardingWindowController.shared.show() }
 
     @objc private func config() { NSWorkspace.shared.open(Paths.support) }
 }
