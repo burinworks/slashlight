@@ -55,6 +55,7 @@ final class Host {
         s.save()
         settings = s
         s.applyAppearance()
+        Updater.shared.apply(s)
         if extensionsChanged { Task { await reload() } } else { registerHotkeys() }
     }
 
