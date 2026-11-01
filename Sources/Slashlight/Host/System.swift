@@ -93,6 +93,8 @@ struct Settings: Codable, Equatable {
     var autoInstallUpdates: Bool = true
     /// Offer beta builds as well as stable ones.
     var betaUpdates: Bool = false
+    /// False until the welcome tour has been finished or closed once.
+    var onboardingCompleted: Bool = false
 
     init() {}
 
@@ -107,6 +109,8 @@ struct Settings: Codable, Equatable {
         disabledExtensions = try c.decodeIfPresent([String].self, forKey: .disabledExtensions) ?? d.disabledExtensions
         autoInstallUpdates = try c.decodeIfPresent(Bool.self, forKey: .autoInstallUpdates) ?? d.autoInstallUpdates
         betaUpdates = try c.decodeIfPresent(Bool.self, forKey: .betaUpdates) ?? d.betaUpdates
+        // A settings file from before the tour existed belongs to someone who has already set the app up.
+        onboardingCompleted = try c.decodeIfPresent(Bool.self, forKey: .onboardingCompleted) ?? true
     }
 
     static func load() -> Settings {

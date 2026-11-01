@@ -16,14 +16,14 @@ jobs:
     runs-on: macos-26
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Toolchain
         run: |
           sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
           swift --version
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: .build
           key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
@@ -47,7 +47,7 @@ jobs:
       - name: Disk image
         run: scripts/make-dmg.sh build/Slashlight.dmg
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: Slashlight-${{ github.ref_name == 'test' && 'test-' || '' }}${{ github.sha }}
           path: build/Slashlight.dmg
