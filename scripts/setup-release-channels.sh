@@ -54,8 +54,14 @@ gh api -X PUT "repos/$R/environments/beta" --input - --jq '"environment " + .nam
 gh api -X PUT "repos/$R/environments/stable" --input - --jq '"environment " + .name + " (needs your approval)"' \
   <<<"{\"reviewers\":[{\"type\":\"User\",\"id\":$ME}],\"prevent_self_review\":false}"
 
-gh api -X PUT "repos/$R/actions/permissions/workflow" -f default_workflow_permissions=read -F can_approve_pull_request_reviews=true
-echo "GitHub Actions may open pull requests"
+if gh api -X PUT "repos/$R/actions/permissions/workflow" -f default_workflow_permissions=read \
+     -F can_approve_pull_request_reviews=true >/dev/null 2>&1; then
+  echo "GitHub Actions may open pull requests"
+else # an organization setting overrides the repository one
+  echo "Skipped: the organization blocks Actions from opening pull requests. Allow it with:"
+  echo "  gh api -X PUT orgs/$(cut -d/ -f1 <<<"$R")/actions/permissions/workflow -f default_workflow_permissions=read -F can_approve_pull_request_reviews=true"
+  echo "then re-run this script."
+fi
 
 # gh-pages: an orphan branch holding appcast.xml, updated by the release workflow through the contents API.
 if ! gh api "repos/$R/git/ref/heads/gh-pages" >/dev/null 2>&1; then
