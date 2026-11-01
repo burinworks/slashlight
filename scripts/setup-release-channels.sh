@@ -87,6 +87,8 @@ if ! gh api "repos/$R/git/ref/heads/gh-pages" >/dev/null 2>&1; then
   gh api "repos/$R/git/refs" -f ref=refs/heads/gh-pages -f "sha=$COMMIT" --jq '"created " + .ref'
 fi
 if ! gh api "repos/$R/pages" >/dev/null 2>&1; then
-  gh api "repos/$R/pages" --input - --jq '"Pages: " + .html_url' <<<'{"source":{"branch":"gh-pages","path":"/"}}'
+  # GitHub often turns Pages on by itself once gh-pages exists, so "already enabled" is fine here
+  gh api "repos/$R/pages" --input - --jq '"Pages: " + .html_url' <<<'{"source":{"branch":"gh-pages","path":"/"}}' 2>/dev/null ||
+    gh api "repos/$R/pages" --jq '"Pages: " + .html_url'
 fi
 echo "Appcast: https://$(cut -d/ -f1 <<<"$R").github.io/$(cut -d/ -f2 <<<"$R")/appcast.xml"
