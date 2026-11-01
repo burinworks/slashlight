@@ -47,7 +47,7 @@ jobs:
       - name: Disk image
         run: scripts/make-dmg.sh build/Slashlight.dmg
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: Slashlight-${{ github.sha }}
           path: build/Slashlight.dmg
