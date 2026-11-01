@@ -1,9 +1,19 @@
-<?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
-  <channel>
-    <title>Slashlight</title>
-    <link>https://github.com/burinworks/slashlight</link>
-    <description>Slashlight updates</description>
-    <language>en</language>
-  </channel>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>Slashlight</title>
+        <link>https://github.com/burinworks/slashlight</link>
+        <description>Slashlight updates</description>
+        <language>en</language>
+        <item>
+            <title>Slashlight v0.3.0</title>
+            <pubDate>Sun, 01 Nov 2026 19:03:19 +0000</pubDate>
+            <sparkle:version>1</sparkle:version>
+            <sparkle:shortVersionString>0.3.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:releaseNotesLink>https://github.com/burinworks/slashlight/releases/tag/v0.3.0</sparkle:releaseNotesLink>
+            <sparkle:fullReleaseNotesLink>https://github.com/burinworks/slashlight/releases/tag/v0.3.0</sparkle:fullReleaseNotesLink>
+            <enclosure url="https://github.com/burinworks/slashlight/releases/download/v0.3.0/Slashlight-v0.3.0.dmg" type="application/octet-stream" sparkle:edSignature="ElFK+o5H1BpxXe2hrd8xjq6uLpt3kk10LQIU2dW6NUutDFKfMhzI/yp7l1nQ2yPnZ+VnYmICAhAwDvIiLS/yAw==" length="7843248"></enclosure>
+        </item>
+    </channel>
 </rss>
