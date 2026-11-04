@@ -22,14 +22,12 @@ An extension says in its `manifest.json` what it needs. Slashlight shows that li
   "permissions": {
     "network": ["api.vault.example", "*.vault-cdn.example"],
     "files": { "read": ["~/Downloads"], "write": [] },
-    "clipboard": "write",
     "defaultSearch": false,
     "background": false,
     "subprocesses": false
   },
   "why": {
-    "network": "Syncs your vault with your account.",
-    "clipboard": "Copies a password when you press ↵."
+    "network": "Syncs your vault with your account."
   }
 }
 ```
@@ -38,7 +36,6 @@ An extension says in its `manifest.json` what it needs. Slashlight shows that li
 |---|---|---|
 | `network` | list of hosts (`api.example.com`, `*.example.com`), or `"any"` | `[]`: no network |
 | `files.read`, `files.write` | folders from the allowed list below | `[]`: only the extension's own folders |
-| `clipboard` | `"none"`, `"write"`, `"read"`, `"readwrite"` | `"none"` |
 | `defaultSearch` | `true` when the `default` trigger is used | `false` |
 | `background` | `true` to keep running while the panel is closed | `false` |
 | `subprocesses` | `true` to start other programs (`curl`, `git`, `python3`) | `false` |
@@ -53,6 +50,7 @@ These cannot leak data on their own, so they need no permission:
 - Reading and writing its own folder (`Extensions/<id>/`) and its storage folder (`Application Support/Slashlight/ExtensionData/<id>/`).
 - Returning results, opening its own screens, showing a HUD.
 - Outcomes the user triggers by pressing a key: `.paste(text)` and `.close`. The host performs the paste, so the extension never gets Accessibility.
+- Putting text on the clipboard with `context.copy(text)`. The SDK sends it to the host, which writes the pasteboard; the extension process itself cannot open the pasteboard.
 - Opening a URL in the default browser after the user presses ↵. The host opens it, and the URL is shown in the action row first.
 
 ### Never allowed
@@ -61,6 +59,7 @@ No manifest key can grant these:
 
 - Slashlight's Accessibility and Screen Recording permissions. Extensions are launched as their own "responsible process", so macOS does not hand them the grants the user gave Slashlight.
 - The Keychain, `~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.config/gh`, browser profiles, Mail, Messages, and every other app's `~/Library` data.
+- **Reading the clipboard.** Only Slashlight's built-in Clipboard History sees what you copy. No manifest key, prompt or setting unlocks it for a third-party extension, so an extension that wants to inspect the clipboard has to be its own app with its own macOS permissions, outside Slashlight.
 - Slashlight's own data: settings, clipboard history, usage events, other extensions' folders.
 - Sending keystrokes, reading the screen, reading other apps' windows.
 
@@ -82,11 +81,9 @@ The first time an extension would run, the panel shows this screen instead of it
 │  🌐 Connect to api.vault.example and *.vault-cdn.example │
 │     “Syncs your vault with your account.”             │
 │  📂 Read files in Downloads                           │
-│  📋 Put text on your clipboard                        │
-│     “Copies a password when you press ↵.”             │
 │                                                       │
-│  It can’t see your screen, type for you, or read your │
-│  other files.                                         │
+│  It can’t see your screen, type for you, read your    │
+│  clipboard, or read your other files.                 │
 │                                                       │
 │              [ Don’t Allow ]   [ Allow ↵ ]            │
 └──────────────────────────────────────────────────────┘
@@ -105,14 +102,12 @@ Rules for the screen:
 | Permission | Line shown | Risk |
 |---|---|---|
 | `network: "any"` | Connect to any website or server | high |
-| `clipboard: "read"` / `"readwrite"` | Read what you copy | high |
 | `defaultSearch: true` | See everything you type in the search bar | high |
 | `subprocesses: true` | Run other programs on your Mac | high |
 | `files.write` | Change files in *Downloads* | medium |
 | `network: [hosts]` | Connect to *api.vault.example* | medium |
 | `files.read` | Read files in *Downloads* | medium |
 | `background: true` | Keep running when Slashlight is closed | low |
-| `clipboard: "write"` | Put text on your clipboard | low |
 
 ### Updates
 
@@ -125,7 +120,7 @@ Slashlight stores a SHA-256 hash of every file in the extension's folder togethe
 
 ### Settings → Extensions
 
-Each extension row shows a short summary ("Network · Clipboard") and opens a detail page with the full list, the approval date and a **Revoke** button.
+Each extension row shows a short summary ("Network · Downloads") and opens a detail page with the full list, the approval date and a **Revoke** button.
 
 ## Raycast script commands
 
@@ -146,7 +141,7 @@ A script without these lines gets the deny-by-default set plus `subprocesses` (a
 | no network / `"any"` | The sandbox profile denies or allows outbound connections |
 | `network: [hosts]` | The sandbox only allows connections to a local filtering proxy started by Slashlight; the extension gets `HTTPS_PROXY`, and the proxy allows only the listed hosts. Programs that ignore the proxy are blocked by the sandbox, so the check fails closed |
 | `files` | Sandbox read and write rules for the listed folders, with the never-allowed list denied on top |
-| `clipboard: "read"` | The sandbox denies the pasteboard service unless granted. Writes go through the host |
+| clipboard (never readable) | The sandbox always denies the pasteboard service. `copy` goes through the host |
 | `defaultSearch` | The host only sends plain typing to extensions that have it |
 | `background` | The host stops the process when the panel closes, unless granted |
 | `subprocesses` | Sandbox `process-exec` rule. Children inherit the same sandbox |
@@ -166,4 +161,4 @@ A script without these lines gets the deny-by-default set plus `subprocesses` (a
 4. Filtering proxy for host lists.
 5. Extension store: a GitHub index listing each extension's source, version, file hashes and permissions, checked in CI. Slashlight refuses a store install whose hashes don't match.
 
-Each step ships with a test extension that tries to break the rule (connect to an undeclared host, read `~/.ssh`, read the clipboard, take a screenshot) and a test asserting it fails. These run in CI on GitHub's macOS runners.
+Each step ships with a test extension that tries to break the rule (connect to an undeclared host, read `~/.ssh`, read the clipboard, take a screenshot, read `GITHUB_TOKEN`) and a test asserting it fails. These run in CI on GitHub's macOS runners.
