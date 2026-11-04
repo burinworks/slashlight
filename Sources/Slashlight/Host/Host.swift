@@ -55,6 +55,7 @@ final class Host {
         s.save()
         settings = s
         s.applyAppearance()
+        Updater.shared.apply(s)
         if extensionsChanged { Task { await reload() } } else { registerHotkeys() }
     }
 
@@ -74,6 +75,7 @@ final class Host {
             let front = NSWorkspace.shared.frontmostApplication
             if front?.processIdentifier != ProcessInfo.processInfo.processIdentifier { previousApp = front }
             model.reset()
+            UsageStore.shared.panelOpened(extensionID: extensionID)
         }
         if let extensionID, let ext = extensions.first(where: { $0.manifest.id == extensionID }) {
             model.reset()

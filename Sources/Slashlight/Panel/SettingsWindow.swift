@@ -191,6 +191,7 @@ private struct GeneralSettings: View {
                     Text("Works when running the bundled Slashlight.app").font(.caption).foregroundStyle(.secondary)
                 }
             }
+            UpdateSettings(model: model)
             Section("Files") {
                 LabeledContent("Config folder") {
                     Button("Open in Finder") { NSWorkspace.shared.open(Paths.support) }
@@ -209,16 +210,17 @@ private struct GeneralSettings: View {
     }
 }
 
-/// Click, then press a key combination with at least one of ⌘ ⌥ ⌃. Esc cancels.
-private struct HotkeyRecorder: View {
+/// Click, then press a key combination with at least one of ⌘ ⌥ ⌃. Esc cancels. Also used by the welcome tour.
+struct HotkeyRecorder: View {
     @Binding var value: String
+    var placeholder: String?
     @State private var recording = false
     @State private var monitor: Any?
 
     var body: some View {
         HStack(spacing: 6) {
             Button(action: toggle) {
-                Text(recording ? "Press keys…" : Shortcut(string: value)?.display ?? value)
+                Text(recording ? "Press keys…" : placeholder ?? Shortcut(string: value)?.display ?? value)
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .frame(minWidth: 110)
             }
@@ -343,6 +345,8 @@ private struct AboutSettings: View {
                 .foregroundStyle(.secondary)
             Text("Open-source, keyboard-first launcher for macOS.")
                 .foregroundStyle(.secondary)
+            Button("Show Welcome Tour") { OnboardingWindowController.shared.show() }
+                .padding(.top, 6)
             Spacer()
         }
         .frame(maxWidth: .infinity)

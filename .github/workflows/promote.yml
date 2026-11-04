@@ -1,0 +1,53 @@
+name: Promote
+
+# Opens the pull request that moves a channel forward: test → beta → main.
+# Merge it with "Create a merge commit" so the branches keep sharing history.
+on:
+  workflow_dispatch:
+    inputs:
+      promotion:
+        description: What to promote
+        type: choice
+        options:
+          - test → beta
+          - beta → main
+          - main → beta (back-merge)
+          - beta → test (back-merge)
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  promote:
+    name: Open promotion PR
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PROMOTION: ${{ inputs.promotion }}
+    steps:
+      - name: Open the pull request
+        run: |
+          case "$PROMOTION" in
+            "test → beta") HEAD=test BASE=beta ;;
+            "beta → main") HEAD=beta BASE=main ;;
+            "main → beta (back-merge)") HEAD=main BASE=beta ;;
+            "beta → test (back-merge)") HEAD=beta BASE=test ;;
+            *) echo "::error::Unknown promotion: $PROMOTION"; exit 1 ;;
+          esac
+          REPO="$GITHUB_REPOSITORY"
+          if [[ "$(gh api "repos/$REPO/compare/$BASE...$HEAD" --jq .ahead_by)" == 0 ]]; then
+            echo "$BASE already contains everything on $HEAD." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          OPEN="$(gh pr list -R "$REPO" --base "$BASE" --head "$HEAD" --state open --json url --jq '.[0].url // empty')"
+          if [[ -n "$OPEN" ]]; then
+            echo "Already open: $OPEN" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          COMMITS="$(gh api "repos/$REPO/compare/$BASE...$HEAD" \
+            --jq '.commits[] | select(.parents | length == 1) | "- \(.commit.message | split("\n")[0]) (\(.sha[0:7]))"')"
+          BODY="$(printf "Promotes \`%s\` to \`%s\`.\n\n%s\n\nMerge with **Create a merge commit**. Requested by @%s." \
+            "$HEAD" "$BASE" "$COMMITS" "$GITHUB_ACTOR")"
+          URL="$(gh pr create -R "$REPO" --base "$BASE" --head "$HEAD" --title "Promote $HEAD → $BASE" --body "$BODY")"
+          echo "Opened $URL" | tee -a "$GITHUB_STEP_SUMMARY"
