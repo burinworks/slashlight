@@ -20,7 +20,19 @@ In scope:
 - `SlashlightKit` and `SlashlightSDK`;
 - the release workflow.
 
-External extensions run with your user's privileges, just like any program you install. Only install extensions you trust.
+External extensions run with your user's privileges, just like any program you install. Only install extensions you trust. [Extension permissions](docs/extension-permissions.md) describes the planned sandbox and permission prompts.
+
+## How the project checks itself
+
+| Check | Workflow | Looks for |
+|---|---|---|
+| CodeQL | `codeql.yml` | Bugs and unsafe patterns in the Swift code |
+| zizmor | `security.yml` | Unsafe GitHub Actions workflows: unpinned actions, leaked tokens, template injection |
+| TruffleHog | `security.yml` | Secrets committed to the repository |
+| OSV-Scanner | `security.yml` | Known vulnerabilities in `Package.resolved`, weekly and on every push |
+| Dependency review | `security.yml` | Pull requests that add a vulnerable dependency |
+
+All third-party actions are pinned to a commit SHA, and Dependabot waits 7 days before proposing a new version.
 
 ## Supported versions
 

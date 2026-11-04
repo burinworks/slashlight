@@ -15,6 +15,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - App icon, and releases ship as a drag-to-Applications `.dmg`.
 - In-app updates with Sparkle: **Check for Updates…** in the menu bar menu and Settings → General, plus **Automatically install updates** and **Join the beta program** switches.
 - Release channels: work lands on `test`, is promoted to `beta` (pre-releases `vX.Y.Z-beta.N`) and then `main` (stable releases), each with an EdDSA-signed appcast entry.
+- Security workflow: zizmor (workflow audit), TruffleHog (committed secrets), OSV-Scanner (known vulnerabilities in dependencies) and dependency review on pull requests. Every action is pinned to a commit SHA.
+- [Extension permissions](docs/extension-permissions.md) proposal: what extensions declare in `manifest.json`, what the user is shown, and how each permission is enforced.
 
 ## [0.2.0] - 2026-10-29
 
