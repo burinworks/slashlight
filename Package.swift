@@ -15,11 +15,17 @@ let package = Package(
     dependencies: [
         // Terminal emulator view for the built-in Terminal extension.
         .package(url: "https://github.com/migueldeicaza/SwiftTerm", from: "1.20.0"),
+        // In-app updates (EdDSA-signed appcast on GitHub Pages).
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.9.0"),
     ],
     targets: [
         .target(name: "SlashlightKit"),
         .target(name: "SlashlightSDK", dependencies: ["SlashlightKit"]),
-        .executableTarget(name: "Slashlight", dependencies: ["SlashlightKit", .product(name: "SwiftTerm", package: "SwiftTerm")]),
+        .executableTarget(name: "Slashlight", dependencies: [
+            "SlashlightKit",
+            .product(name: "SwiftTerm", package: "SwiftTerm"),
+            .product(name: "Sparkle", package: "Sparkle"),
+        ]),
         .executableTarget(name: "HelloExtension", dependencies: ["SlashlightSDK"], path: "Examples/HelloExtension"),
         .testTarget(name: "SlashlightKitTests", dependencies: ["SlashlightKit"]),
         .testTarget(name: "SlashlightTests", dependencies: ["Slashlight"]),

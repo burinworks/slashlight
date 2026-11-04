@@ -34,6 +34,8 @@ Apps, files, windows on every Space, a calculator, snippets, clipboard history a
 | <img src="docs/images/commands.png" alt="Command mode listing all extensions" width="420"> | **Command mode.** Type `/` for every extension and your own commands: shell scripts, URLs with `{query}` quicklinks, Shortcuts, HTTP calls and AppleScript. |
 | <img src="docs/images/emoji-dark.png" alt="Emoji picker grid" width="420"> | **Emoji & symbols.** A searchable grid with recents first, plus ⌘ ⌥ → © and friends. |
 | <img src="docs/images/system-dark.png" alt="System commands" width="420"> | **System commands.** Lock, sleep, restart, empty trash, eject disks, toggle dark mode, quit all apps. |
+| <img src="docs/images/insights-dark.png" alt="Usage Insights dashboard" width="420"> | **Usage Insights.** `/insights` shows what you use most, when you're busiest, your streak and how fast you get from opening the panel to an action. The data stays on your Mac. |
+| <img src="docs/images/onboarding-dark.png" alt="Welcome tour showing a mock search for 5 km in mi" width="420"> | **Welcome tour.** On first launch, six short steps set your hotkey (with help freeing ⌘Space from Spotlight), show what you can type and where extensions live, and offer the two optional permissions. |
 
 Also built in:
 
@@ -56,6 +58,15 @@ The [user guide](docs/user-guide.md) has every key and command.
    ```
 3. Open it and press **⌥Space**. The app lives in the menu bar.
 4. Grant **Accessibility** (window layouts, paste) and **Screen Recording** (window thumbnails) from Settings (⌘,) → Permissions.
+
+### Updates
+
+Slashlight updates itself with [Sparkle](https://sparkle-project.org). It checks once a day; **Check for Updates…** is in the menu bar menu and in Settings → General, next to two switches:
+
+- **Automatically install updates** downloads updates in the background and installs them when you quit.
+- **Join the beta program** also offers beta builds (`vX.Y.Z-beta.N`). Leaving the beta keeps your current build until a newer stable version ships.
+
+Updates are signed with an EdDSA key, so Sparkle installs only builds made by this project's release workflow. Sparkle clears the quarantine flag on the new version, so you don't repeat step 2. Because the app is ad-hoc signed, macOS may ask you to grant Accessibility and Screen Recording again after an update.
 
 ### Build from source
 
@@ -134,6 +145,7 @@ Pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md). It cov
 ## Acknowledgements
 
 - [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) by Miguel de Icaza powers the terminal tabs.
+- [Sparkle](https://sparkle-project.org) delivers updates.
 - [Raycast](https://www.raycast.com) set the bar for launchers and defined the script-command format Slashlight supports.
 
 ## License
