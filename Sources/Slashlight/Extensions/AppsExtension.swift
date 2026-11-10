@@ -17,7 +17,7 @@ final class AppsExtension: Extension {
     private var launches: [String: Date] = [:]
 
     override var manifest: Manifest {
-        Manifest(id: "apps", title: "All Apps", subtitle: "Recently opened or recently added applications", icon: .symbol("square.grid.2x2"))
+        Manifest(id: "apps", title: "All Apps", subtitle: "Recently opened or recently added applications", icon: .symbol("square.grid.2x2"), recents: .actions)
     }
 
     override var triggers: [Trigger] { [.defaultSearch, .command("apps")] }

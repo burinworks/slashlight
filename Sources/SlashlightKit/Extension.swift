@@ -63,12 +63,23 @@ open class Extension {
     /// so long-running work should check `Task.isCancelled` or use `try await Task.sleep` to debounce.
     open func search(_ query: Query) async throws -> [Section] { [] }
 
-    /// The screen shown when the user opens this extension (from the home list, ⌘E or `/command`).
+    /// The screen shown when the user opens this extension by typing its name or picking it on the home list.
     /// Defaults to a searchable list backed by `search(_:)` with `query.mode == .scoped`.
+    /// Return nil for an inline-only extension (the calculator): it adds results to the search but has no screen of its own.
     open func rootView() -> ListView? {
         ListView(title: manifest.title, icon: manifest.icon, placeholder: "Search \(manifest.title)…") { [unowned self] query in
             try await self.search(query)
         }
+    }
+
+    /// Rebuilds an item the user ran before, for the home screen's Recent section (`manifest.recents == .actions`).
+    /// The default searches the extension for `title` and picks the item with this `id`.
+    open func recentItem(id: String, title: String) async -> Item? {
+        for text in [title, ""] {
+            let sections = (try? await search(Query(text: text, mode: .scoped))) ?? []
+            if let item = sections.lazy.flatMap(\.items).first(where: { $0.id == id }) { return item }
+        }
+        return nil
     }
 }
 
@@ -79,15 +90,29 @@ public struct Manifest {
     public var icon: Icon
     public var version: String
     public var author: String?
+    /// What the home screen's Recent section shows after the user used this extension.
+    public var recents: RecentsMode
 
-    public init(id: String, title: String, subtitle: String? = nil, icon: Icon, version: String = "1.0", author: String? = nil) {
+    public init(id: String, title: String, subtitle: String? = nil, icon: Icon, version: String = "1.0", author: String? = nil,
+                recents: RecentsMode = .wholeExtension) {
         self.id = id
         self.title = title
         self.subtitle = subtitle
         self.icon = icon
         self.version = version
         self.author = author
+        self.recents = recents
     }
+}
+
+/// How an extension appears in Recent on the home screen.
+public enum RecentsMode: String, Sendable {
+    /// The items the user ran ("Left Half", "/my-ip", Safari). Use when each item is a command of its own.
+    case actions
+    /// The extension itself (Clipboard History). Use when items are content, not commands.
+    case wholeExtension = "extension"
+    /// Never listed (the calculator, web search).
+    case hidden = "none"
 }
 
 public enum Trigger: Equatable {
@@ -96,7 +121,8 @@ public enum Trigger: Equatable {
     /// Takes over the bar when the text starts with this prefix, e.g. `>` for the terminal.
     /// `search` receives the text after the prefix with `mode == .prefix`.
     case prefix(String)
-    /// Reachable as `/name`; opening it shows `rootView()`.
+    /// Another name the extension is found by when typed in the search ("switch" for Window Switcher).
+    /// Extensions open by name, not by `/name`: `/` lists commands only.
     case command(String)
     /// Contributes items to `/` command mode (`search` receives the text after `/` with `mode == .command`).
     case commands

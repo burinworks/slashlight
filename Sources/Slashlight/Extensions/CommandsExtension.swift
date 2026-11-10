@@ -1,7 +1,8 @@
 import AppKit
 import SlashlightKit
 
-/// User-defined `/commands` from `~/Library/Application Support/Slashlight/commands/commands.json`.
+/// Every `/command` in one place: the user's own from `~/Library/Application Support/Slashlight/commands/commands.json`
+/// and Raycast script commands from `…/Slashlight/script-commands/`.
 /// A `{query}` placeholder in `run` turns a command into a quicklink: `/gh slashlight` fills it with "slashlight"
 /// (URL-encoded for url and http, shell-quoted for shell, as typed otherwise).
 final class CommandsExtension: Extension {
@@ -21,18 +22,29 @@ final class CommandsExtension: Extension {
 
     private var commands: [Command] = []
     private var loadedAt: Date?
+    private let scripts = ScriptCommandsExtension()
 
     override var manifest: Manifest {
-        Manifest(id: "commands", title: "Commands", subtitle: "Your own /commands: scripts, URLs, Shortcuts, HTTP", icon: .symbol("command"))
+        Manifest(id: "commands", title: "Commands", subtitle: "Your /commands: shell, URLs, Shortcuts, HTTP, Raycast scripts",
+                 icon: .symbol("command"), recents: .actions)
     }
 
-    override var triggers: [Trigger] { [.commands, .command("commands")] }
+    override var triggers: [Trigger] { [.commands, .command("scripts")] }
 
     private var file: URL { context.supportDirectory.appendingPathComponent("commands.json") }
 
     override func activate(context: ExtensionContext) async {
         if !FileManager.default.fileExists(atPath: file.path) { writeExamples() }
         load()
+        await scripts.start(context: FolderContext(base: context, folder: "script-commands"))
+    }
+
+    override func deactivate() async { await scripts.deactivate() }
+
+    override func recentItem(id: String, title: String) async -> Item? {
+        reloadIfChanged()
+        if let c = commands.first(where: { $0.name == id }) { return item(c, argument: "") }
+        return scripts.item(id: id)
     }
 
     override func search(_ query: Query) async throws -> [Section] {
@@ -41,13 +53,14 @@ final class CommandsExtension: Extension {
         let text = query.text.trimmingCharacters(in: .whitespaces)
         let parts = text.split(separator: " ", maxSplits: 1).map(String.init)
         let argument = parts.count > 1 ? parts[1].trimmingCharacters(in: .whitespaces) : ""
-        let matches = commands
-            .compactMap { c -> (Int, Command, String)? in
-                if !argument.isEmpty && Self.takesArgument(c) { return Fuzzy.score(parts[0], c.name).map { ($0, c, argument) } }
-                return Fuzzy.score(text, c.name).map { ($0, c, "") }
-            }
-            .sorted { $0.0 > $1.0 }
-            .map { item($0.1, argument: $0.2) }
+        let own = commands.compactMap { c -> (score: Int, item: Item)? in
+            if !argument.isEmpty && Self.takesArgument(c) { return Fuzzy.score(parts[0], c.name).map { ($0, item(c, argument: argument)) } }
+            return Fuzzy.score(text, c.name).map { ($0, item(c, argument: "")) }
+        }
+        // Sorted by score; the order is stable, so ties keep commands.json first, then scripts.
+        let matches = (own + scripts.scored(query.text)).enumerated()
+            .sorted { $0.element.score != $1.element.score ? $0.element.score > $1.element.score : $0.offset < $1.offset }
+            .map(\.element.item)
         var sections = [Section("Commands", matches)]
         if query.mode == .scoped || Fuzzy.score(query.text, "edit commands") != nil && !query.isEmpty {
             sections.append(Section("Manage", [
@@ -55,7 +68,7 @@ final class CommandsExtension: Extension {
                      icon: .symbol("pencil"),
                      primary: Action("Open in Editor") { [file] in NSWorkspace.shared.open(file); return .close },
                      secondary: Action("Show in Finder") { [file] in NSWorkspace.shared.activateFileViewerSelecting([file]); return .close }),
-            ]))
+            ] + (query.mode == .scoped ? scripts.manageItems : [])))
         }
         return sections
     }
@@ -154,6 +167,32 @@ final class CommandsExtension: Extension {
         enc.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         try? enc.encode(examples).write(to: file)
     }
+}
+
+/// The host's services with another support folder, so the merged script commands keep reading `script-commands/`.
+@MainActor
+private final class FolderContext: ExtensionContext {
+    let base: ExtensionContext
+    let folder: String
+
+    init(base: ExtensionContext, folder: String) {
+        self.base = base
+        self.folder = folder
+    }
+
+    var supportDirectory: URL {
+        let url = Paths.support.appendingPathComponent(folder, isDirectory: true)
+        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        return url
+    }
+
+    func storage(_ kind: StorageKind) -> KeyValueStorage { base.storage(kind) }
+    var frontmostApplication: NSRunningApplication? { base.frontmostApplication }
+    func copy(_ text: String) { base.copy(text) }
+    func showHUD(_ message: String) { base.showHUD(message) }
+    func refresh() { base.refresh() }
+    func present(extensionID: String) { base.present(extensionID: extensionID) }
+    func close() { base.close() }
 }
 
 extension Shell {

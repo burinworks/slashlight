@@ -15,17 +15,20 @@ The Swift types are in `Sources/SlashlightKit/WireProtocol.swift`; `SlashlightSD
   "subtitle": "Example out-of-process extension",
   "icon": "sf:hand.wave",
   "triggers": ["commands", "command:hello"],
+  "recents": "extension",
   "exec": ["./hello-extension"]
 }
 ```
 
-`exec` paths are relative to the folder. Triggers:
+`exec` paths are relative to the folder. `recents` sets what the home screen's Recent section shows after the extension is used: `"actions"` (the items the user ran), `"extension"` (the extension itself, the default) or `"none"`.
+
+Triggers:
 
 | Trigger | Meaning |
 |---|---|
 | `default` | Contributes to plain-text search |
 | `commands` | Contributes to `/` mode |
-| `command:<name>` | Reachable as `/<name>`; opening it shows a scoped search |
+| `command:<name>` | Another name the extension is found by when typed; opening it shows a scoped search. Extensions are not opened with `/<name>` |
 | `prefix:<p>` | Owns the bar when the text starts with `p` |
 
 ## Host → extension

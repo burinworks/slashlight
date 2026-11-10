@@ -75,7 +75,7 @@ final class WindowManagementExtension: Extension {
     private var previousFrames: [String: CGRect] = [:]
 
     override var manifest: Manifest {
-        Manifest(id: "window-management", title: "Window Layout", subtitle: "Halves, thirds, quarters, maximize, displays", icon: .symbol("rectangle.split.2x1"))
+        Manifest(id: "window-management", title: "Window Layout", subtitle: "Halves, thirds, quarters, maximize, displays", icon: .symbol("rectangle.split.2x1"), recents: .actions)
     }
 
     override var triggers: [Trigger] { [.commands, .command("windows")] }

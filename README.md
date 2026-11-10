@@ -31,7 +31,7 @@ Apps, files, windows on every Space, a calculator, snippets, clipboard history a
 | | |
 |---|---|
 | <img src="docs/images/calculator.png" alt="Calculator converting 100 USD to EUR" width="420"> | **Calculator as you type.** Math (`(3+4)*2^3`, `15% of 80`), units (`5 km in mi`, `100 f to c`) and live currency rates (`100 usd to eur`). ↵ copies, ⌘↵ pastes. |
-| <img src="docs/images/commands.png" alt="Command mode listing all extensions" width="420"> | **Command mode.** Type `/` for every extension and your own commands: shell scripts, URLs with `{query}` quicklinks, Shortcuts, HTTP calls and AppleScript. |
+| <img src="docs/images/commands.png" alt="Command mode listing your commands, most recent first" width="420"> | **Command mode.** Type `/` for your commands, the one you ran last first: shell scripts, Raycast script commands, URLs with `{query}` quicklinks, Shortcuts, HTTP calls and AppleScript. |
 | <img src="docs/images/emoji-dark.png" alt="Emoji picker grid" width="420"> | **Emoji & symbols.** A searchable grid with recents first, plus ⌘ ⌥ → © and friends. |
 | <img src="docs/images/system-dark.png" alt="System commands" width="420"> | **System commands.** Lock, sleep, restart, empty trash, eject disks, toggle dark mode, quit all apps. |
 | <img src="docs/images/insights-dark.png" alt="Usage Insights dashboard" width="420"> | **Usage Insights.** `/insights` shows what you use most, when you're busiest, your streak and how fast you get from opening the panel to an action. The data stays on your Mac. |
