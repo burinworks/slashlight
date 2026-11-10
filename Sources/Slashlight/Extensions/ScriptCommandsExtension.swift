@@ -174,11 +174,13 @@ final class ScriptCommandsExtension: Extension {
     /// fullOutput mode: streams stdout and stderr into the detail area, like the Terminal extension.
     private func stream(_ s: Script, _ args: [String]) -> ListView {
         let detail = DetailModel(text: "", isRunning: true)
-        let process = Self.process(s, args)
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = pipe
-        pipe.fileHandleForReading.readabilityHandler = { handle in
+        let process: ExtensionProcess
+        do { process = try Self.process(s, args) } catch {
+            detail.text = error.localizedDescription
+            detail.isRunning = false
+            return ListView(title: s.title, icon: s.icon, placeholder: "", detail: detail) { _ in [] }
+        }
+        process.stdout?.readabilityHandler = { handle in
             let data = handle.availableData
             guard !data.isEmpty else { return }
             let chunk = Self.stripANSI(String(decoding: data, as: UTF8.self))
@@ -189,19 +191,15 @@ final class ScriptCommandsExtension: Extension {
                 }
             }
         }
-        process.terminationHandler = { [weak self] p in
+        process.onExit { [weak self] status in
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
-                    pipe.fileHandleForReading.readabilityHandler = nil
+                    process.stdout?.readabilityHandler = nil
                     detail.isRunning = false
-                    if p.terminationStatus != 0 { detail.text += "\n[exit \(p.terminationStatus)]" }
+                    if status != 0 { detail.text += "\n[exit \(status)]" }
                     self?.context.refresh()
                 }
             }
-        }
-        do { try process.run() } catch {
-            detail.text = error.localizedDescription
-            detail.isRunning = false
         }
 
         return ListView(title: s.title, icon: s.icon, placeholder: "Output actions…", detail: detail) { [weak self] q in
@@ -239,37 +237,27 @@ final class ScriptCommandsExtension: Extension {
         }
     }
 
-    private static func process(_ s: Script, _ args: [String]) -> Process {
-        let p = Process()
-        p.executableURL = s.url
-        p.arguments = args
-        p.currentDirectoryURL = s.directory
-        p.standardInput = FileHandle.nullDevice
-        // Apps launched from Finder get a minimal PATH; scripts expect Homebrew tools to resolve.
-        var env = ProcessInfo.processInfo.environment
-        env["PATH"] = (env["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin") + ":/opt/homebrew/bin:/usr/local/bin"
-        p.environment = env
-        return p
+    /// Output and errors share one pipe. The script gets a clean environment and none of Slashlight's permissions.
+    nonisolated private static func process(_ s: Script, _ args: [String]) throws -> ExtensionProcess {
+        try ExtensionProcess(executable: s.url, arguments: args, directory: s.directory,
+                             extensionID: "scripts/\(s.name)", pipeStdin: false)
     }
 
     /// Runs to completion (60 s at most) and returns the combined output.
     private static func capture(_ s: Script, _ args: [String]) async -> (status: Int32, output: String) {
-        let p = process(s, args)
-        let pipe = Pipe()
-        p.standardOutput = pipe
-        p.standardError = pipe
-        return await withCheckedContinuation { cont in
+        await withCheckedContinuation { cont in
             DispatchQueue.global(qos: .userInitiated).async {
-                do { try p.run() } catch {
+                let p: ExtensionProcess
+                do { p = try process(s, args) } catch {
                     cont.resume(returning: (-1, error.localizedDescription))
                     return
                 }
-                let timer = DispatchWorkItem { if p.isRunning { p.terminate() } }
+                let timer = DispatchWorkItem { p.terminate() }
                 DispatchQueue.global().asyncAfter(deadline: .now() + 60, execute: timer)
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                p.waitUntilExit()
+                let data = p.stdout?.readDataToEndOfFile() ?? Data()
+                let status = p.waitUntilExit()
                 timer.cancel()
-                cont.resume(returning: (p.terminationStatus, String(decoding: data, as: UTF8.self)))
+                cont.resume(returning: (status, String(decoding: data, as: UTF8.self)))
             }
         }
     }

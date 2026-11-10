@@ -99,8 +99,19 @@ Unsolicited messages (no `id`):
 ```json
 {"type":"refresh"}                         // data changed: re-run the current search
 {"type":"hud","message":"Synced"}
+{"type":"copy","text":"s3cr3t"}           // put text on the clipboard (the host writes it)
 {"type":"outcome","outcome":{"type":"close"}}
 ```
+
+## The process
+
+Slashlight starts your extension:
+
+- **as its own process for macOS privacy purposes.** It does not get the Accessibility, Screen Recording or Automation access the user gave Slashlight. If it needs one, macOS asks the user on its behalf.
+- **with a short environment:** `PATH` (system folders plus Homebrew), `HOME`, `TMPDIR`, `LANG`, `USER`, `LOGNAME`, `SHELL`, `LC_ALL`, `LC_CTYPE` and `SLASHLIGHT_EXTENSION_ID`. Read settings from your own storage, not from environment variables.
+- **in its own folder**, as the leader of a new process group. Quitting the extension also stops the programs it started.
+
+Use `copy` (or `context.copy` in the SDK) to put text on the clipboard. Reading the clipboard is reserved for Slashlight's built-in Clipboard History; see [Extension permissions](extension-permissions.md).
 
 ## Versions
 

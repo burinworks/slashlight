@@ -24,7 +24,7 @@ final class ExternalExtension: Extension {
 
     private let file: FileManifest
     private let directory: URL
-    private var process: Process?
+    private var process: ExtensionProcess?
     private var stdin: FileHandle?
     private var buffer = Data()
     private var nextID = 1
@@ -157,19 +157,14 @@ final class ExternalExtension: Extension {
     private func launchIfNeeded() throws {
         if process?.isRunning == true { return }
         guard let exe = file.exec.first else { throw ProtocolError(errorDescription: "manifest has empty exec") }
-        let p = Process()
-        p.executableURL = exe.hasPrefix("/") ? URL(fileURLWithPath: exe) : directory.appendingPathComponent(exe)
-        p.arguments = Array(file.exec.dropFirst())
-        p.currentDirectoryURL = directory
-        let inPipe = Pipe(), outPipe = Pipe()
-        p.standardInput = inPipe
-        p.standardOutput = outPipe
-        p.standardError = FileHandle.standardError
-        outPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
+        let p = try ExtensionProcess(executable: exe.hasPrefix("/") ? URL(fileURLWithPath: exe) : directory.appendingPathComponent(exe),
+                                     arguments: Array(file.exec.dropFirst()), directory: directory, extensionID: file.id,
+                                     pipeStdin: true, stderr: FileHandle.standardError.fileDescriptor)
+        p.stdout?.readabilityHandler = { [weak self] handle in
             let chunk = handle.availableData
             DispatchQueue.main.async { MainActor.assumeIsolated { self?.receive(chunk) } }
         }
-        p.terminationHandler = { [weak self] _ in
+        p.onExit { [weak self] _ in
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
                     guard let self else { return }
@@ -179,9 +174,8 @@ final class ExternalExtension: Extension {
                 }
             }
         }
-        try p.run()
         process = p
-        stdin = inPipe.fileHandleForWriting
+        stdin = p.stdin
         buffer.removeAll()
     }
 
@@ -209,6 +203,7 @@ final class ExternalExtension: Extension {
                 if let text = msg.text { detail.text = msg.append == true ? detail.text + text : text }
                 if let running = msg.running { detail.isRunning = running }
             case "hud": context.showHUD(msg.message ?? "")
+            case "copy": context.copy(msg.text ?? "")
             case "outcome" where msg.outcome?.type == "close": context.close()
             default: break
             }
