@@ -34,5 +34,7 @@ base64 -i "$TMP/id.p12" | gh secret set SIGNING_P12 --repo "$REPO"
 printf '%s' "$PASS" | gh secret set SIGNING_P12_PASSWORD --repo "$REPO"
 BACKUP="$HOME/Desktop/slashlight-signing-backup.p12"
 cp "$TMP/id.p12" "$BACKUP"
+(umask 077 && printf '%s\n' "$PASS" > "$BACKUP.password.txt")
 echo "Set SIGNING_P12 and SIGNING_P12_PASSWORD on $REPO."
-echo "Backup: $BACKUP (password: $PASS). Move both into your password manager, then delete the file."
+echo "Backup: $BACKUP and its password in $BACKUP.password.txt."
+echo "Move both into your password manager, then delete the files."
