@@ -100,10 +100,43 @@ enum Permissions {
     static func isGranted(_ p: Permission) -> Bool {
         switch p {
         case .accessibility: return AXIsProcessTrusted()
-        case .screenRecording: return CGPreflightScreenCaptureAccess()
+        case .screenRecording: return CGPreflightScreenCaptureAccess() || canReadOtherWindowTitles()
         case .automation: return true // asked by macOS on first AppleScript call
         }
     }
+
+    /// `CGPreflightScreenCaptureAccess` keeps its first answer until the app restarts. Other apps' window titles
+    /// become readable as soon as Screen Recording is granted, so they show the change live.
+    private static func canReadOtherWindowTitles() -> Bool {
+        let me = ProcessInfo.processInfo.processIdentifier
+        let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
+        return windows.contains { w in
+            guard let pid = w[kCGWindowOwnerPID as String] as? pid_t, pid != me,
+                  let owner = w[kCGWindowOwnerName as String] as? String, !["Window Server", "Dock"].contains(owner),
+                  let name = w[kCGWindowName as String] as? String else { return false }
+            return !name.isEmpty
+        }
+    }
+
+    /// For a switch that is on in System Settings but does nothing: that entry belongs to an earlier copy of
+    /// Slashlight (macOS matches the exact build). Removes Slashlight's entry, then asks again for this copy.
+    static func reset(_ p: Permission) {
+        let service: String
+        switch p {
+        case .accessibility: service = "Accessibility"
+        case .screenRecording: service = "ScreenCapture"
+        case .automation: service = "AppleEvents"
+        }
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+        task.arguments = ["reset", service, Bundle.main.bundleIdentifier ?? "dev.slashlight.app"]
+        try? task.run()
+        task.waitUntilExit()
+        request(p)
+    }
+
+    /// What to tell someone whose switch is on but not taking effect.
+    static let staleHint = "Already on in System Settings? That switch can belong to an earlier copy of Slashlight. Reset removes it and asks again for this copy."
 
     static func request(_ p: Permission) {
         switch p {

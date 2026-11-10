@@ -100,6 +100,15 @@ Each release builds a universal app with `scripts/build-app.sh`, packs `Slashlig
 
 `scripts/setup-release-channels.sh` creates the rulesets, the `beta` and `stable` environments, the `gh-pages` branch with GitHub Pages, and lets Actions open promotion PRs. Run it once as a repository admin.
 
+### Code-signing certificate
+
+macOS remembers Accessibility and Screen Recording grants per signing identity. An ad-hoc signature is different for every build, so each update looked like a new app and the old switch in System Settings stopped working. Releases are therefore signed with one self-signed certificate, `Slashlight`:
+
+1. Run `scripts/release-signing-identity.sh` once. It creates the certificate, sets the `SIGNING_P12` and `SIGNING_P12_PASSWORD` secrets, and saves a backup `.p12` on your Desktop.
+2. Move the backup and its password into a password manager, then delete the file.
+
+CI and releases import it with `scripts/import-signing-identity.sh`. Without the secret they fall back to ad-hoc signing and print a warning. It is not an Apple Developer ID: Gatekeeper still asks on first open.
+
 ### Update signing keys
 
 Sparkle accepts only updates signed with the project's EdDSA key. Generate the pair once, on a Mac, with Sparkle's `generate_keys` (after `swift build`, it is in `.build/artifacts/sparkle/Sparkle/bin/`):
