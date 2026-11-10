@@ -18,7 +18,7 @@ Return moves forward and ← goes back. Closing the window ends the tour too; it
 | Input | What happens |
 |---|---|
 | `claude` | Apps, files, a calculator answer, and any extension or command whose name matches (`switch window`, `left half`) |
-| `/` | Command mode: your `/commands`, every extension (`/clipboard`, `/snippets`…), window layouts (`/left-half`) |
+| `/` | Command mode: your commands and script commands, the ones you used last first; then window layouts and other commands as you type (`/left-half`). Extensions open by name: type `clip` for Clipboard History |
 | `> npm run dev` | Opens a terminal tab inside Slashlight and runs the command there |
 | empty bar | Your 5 most recently used extensions, then every extension A–Z |
 
@@ -46,20 +46,21 @@ Return moves forward and ← goes back. Closing the window ends the tour too; it
 
 | Extension | ↵ | ⌘↵ |
 |---|---|---|
-| **All Apps** (`/apps`): Tab switches between recently opened, recently added and A–Z | Open | Show in Finder |
-| **Files** (`/files`): Spotlight index of your home folder | Open | Show in Finder |
-| **Commands** (`/commands`): your `commands.json` | Run | Copy definition |
-| **Clipboard History** (`/clipboard`): kept in memory, gone after quit | Copy and move to top | Paste |
-| **Snippets** (`/snippets`): stored on disk; multi-line editor where ⌘↵ saves | Copy | Paste |
-| **Window Layout** (`/windows`) | Apply to the focused window | — |
-| **Switch Window** (`/switch`, ⌥Tab): every Space and display | Switch | Show all of the app's windows |
-| **Terminal** (`>` or `/terminal`) | Run in a new tab | Open in Terminal.app |
-| **Calculator**: answers as you type | Copy result | Paste result |
-| **System** (`/system`, `/lock`, `/sleep`…) | Run | — |
-| **Emoji & Symbols** (`/emoji`) | Copy | Paste |
-| **Script Commands** (`/scripts`): Raycast script commands from `script-commands/` | Run | — |
-| **Usage Insights** (`/insights`, `/stats`): a dashboard of your own usage | Open | — |
+| **All Apps**: Tab switches between recently opened, recently added and A–Z | Open | Show in Finder |
+| **Files**: Spotlight index of your home folder | Open | Show in Finder |
+| **Commands**: your `commands.json` and Raycast script commands from `script-commands/` | Run | Copy definition / Open script |
+| **Clipboard History**: kept in memory, gone after quit | Copy and move to top | Paste |
+| **Snippets**: stored on disk; multi-line editor where ⌘↵ saves | Copy | Paste |
+| **Window Layout** | Apply to the focused window | — |
+| **Switch Window** (⌥Tab): every Space and display | Switch | Show all of the app's windows |
+| **Terminal** (`>`) | Run in a new tab | Open in Terminal.app |
+| **Calculator**: answers as you type, inline only | Copy result | Paste result |
+| **System** (`lock`, `sleep`…) | Run | — |
+| **Emoji & Symbols** | Copy | Paste |
+| **Usage Insights** (`/stats`): a dashboard of your own usage | Open | — |
 | **Search the Web**: always the last result | Google | DuckDuckGo |
+
+Open an extension by typing its name. The home screen's Recent section shows what you used last: the commands, window layouts, apps and system actions you ran, and the other extensions you opened.
 
 Turn any extension except All Apps on or off in Settings → Extensions.
 
@@ -68,6 +69,7 @@ Turn any extension except All Apps on or off in Settings → Extensions.
 - **Math:** `+ - * / ^ %`, parentheses, `sqrt cbrt abs round floor ceil exp sin cos tan asin acos atan log ln log2`, plus `pi`, `e` and `tau`.
 - **Percentages:** `15% of 80`, `200 + 10%`.
 - **Units:** length, mass, temperature, volume, speed, time and data (`5 km in mi`, `100 f to c`, `2 gb to mb`).
+- **Before you finish typing:** `12*(3+` already shows 36; `5 km` shows miles and `20 c` Fahrenheit without a target; `100 usd` shows your own currency.
 - **Currencies:** ISO codes and `$ € £ ¥` (`$100 to eur`). Rates come from open.er-api.com and are cached for 12 hours.
 
 ## Terminal tabs
@@ -140,7 +142,7 @@ Titles are not recorded for Clipboard History, Calculator, Files and web searche
 
 ## Script commands
 
-Put Raycast-style scripts in `~/Library/Application Support/Slashlight/script-commands/`. Slashlight reads the `@raycast.title`, `icon`, `mode` (`fullOutput`, `compact`, `silent`, `inline`), `argument1…3`, `packageName`, `currentDirectoryPath`, `needsConfirmation` and `refreshTime` headers. The scripts from [raycast/script-commands](https://github.com/raycast/script-commands) work unchanged.
+Put Raycast-style scripts in `~/Library/Application Support/Slashlight/script-commands/`. They are listed with your other commands: `/hello-world`. Slashlight reads the `@raycast.title`, `icon`, `mode` (`fullOutput`, `compact`, `silent`, `inline`), `argument1…3`, `packageName`, `currentDirectoryPath`, `needsConfirmation` and `refreshTime` headers. The scripts from [raycast/script-commands](https://github.com/raycast/script-commands) work unchanged.
 
 ## Configuration files
 

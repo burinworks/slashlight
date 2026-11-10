@@ -19,21 +19,80 @@ enum Paths {
     static var extensions: URL { support.appendingPathComponent("Extensions", isDirectory: true) }
     static var settings: URL { support.appendingPathComponent("settings.json") }
     static var recentExtensions: URL { support.appendingPathComponent("recent-extensions.json") }
+    static var recents: URL { support.appendingPathComponent("recents.json") }
 }
 
 /// Extension ids, most recently used first. Used to sort the home screen.
-enum RecentExtensions {
-    private static let limit = 20
-    private(set) static var ids: [String] = {
-        (try? Data(contentsOf: Paths.recentExtensions)).flatMap { try? JSONDecoder().decode([String].self, from: $0) } ?? []
-    }()
+/// What the user used, newest first: extensions they opened and items they ran.
+/// Drives the home screen's Recent section and the order of `/` commands.
+struct RecentsList: Equatable {
+    struct Entry: Codable, Equatable {
+        var ext: String
+        /// Nil when the extension itself was opened.
+        var item: String?
+        var title: String?
+        var date: Date
+    }
 
-    static func record(_ id: String) {
-        guard ids.first != id else { return }
-        ids.removeAll { $0 == id }
-        ids.insert(id, at: 0)
-        if ids.count > limit { ids.removeLast(ids.count - limit) }
-        try? JSONEncoder().encode(ids).write(to: Paths.recentExtensions, options: .atomic)
+    enum Pick: Equatable {
+        case wholeExtension(String)
+        case item(ext: String, id: String, title: String)
+    }
+
+    static let limit = 60
+    private(set) var entries: [Entry] = []
+
+    init(entries: [Entry] = []) { self.entries = entries }
+
+    mutating func record(_ entry: Entry) {
+        entries.removeAll { $0.ext == entry.ext && $0.item == entry.item }
+        entries.insert(entry, at: 0)
+        if entries.count > Self.limit { entries.removeLast(entries.count - Self.limit) }
+    }
+
+    func lastUsed(ext: String, item: String) -> Date? {
+        entries.first { $0.ext == ext && $0.item == item }?.date
+    }
+
+    /// The home screen's Recent rows, newest first. Each extension decides whether its items or the extension itself appear.
+    func home(limit: Int, mode: (String) -> RecentsMode?) -> [Pick] {
+        var out: [Pick] = []
+        for e in entries where out.count < limit {
+            switch mode(e.ext) {
+            case .wholeExtension?:
+                let pick = Pick.wholeExtension(e.ext)
+                if !out.contains(pick) { out.append(pick) }
+            case .actions?:
+                if let id = e.item { out.append(.item(ext: e.ext, id: id, title: e.title ?? id)) }
+            case .hidden?, nil:
+                continue
+            }
+        }
+        return out
+    }
+}
+
+/// The saved `RecentsList`.
+@MainActor
+enum Recents {
+    private(set) static var list: RecentsList = load()
+
+    /// Only an extension in `.actions` mode keeps item titles: other items are content (clipboard text) and are not written to disk.
+    static func record(ext: String, item: (id: String, title: String)?, mode: RecentsMode) {
+        guard mode != .hidden else { return }
+        let keep = mode == .actions ? item : nil
+        list.record(.init(ext: ext, item: keep?.id, title: keep?.title, date: Date()))
+        try? JSONEncoder().encode(list.entries).write(to: Paths.recents, options: .atomic)
+    }
+
+    private static func load() -> RecentsList {
+        if let data = try? Data(contentsOf: Paths.recents), let entries = try? JSONDecoder().decode([RecentsList.Entry].self, from: data) {
+            return RecentsList(entries: entries)
+        }
+        // Before 0.4: a list of extension ids, newest first.
+        let ids = (try? Data(contentsOf: Paths.recentExtensions)).flatMap { try? JSONDecoder().decode([String].self, from: $0) } ?? []
+        let now = Date()
+        return RecentsList(entries: ids.enumerated().map { .init(ext: $1, date: now.addingTimeInterval(-Double($0))) })
     }
 }
 

@@ -18,6 +18,8 @@ final class ExternalExtension: Extension {
         var version: String?
         var author: String?
         var triggers: [String]
+        /// "actions" | "extension" (default) | "none": what Recent on the home screen shows.
+        var recents: String?
         /// Executable and arguments; relative paths resolve against the extension folder.
         var exec: [String]
     }
@@ -56,7 +58,8 @@ final class ExternalExtension: Extension {
 
     override var manifest: Manifest {
         Manifest(id: file.id, title: file.title, subtitle: file.subtitle, icon: Wire.decodeIcon(file.icon),
-                 version: file.version ?? "1.0", author: file.author)
+                 version: file.version ?? "1.0", author: file.author,
+                 recents: file.recents.flatMap(RecentsMode.init(rawValue:)) ?? .wholeExtension)
     }
 
     override var triggers: [Trigger] { file.triggers.compactMap(Wire.decodeTrigger) }

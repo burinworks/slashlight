@@ -2,7 +2,7 @@ import AppKit
 import SlashlightKit
 
 /// Raycast Script Commands, unchanged: every executable in `~/Library/Application Support/Slashlight/script-commands/`
-/// with `@raycast.*` metadata comments becomes a `/command` named after its file.
+/// with `@raycast.*` metadata comments becomes a `/command` named after its file. Listed by `CommandsExtension`.
 /// Arguments follow the name (`/hello-world Alex`), split on whitespace; the last argument takes the rest of the text.
 final class ScriptCommandsExtension: Extension {
     /// `@raycast.argument1 { "type": "text", "placeholder": "Name", "optional": true }`
@@ -38,12 +38,10 @@ final class ScriptCommandsExtension: Extension {
     private var inlineRunning: Set<String> = []
 
     override var manifest: Manifest {
-        Manifest(id: "script-commands", title: "Script Commands",
-                 subtitle: "Raycast-compatible scripts; the ones from github.com/raycast/script-commands work as-is", icon: .symbol("scroll"))
+        Manifest(id: "script-commands", title: "Script Commands", icon: .symbol("scroll"))
     }
 
-    override var triggers: [Trigger] { [.commands, .command("scripts")] }
-
+    /// Not registered on its own: the Commands extension lists these scripts next to commands.json.
     private var folder: URL { context.supportDirectory }
 
     override func activate(context: ExtensionContext) async {
@@ -51,55 +49,50 @@ final class ScriptCommandsExtension: Extension {
         rescanIfChanged()
     }
 
-    override func rootView() -> ListView? {
-        ListView(title: manifest.title, icon: manifest.icon, placeholder: "Search script commands…") { [unowned self] q in
-            try await self.search(q)
+    /// Scripts matching the typed text, best first. "hello-world Alex": the first word picks the script, the rest are its arguments.
+    func scored(_ query: String) -> [(score: Int, item: Item)] {
+        rescanIfChanged()
+        let text = query.trimmingCharacters(in: .whitespaces)
+        let parts = text.split(separator: " ", maxSplits: 1).map(String.init)
+        let rest = parts.count > 1 ? parts[1] : ""
+        return scripts.compactMap { s in
+            if !rest.isEmpty && !s.arguments.isEmpty {
+                return Fuzzy.score(parts[0], s.name).map { ($0, item(s, arguments: Self.split(rest, into: s.arguments.count))) }
+            }
+            return Fuzzy.score(text, [s.name, s.title, s.packageName ?? ""]).map { ($0, item(s, arguments: [])) }
         }
     }
 
-    override func search(_ query: Query) async throws -> [Section] {
+    func item(id: String) -> Item? {
         rescanIfChanged()
-        // "hello-world Alex": the first word picks the script, the rest are its arguments.
-        let text = query.text.trimmingCharacters(in: .whitespaces)
-        let parts = text.split(separator: " ", maxSplits: 1).map(String.init)
-        let rest = parts.count > 1 ? parts[1] : ""
-        let matches = scripts
-            .compactMap { s -> (Int, Script, [String])? in
-                if !rest.isEmpty && !s.arguments.isEmpty {
-                    return Fuzzy.score(parts[0], s.name).map { ($0, s, Self.split(rest, into: s.arguments.count)) }
-                }
-                return Fuzzy.score(text, [s.name, s.title, s.packageName ?? ""]).map { ($0, s, []) }
-            }
-            .sorted { $0.0 > $1.0 }
-            .map { item($0.1, arguments: $0.2) }
-        var sections = [Section("Script Commands", matches)]
-        if query.mode == .scoped {
-            sections.append(Section("Manage", [
-                Item(id: "folder", title: "Open Script Commands Folder", subtitle: folder.path.replacingOccurrences(of: NSHomeDirectory(), with: "~"),
-                     icon: .symbol("folder"),
-                     primary: Action("Open in Finder") { [folder] in NSWorkspace.shared.open(folder); return .close },
-                     secondary: Action("Copy Path") { [weak self, folder] in self?.context.copy(folder.path); return .hud("Copied") }),
-                Item(id: "browse", title: "Browse Raycast Script Commands", subtitle: "github.com/raycast/script-commands — drop scripts into the folder",
-                     icon: .symbol("safari"),
-                     primary: Action("Open in Browser") {
-                         NSWorkspace.shared.open(URL(string: "https://github.com/raycast/script-commands")!)
-                         return .close
-                     }),
-            ]))
-        }
-        return sections
+        return scripts.first { $0.url.path == id }.map { item($0, arguments: []) }
+    }
+
+    var manageItems: [Item] {
+        [
+            Item(id: "folder", title: "Open Script Commands Folder", subtitle: folder.path.replacingOccurrences(of: NSHomeDirectory(), with: "~"),
+                 icon: .symbol("folder"),
+                 primary: Action("Open in Finder") { [folder] in NSWorkspace.shared.open(folder); return .close },
+                 secondary: Action("Copy Path") { [weak self, folder] in self?.context.copy(folder.path); return .hud("Copied") }),
+            Item(id: "browse", title: "Browse Raycast Script Commands", subtitle: "github.com/raycast/script-commands: drop scripts into the folder",
+                 icon: .symbol("safari"),
+                 primary: Action("Open in Browser") {
+                     NSWorkspace.shared.open(URL(string: "https://github.com/raycast/script-commands")!)
+                     return .close
+                 }),
+        ]
     }
 
     private func item(_ s: Script, arguments args: [String]) -> Item {
         let missing = s.arguments.enumerated()
             .filter { i, a in a.optional != true && (i >= args.count || args[i].isEmpty) }
             .map { i, a in a.placeholder ?? "argument \(i + 1)" }
-        var subtitle = [s.packageName, s.description].compactMap { $0 }.joined(separator: " · ")
+        var subtitle = [s.title, s.packageName, s.description].compactMap { $0 }.joined(separator: " · ")
         if s.mode == "inline" {
             refreshInlineIfStale(s, missing: missing)
             if let out = inline[s.name] { subtitle = out.line }
         }
-        if !missing.isEmpty { subtitle = "Type /\(s.name) " + missing.map { "‹\($0)›" }.joined(separator: " ") }
+        if !missing.isEmpty { subtitle = "\(s.title) · then type " + missing.map { "‹\($0)›" }.joined(separator: " ") }
         if !s.isExecutable { subtitle = "Not executable: choose Make Executable (chmod +x)" }
 
         let primary: Action
@@ -117,8 +110,9 @@ final class ScriptCommandsExtension: Extension {
             primary = Action("Run Script", icon: .symbol("play")) { [unowned self] in await self.run(s, args) }
         }
 
-        return Item(id: s.url.path, title: args.isEmpty ? s.title : "\(s.title)  \(args.joined(separator: " "))", subtitle: subtitle,
-                    icon: s.icon, accessories: [.text("/\(s.name)")] + (s.isExecutable ? [] : [.pill("chmod +x", .orange)]),
+        // Named like every other command: "/hello-world Alex", with the script's own title underneath.
+        return Item(id: s.url.path, title: (["/\(s.name)"] + args).joined(separator: " "), subtitle: subtitle,
+                    icon: s.icon, accessories: s.isExecutable ? [] : [.pill("chmod +x", .orange)],
                     primary: primary,
                     secondary: Action("Open Script", icon: .symbol("doc.text")) { NSWorkspace.shared.open(s.url); return .close },
                     more: [
