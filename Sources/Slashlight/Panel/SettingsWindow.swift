@@ -343,11 +343,15 @@ private struct PermissionsSettings: View {
                             Text(Permissions.reason(p)).font(.caption).foregroundStyle(.secondary)
                         }
                         Spacer()
+                        if !granted {
+                            Button("Reset") { Permissions.reset(p) }
+                                .help(Permissions.staleHint)
+                        }
                         Button(granted ? "Open System Settings" : "Grant Access") { Permissions.request(p) }
                     }
                 }
             } footer: {
-                Text("The app is ad-hoc signed, so macOS may ask again after each rebuild. If a granted permission does not take effect, remove Slashlight from the list in System Settings and add it again.")
+                Text("Status updates within a second of granting. \(Permissions.staleHint)")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }

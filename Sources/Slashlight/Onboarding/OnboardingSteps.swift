@@ -586,9 +586,12 @@ struct PermissionsStep: View {
                                granted: model.permissions[.screenRecording] ?? false)
                     .appear(0.22)
             }
-            Label("Both are optional. Skip this step if you like.", systemImage: "info.circle")
+            Label("Both are optional. \(Permissions.staleHint)", systemImage: "info.circle")
                 .font(.system(size: 12))
                 .foregroundStyle(Brand.secondary)
+                .multilineTextAlignment(.center)
+                .frame(width: 560)
+                .fixedSize(horizontal: false, vertical: true)
                 .appear(0.3)
         }
         .padding(.top, 14)
@@ -633,9 +636,16 @@ private struct PermissionCard: View {
                         .foregroundStyle(.green)
                         .transition(.scale(scale: 0.6).combined(with: .opacity))
                 } else {
-                    Button("Grant Access") { Permissions.request(permission) }
-                        .buttonStyle(SoftButtonStyle())
-                        .transition(.scale(scale: 0.8).combined(with: .opacity))
+                    VStack(alignment: .trailing, spacing: 6) {
+                        Button("Grant Access") { Permissions.request(permission) }
+                            .buttonStyle(SoftButtonStyle())
+                        Button("Reset") { Permissions.reset(permission) }
+                            .buttonStyle(.plain)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(Brand.secondary)
+                            .help(Permissions.staleHint)
+                    }
+                    .transition(.scale(scale: 0.8).combined(with: .opacity))
                 }
             }
             .frame(width: 112, alignment: .trailing)

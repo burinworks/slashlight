@@ -103,6 +103,12 @@ jobs:
       - name: Test
         run: scripts/test.sh
 
+      - name: Signing identity
+        env:
+          SIGNING_P12: ${{ secrets.SIGNING_P12 }}
+          SIGNING_P12_PASSWORD: ${{ secrets.SIGNING_P12_PASSWORD }}
+        run: scripts/import-signing-identity.sh
+
       - name: Build
         env:
           SPARKLE_PUBLIC_KEY: ${{ vars.SPARKLE_PUBLIC_KEY }}

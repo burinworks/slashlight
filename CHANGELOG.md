@@ -41,6 +41,10 @@ All notable changes to this project are documented here. The format follows [Kee
 - The extension dropdown in the search bar. Type an extension's name, or pick it on the home list (⌘E).
 
 ### Fixed
+- Permissions you granted no longer show as missing:
+  - Releases are signed with one certificate, so macOS keeps your Accessibility and Screen Recording grants across updates.
+  - Screen Recording shows as granted without restarting Slashlight.
+  - Settings → Permissions and the welcome tour have a **Reset** button for a switch left over from an earlier copy.
 - Hotkey recording stops when you click anything else, such as a suggested hotkey in the welcome tour.
 
 ## [0.2.0] - 2026-10-29

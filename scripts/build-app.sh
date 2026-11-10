@@ -61,9 +61,12 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-# A stable identity keeps macOS permission grants across rebuilds; see scripts/dev-signing-identity.sh.
-if security find-identity -p codesigning 2>/dev/null | grep -q '"Slashlight Dev"'; then
-  codesign --force --deep --sign "Slashlight Dev" "$APP"
+# A stable identity keeps macOS permission grants across rebuilds and updates. Releases use "Slashlight"
+# (scripts/release-signing-identity.sh, imported in CI); local builds use "Slashlight Dev" (scripts/dev-signing-identity.sh).
+IDENTITY="${SIGNING_IDENTITY:-Slashlight Dev}"
+if security find-identity -p codesigning 2>/dev/null | grep -q "\"$IDENTITY\""; then
+  codesign --force --deep --sign "$IDENTITY" "$APP"
+  echo "Signed with \"$IDENTITY\""
 else
   codesign --force --deep --sign - "$APP"
   echo "Note: ad-hoc signed. Run scripts/dev-signing-identity.sh once so permissions survive rebuilds."
