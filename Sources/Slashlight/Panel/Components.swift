@@ -82,7 +82,7 @@ struct ResultRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            IconView(icon: row.item.icon)
+            IconView(icon: row.item.icon, size: 28)
             VStack(alignment: .leading, spacing: 1) {
                 Text(row.item.title)
                     .font(.system(size: 14))
@@ -103,7 +103,7 @@ struct ResultRow: View {
                 .opacity(selected ? 1 : 0)
         }
         .padding(.horizontal, 10)
-        .frame(height: row.item.subtitle?.isEmpty == false ? 50 : 44)
+        .frame(height: row.item.subtitle?.isEmpty == false ? 46 : 40)
         .background(selected ? Theme.selection : .clear, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .contentShape(Rectangle())
     }

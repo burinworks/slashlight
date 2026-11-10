@@ -87,6 +87,9 @@ struct Settings: Codable, Equatable {
     var windowManagementHotkeys: Bool = true
     /// "system" | "light" | "dark"
     var appearance: String = "system"
+    /// Panel background: 0.5 (see-through) to 1 (solid), and whether what shows through is blurred.
+    var panelOpacity: Double = 0.85
+    var panelBlur: Bool = true
     /// Manifest ids of extensions that are turned off.
     var disabledExtensions: [String] = []
     /// Download and install updates in the background (Sparkle's automatic updates).
@@ -106,6 +109,8 @@ struct Settings: Codable, Equatable {
         windowSwitcherHotkey = try c.decodeIfPresent(String.self, forKey: .windowSwitcherHotkey) ?? d.windowSwitcherHotkey
         windowManagementHotkeys = try c.decodeIfPresent(Bool.self, forKey: .windowManagementHotkeys) ?? d.windowManagementHotkeys
         appearance = try c.decodeIfPresent(String.self, forKey: .appearance) ?? d.appearance
+        panelOpacity = min(1, max(0.5, try c.decodeIfPresent(Double.self, forKey: .panelOpacity) ?? d.panelOpacity))
+        panelBlur = try c.decodeIfPresent(Bool.self, forKey: .panelBlur) ?? d.panelBlur
         disabledExtensions = try c.decodeIfPresent([String].self, forKey: .disabledExtensions) ?? d.disabledExtensions
         autoInstallUpdates = try c.decodeIfPresent(Bool.self, forKey: .autoInstallUpdates) ?? d.autoInstallUpdates
         betaUpdates = try c.decodeIfPresent(Bool.self, forKey: .betaUpdates) ?? d.betaUpdates
@@ -130,6 +135,8 @@ struct Settings: Codable, Equatable {
 
     @MainActor
     func applyAppearance() {
+        PanelStyle.shared.opacity = panelOpacity
+        PanelStyle.shared.blur = panelBlur
         switch appearance {
         case "light": NSApp.appearance = NSAppearance(named: .aqua)
         case "dark": NSApp.appearance = NSAppearance(named: .darkAqua)

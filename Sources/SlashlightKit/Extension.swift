@@ -53,13 +53,17 @@ open class Extension {
     open func activate(context: ExtensionContext) async {}
     open func deactivate() async {}
 
+    /// Called each time the panel opens. Reload anything cached (app lists, window lists), then call
+    /// `context.refresh()` if the visible results changed. Must return quickly: start slow work in a `Task`.
+    open func panelWillOpen() {}
+
     // MARK: Results
 
     /// Results for the current query. Called on every keystroke; the previous call is cancelled,
     /// so long-running work should check `Task.isCancelled` or use `try await Task.sleep` to debounce.
     open func search(_ query: Query) async throws -> [Section] { [] }
 
-    /// The screen shown when the user opens this extension (from the dropdown, the root list or `/command`).
+    /// The screen shown when the user opens this extension (from the home list, ⌘E or `/command`).
     /// Defaults to a searchable list backed by `search(_:)` with `query.mode == .scoped`.
     open func rootView() -> ListView? {
         ListView(title: manifest.title, icon: manifest.icon, placeholder: "Search \(manifest.title)…") { [unowned self] query in
