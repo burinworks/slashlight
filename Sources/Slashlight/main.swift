@@ -60,13 +60,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return args[i + 1]
     }
 
-    /// Debug aid: `Slashlight --snapshot out.png [--query text] [--open ext-id] [--enter] [--dark]` renders the panel and quits.
+    /// Debug aid: `Slashlight --snapshot out.png [--query text] [--open ext-id] [--filter name] [--delay s] [--enter] [--dark]`
+    /// renders the panel and quits.
     private func snapshot(to path: String) async {
         if CommandLine.arguments.contains("--dark") { NSApp.appearance = NSAppearance(named: .darkAqua) }
         let host = Host.shared
         host.show(extensionID: argument("--open"))
         if let q = argument("--query") { host.model.text = q }
-        try? await Task.sleep(nanoseconds: 1_500_000_000)
+        let delay = argument("--delay").flatMap(Double.init) ?? 1.5
+        try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+        if let f = argument("--filter") {
+            for _ in host.model.filters where host.model.activeFilter != f { host.model.cycleFilter(1) }
+            try? await Task.sleep(nanoseconds: 500_000_000)
+        }
         if CommandLine.arguments.contains("--enter") {
             host.model.runPrimary()
             try? await Task.sleep(nanoseconds: 1_500_000_000)
