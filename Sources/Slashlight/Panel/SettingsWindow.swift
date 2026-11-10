@@ -219,12 +219,16 @@ private struct GeneralSettings: View {
     }
 }
 
-/// Click, then press a key combination with at least one of ⌘ ⌥ ⌃. Esc cancels. Also used by the welcome tour.
+/// Click, then press a key combination with at least one of ⌘ ⌥ ⌃. Esc or a click anywhere else cancels,
+/// so picking a suggested hotkey in the welcome tour ends recording. Also used by the welcome tour.
 struct HotkeyRecorder: View {
     @Binding var value: String
     var placeholder: String?
     @State private var recording = false
     @State private var monitor: Any?
+    @State private var clickMonitor: Any?
+    /// When a click ended recording. The same click then reaches this button, which must not start again.
+    @State private var stoppedByClick = Date.distantPast
 
     var body: some View {
         HStack(spacing: 6) {
@@ -237,9 +241,13 @@ struct HotkeyRecorder: View {
             .tint(recording ? .accentColor : nil)
         }
         .onDisappear(perform: stop)
+        // Another control set the hotkey (a suggested one was picked).
+        .onChange(of: value) { _, _ in stop() }
     }
 
-    private func toggle() { recording ? stop() : start() }
+    private func toggle() {
+        if recording { stop() } else if Date().timeIntervalSince(stoppedByClick) > 0.5 { start() }
+    }
 
     private func start() {
         recording = true
@@ -253,13 +261,20 @@ struct HotkeyRecorder: View {
             stop()
             return nil
         }
+        clickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { event in
+            stoppedByClick = Date()
+            stop()
+            return event
+        }
     }
 
     private func stop() {
         guard recording else { return }
         recording = false
         if let monitor { NSEvent.removeMonitor(monitor) }
+        if let clickMonitor { NSEvent.removeMonitor(clickMonitor) }
         monitor = nil
+        clickMonitor = nil
         Host.shared.registerHotkeys()
     }
 }

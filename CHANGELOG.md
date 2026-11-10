@@ -29,6 +29,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - [Extension permissions](docs/extension-permissions.md) proposal: what extensions declare in `manifest.json`, what the user is shown, and how each permission is enforced.
 
 ### Changed
+- Welcome tour shows the new search: `/` lists commands, extensions open by name, and `5 km` converts without a target.
 - Extensions open by typing their name; `/` lists commands only. `command:<name>` triggers are now extra names to find the extension by.
 - Raycast script commands are part of Commands and read `/hello-world` like your other commands.
 - Calculator is inline only: no Calculator entry in the extension list.
@@ -38,6 +39,9 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Removed
 - The extension dropdown in the search bar. Type an extension's name, or pick it on the home list (⌘E).
+
+### Fixed
+- Hotkey recording stops when you click anything else, such as a suggested hotkey in the welcome tour.
 
 ## [0.2.0] - 2026-10-29
 
