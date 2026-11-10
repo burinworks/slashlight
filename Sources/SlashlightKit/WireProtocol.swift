@@ -29,7 +29,7 @@ public enum Wire {
 
     /// Extension → host. `id` echoes the request; messages without `id` are unsolicited.
     public struct Message: Codable {
-        /// "hello" | "results" | "outcome" | "error" | "refresh" | "hud" | "detail"
+        /// "hello" | "results" | "outcome" | "error" | "refresh" | "hud" | "detail" | "copy"
         public var type: String
         public var id: Int?
         public var version: Int?
@@ -39,6 +39,7 @@ public enum Wire {
         /// v2: the pushed screen a `refresh` / `detail` targets.
         public var view: String?
         /// v2 `detail`: new text for the screen's detail area; appended when `append` is true.
+        /// `copy`: text the host puts on the clipboard.
         public var text: String?
         public var append: Bool?
         /// v2 `detail`: shows or hides the screen's running indicator.

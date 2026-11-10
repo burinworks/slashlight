@@ -1,6 +1,6 @@
 # Extension permissions
 
-> Status: **proposal.** Nothing here is enforced yet. This page is the spec the sandbox work builds on.
+> Status: **proposal.** Step 1 of the rollout is done: extensions run without Slashlight's privacy permissions, with a clean environment, and copy through the host. The rest is the spec the sandbox work builds on.
 
 An extension says in its `manifest.json` what it needs. Slashlight shows that list to the user in plain words before the extension runs for the first time, and enforces it: anything not declared is blocked by the operating system, not by asking the extension to behave.
 
@@ -155,7 +155,7 @@ A script without these lines gets the deny-by-default set plus `subprocesses` (a
 
 ## Rollout
 
-1. Spawn extensions as their own responsible process, with a clean environment.
+1. ✅ Spawn extensions as their own responsible process, with a clean environment (`ExtensionProcess`).
 2. Sandbox with deny-by-default plus the always-allowed set; read `permissions` but grant everything declared without prompting.
 3. First-run and update screens; hash tracking.
 4. Filtering proxy for host lists.

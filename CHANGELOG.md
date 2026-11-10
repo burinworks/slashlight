@@ -4,6 +4,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Security
+- External extensions and Raycast script commands no longer inherit Slashlight's Accessibility, Screen Recording and Automation access: each runs as its own responsible process.
+- They start with a short, clean environment (no tokens from your shell), none of Slashlight's open files, default signal handlers, and in their own process group, so stopping one also stops what it started.
+- `context.copy` in the SDK asks the host to write the clipboard (new `copy` message).
+
 ### Added
 - Settings → General → Appearance: background opacity (see-through to solid) and blur behind the panel, with a live preview.
 - `Extension.panelWillOpen()`: called each time the panel opens, so extensions can reload cached data.

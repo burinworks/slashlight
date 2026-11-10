@@ -198,10 +198,8 @@ final class StdioHost: ExtensionContext {
     var supportDirectory: URL { support }
     var frontmostApplication: NSRunningApplication? { NSWorkspace.shared.frontmostApplication }
 
-    func copy(_ text: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
-    }
+    /// The host writes the pasteboard: extensions are not allowed to open it themselves.
+    func copy(_ text: String) { send(Wire.Message(type: "copy", text: text)) }
 
     func showHUD(_ message: String) { send(Wire.Message(type: "hud", message: message)) }
     func refresh() { send(Wire.Message(type: "refresh")) }

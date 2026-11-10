@@ -20,7 +20,7 @@ In scope:
 - `SlashlightKit` and `SlashlightSDK`;
 - the release workflow.
 
-External extensions run with your user's privileges, just like any program you install. Only install extensions you trust. [Extension permissions](docs/extension-permissions.md) describes the planned sandbox and permission prompts.
+External extensions and Raycast script commands run as your user. They do **not** get the Accessibility, Screen Recording or Automation access you gave Slashlight (macOS asks you separately if they want it), they don't see your shell's environment variables, and they can't read files Slashlight has open. They can still read and write your files and use the network, so only install extensions you trust. [Extension permissions](docs/extension-permissions.md) describes the planned sandbox and permission prompts.
 
 ## How the project checks itself
 
