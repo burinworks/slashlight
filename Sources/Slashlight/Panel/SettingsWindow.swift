@@ -194,6 +194,26 @@ private struct GeneralSettings: View {
                 Toggle("Blur what's behind the panel", isOn: model.binding(\.panelBlur))
                 PanelPreview().frame(maxWidth: .infinity)
             }
+            Section {
+                Toggle(isOn: model.binding(\.clipboardKeepHistory)) {
+                    Text("Keep history after quitting")
+                    Text("Encrypted on this Mac with a key in your Keychain. Copies from password managers are never saved.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Picker("Forget entries after", selection: model.binding(\.clipboardForgetAfterDays)) {
+                    Text("1 day").tag(1)
+                    Text("7 days").tag(7)
+                    Text("30 days").tag(30)
+                    Text("Never").tag(0)
+                }
+                LabeledContent("History") {
+                    Button("Clear History", role: .destructive) { ClipboardExtension.shared?.clearAll() }
+                }
+            } header: {
+                Text("Clipboard History")
+            } footer: {
+                Text("Keeps up to 300 entries: text with its formatting, images and files.").font(.caption).foregroundStyle(.secondary)
+            }
             Section("Startup") {
                 Toggle(isOn: Binding(get: { model.loginItem }, set: { _ in model.toggleLoginItem() })) {
                     Text("Launch at login")

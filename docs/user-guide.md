@@ -49,7 +49,7 @@ Return moves forward and ← goes back. Closing the window ends the tour too; it
 | **All Apps**: Tab switches between recently opened, recently added and A–Z | Open | Show in Finder |
 | **Files**: Spotlight index of your home folder | Open | Show in Finder |
 | **Commands**: your `commands.json` and Raycast script commands from `script-commands/` | Run | Copy definition / Open script |
-| **Clipboard History**: kept in memory, gone after quit | Copy and move to top | Paste |
+| **Clipboard History**: text with its formatting, images and files; Tab switches All / Text / Images / Files / Links | Copy and move to top | Paste |
 | **Snippets**: stored on disk; multi-line editor where ⌘↵ saves | Copy | Paste |
 | **Window Layout** | Apply to the focused window | — |
 | **Switch Window** (⌥Tab): every Space and display | Switch | Show all of the app's windows |
@@ -63,6 +63,13 @@ Return moves forward and ← goes back. Closing the window ends the tour too; it
 Open an extension by typing its name. The home screen's Recent section shows what you used last: the commands, window layouts, apps and system actions you ran, and the other extensions you opened.
 
 Turn any extension except All Apps on or off in Settings → Extensions.
+
+## Clipboard history
+
+- Keeps text with all of its formatting, images and files, up to 300 entries. Copying an entry back pastes into Google Docs, Pages or Slack exactly as it was copied. ⌘⇧V pastes plain text.
+- **Images** (Tab) shows large previews; ⌘O opens one in Preview.
+- History is saved between launches, encrypted with a key in your login Keychain. Settings → General → Clipboard History turns this off, sets when entries are forgotten (1, 7 or 30 days, or never) and clears it.
+- Copies from password managers (1Password, Bitwarden and others that mark them as concealed) are never recorded.
 
 ## Calculator
 

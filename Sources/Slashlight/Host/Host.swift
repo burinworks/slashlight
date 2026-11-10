@@ -55,6 +55,7 @@ final class Host {
         s.save()
         settings = s
         s.applyAppearance()
+        ClipboardExtension.shared?.apply(s)
         Updater.shared.apply(s)
         if extensionsChanged { Task { await reload() } } else { registerHotkeys() }
     }
@@ -94,6 +95,11 @@ final class Host {
 
     func paste(_ text: String) {
         copy(text)
+        pasteClipboard()
+    }
+
+    /// Pastes what is on the clipboard now (all of its formats) into the app that was in front.
+    func pasteClipboard() {
         hide()
         if NSRunningApplication.current.isActive { previousApp?.activate() }
         guard Permissions.isGranted(.accessibility) else {

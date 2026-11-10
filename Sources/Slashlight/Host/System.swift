@@ -190,6 +190,10 @@ struct Settings: Codable, Equatable {
     var betaUpdates: Bool = false
     /// False until the welcome tour has been finished or closed once.
     var onboardingCompleted: Bool = false
+    /// Save clipboard history (encrypted) so it survives quitting and updates.
+    var clipboardKeepHistory: Bool = true
+    /// Entries older than this many days are forgotten; 0 keeps them until the 300-entry limit.
+    var clipboardForgetAfterDays: Int = 30
 
     init() {}
 
@@ -208,6 +212,8 @@ struct Settings: Codable, Equatable {
         betaUpdates = try c.decodeIfPresent(Bool.self, forKey: .betaUpdates) ?? d.betaUpdates
         // A settings file from before the tour existed belongs to someone who has already set the app up.
         onboardingCompleted = try c.decodeIfPresent(Bool.self, forKey: .onboardingCompleted) ?? true
+        clipboardKeepHistory = try c.decodeIfPresent(Bool.self, forKey: .clipboardKeepHistory) ?? d.clipboardKeepHistory
+        clipboardForgetAfterDays = max(0, try c.decodeIfPresent(Int.self, forKey: .clipboardForgetAfterDays) ?? d.clipboardForgetAfterDays)
     }
 
     static func load() -> Settings {
@@ -305,6 +311,7 @@ extension Date {
     var relative: String {
         let f = RelativeDateTimeFormatter()
         f.unitsStyle = .short
+        if abs(timeIntervalSinceNow) < 10 { return "just now" }
         return f.localizedString(for: self, relativeTo: Date())
     }
 }

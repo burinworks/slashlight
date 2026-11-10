@@ -10,6 +10,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - `context.copy` in the SDK asks the host to write the clipboard (new `copy` message).
 
 ### Added
+- Clipboard History keeps images and files, with an Images view of large previews, and survives quitting and updates (encrypted; key in your Keychain). Settings → General → Clipboard History: keep after quitting, forget after 1/7/30 days or never, clear.
 - Recent on the home screen follows each extension's choice (`Manifest.recents` / manifest key `recents`): the commands, window layouts, apps and system actions you ran, or the extension itself.
 - `/` on its own lists every command, the one you ran last first.
 - Calculator answers before you finish: `12*(3+` shows 36, `5 km` shows miles, `100 usd` your own currency.
@@ -41,6 +42,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - The extension dropdown in the search bar. Type an extension's name, or pick it on the home list (⌘E).
 
 ### Fixed
+- Copying or pasting from Clipboard History keeps the original formatting (Google Docs, Pages, Slack…) instead of plain text.
 - Permissions you granted no longer show as missing:
   - Releases are signed with one certificate, so macOS keeps your Accessibility and Screen Recording grants across updates.
   - Screen Recording shows as granted without restarting Slashlight.
