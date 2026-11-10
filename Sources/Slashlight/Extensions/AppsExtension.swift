@@ -31,6 +31,11 @@ final class AppsExtension: Extension {
         }
     }
 
+    override func panelWillOpen() {
+        // Apps installed or removed since the panel was last open show up straight away.
+        Task { await reindex(); context.refresh() }
+    }
+
     override func rootView() -> ListView? {
         ListView(title: manifest.title, icon: manifest.icon, placeholder: "Filter apps…",
                  filters: ["Recently Opened", "Recently Added", "A–Z"]) { [unowned self] q in try await self.search(q) }

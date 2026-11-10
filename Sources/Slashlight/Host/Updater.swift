@@ -6,7 +6,7 @@ import Sparkle
 ///
 /// One appcast serves both channels: stable items have no channel, beta items carry `<sparkle:channel>beta`.
 @MainActor
-final class Updater: NSObject, SPUUpdaterDelegate, SPUStandardUserDriverDelegate {
+final class Updater: NSObject, SPUUpdaterDelegate, @preconcurrency SPUStandardUserDriverDelegate {
     static let shared = Updater()
 
     private var controller: SPUStandardUpdaterController?

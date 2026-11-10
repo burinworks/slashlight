@@ -78,6 +78,8 @@ final class PaletteModel: ObservableObject {
         stack = [Screen()]
         filterIndex = 0
         holdModifier = nil
+        // The panel opens under a still mouse: keyboard first, until the mouse actually moves.
+        lastMouse = NSEvent.mouseLocation
         if text.isEmpty { search() } else { text = "" }
     }
 
@@ -321,7 +323,7 @@ final class PaletteModel: ObservableObject {
 
     private func entryItem(_ ext: Extension, idPrefix: String = "") -> Item {
         let m = ext.manifest
-        return Item(id: "\(idPrefix)open-\(m.id)", title: m.title, subtitle: m.subtitle, icon: m.icon,
+        return Item(id: "\(idPrefix)open-\(m.id)", title: m.title, icon: m.icon,
                     accessories: commandName(ext).map { [.text("/\($0)")] } ?? [],
                     primary: Action("Open", icon: .symbol("arrow.right")) { [weak ext] in
                         guard let view = ext?.rootView() else { return .stay }
@@ -442,7 +444,8 @@ final class PaletteModel: ObservableObject {
     }
 
     func hover(_ index: Int) {
-        // Ignore hover caused by the list scrolling under a still mouse.
+        // Only a mouse that moved picks the row: not the panel opening under it, and not the list scrolling under it.
+        // After a move, ↑↓ continue from the row the mouse picked.
         let loc = NSEvent.mouseLocation
         guard loc != lastMouse else { return }
         lastMouse = loc

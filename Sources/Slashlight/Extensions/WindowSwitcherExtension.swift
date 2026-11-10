@@ -71,6 +71,8 @@ final class WindowSwitcherExtension: Extension {
         return [Section("Windows", windows.map(item))]
     }
 
+    override func panelWillOpen() { scannedAt = .distantPast }
+
     private func rescanIfStale() {
         guard !scanning, Date().timeIntervalSince(scannedAt) > 1 else { return }
         scanning = true

@@ -184,6 +184,15 @@ private struct GeneralSettings: View {
                     Text("Dark").tag("dark")
                 }
                 .pickerStyle(.segmented)
+                LabeledContent("Background") {
+                    HStack {
+                        Text("See-through").font(.caption).foregroundStyle(.secondary)
+                        Slider(value: model.binding(\.panelOpacity), in: 0.5...1)
+                        Text("Solid").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                Toggle("Blur what's behind the panel", isOn: model.binding(\.panelBlur))
+                PanelPreview().frame(maxWidth: .infinity)
             }
             Section("Startup") {
                 Toggle(isOn: Binding(get: { model.loginItem }, set: { _ in model.toggleLoginItem() })) {
@@ -350,5 +359,39 @@ private struct AboutSettings: View {
             Spacer()
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+/// A small panel over a colorful backdrop, so the opacity and blur settings can be judged without opening the panel.
+private struct PanelPreview: View {
+    @ObservedObject var style = PanelStyle.shared
+
+    var body: some View {
+        ZStack {
+            LinearGradient(colors: [.orange, .pink, .purple, .blue], startPoint: .topLeading, endPoint: .bottomTrailing)
+            HStack(spacing: 18) { ForEach(0..<6) { _ in Circle().fill(.white.opacity(0.8)).frame(width: 18) } }
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass").foregroundStyle(Theme.text)
+                    Text("Search…").foregroundStyle(Theme.secondary)
+                    Spacer()
+                }
+                HStack(spacing: 8) {
+                    IconView(icon: .symbol("square.grid.2x2"), size: 22)
+                    Text("All Apps").foregroundStyle(Theme.text)
+                    Spacer()
+                }
+                .padding(6)
+                .background(Theme.selection, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            }
+            .font(.system(size: 13))
+            .padding(12)
+            .frame(width: 260)
+            .background(PanelBackground(style: style, blending: .withinWindow))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Theme.border, lineWidth: 0.5))
+        }
+        .frame(height: 130)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
