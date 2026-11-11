@@ -175,7 +175,10 @@ final class ClipboardVault: @unchecked Sendable {
 
     // MARK: Keychain
 
-    private static let service = "dev.slashlight.clipboard"
+    /// Development builds (another app ID, or a bare binary) keep their own key, so they never ask for the release app's.
+    private static let service = Bundle.main.bundleIdentifier == "dev.slashlight.app" ? "dev.slashlight.clipboard" : "dev.slashlight.clipboard.dev"
+    /// The history folder that matches `service`: files encrypted with the other key would be unreadable.
+    static let folder = Bundle.main.bundleIdentifier == "dev.slashlight.app" ? "history" : "history-dev"
 
     /// The history key, created on first use.
     static func keychainKey() -> SymmetricKey? {
