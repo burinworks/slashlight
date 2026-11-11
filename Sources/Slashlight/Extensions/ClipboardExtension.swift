@@ -39,7 +39,7 @@ final class ClipboardExtension: Extension {
     func apply(_ settings: Settings) {
         if settings.clipboardKeepHistory {
             if vault == nil, let key = ClipboardVault.keychainKey() {
-                let v = ClipboardVault(directory: context.supportDirectory.appendingPathComponent("history", isDirectory: true), key: key)
+                let v = ClipboardVault(directory: context.supportDirectory.appendingPathComponent(ClipboardVault.folder, isDirectory: true), key: key)
                 vault = v
                 // Entries copied before the saved ones finished loading stay on top.
                 let saved = v.loadAll().filter { s in !entries.contains { $0.fingerprint == s.fingerprint } }

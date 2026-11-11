@@ -12,6 +12,8 @@ scripts/test.sh                   # tests (works with Xcode or just the Command 
 scripts/build-app.sh              # build/Slashlight.app
 ```
 
+Local builds are **Slashlight Dev** (`dev.slashlight.app.dev`), separate from an installed Slashlight: their own entries in System Settings → Privacy, their own Keychain key for clipboard history (`history-dev/`), and they can run side by side. Only builds signed with the release certificate in CI are `dev.slashlight.app`. Settings, commands and extensions in `~/Library/Application Support/Slashlight/` are shared.
+
 Open the folder in Xcode (`xed .`) or any editor with SourceKit-LSP.
 
 ## Where things live

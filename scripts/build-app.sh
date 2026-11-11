@@ -30,6 +30,14 @@ fi
 BIN="build/bin"
 
 APP="build/Slashlight.app"
+# Only builds signed with the release certificate (CI imports it and sets SIGNING_IDENTITY) are "Slashlight".
+# Everything else is "Slashlight Dev" with its own app ID, so macOS never mixes up the permissions, Keychain
+# items or "open Slashlight" of a local build with the installed app.
+if [[ -n "${SIGNING_IDENTITY:-}" ]]; then
+  BUNDLE_ID="${BUNDLE_ID:-dev.slashlight.app}"; DISPLAY_NAME="Slashlight"
+else
+  BUNDLE_ID="${BUNDLE_ID:-dev.slashlight.app.dev}"; DISPLAY_NAME="Slashlight Dev"
+fi
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
 cp "$BIN/Slashlight" "$APP/Contents/MacOS/Slashlight"
@@ -42,9 +50,9 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleIdentifier</key><string>dev.slashlight.app</string>
-  <key>CFBundleName</key><string>Slashlight</string>
-  <key>CFBundleDisplayName</key><string>Slashlight</string>
+  <key>CFBundleIdentifier</key><string>${BUNDLE_ID}</string>
+  <key>CFBundleName</key><string>${DISPLAY_NAME}</string>
+  <key>CFBundleDisplayName</key><string>${DISPLAY_NAME}</string>
   <key>CFBundleExecutable</key><string>Slashlight</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
