@@ -6,10 +6,11 @@ import SlashlightKit
 enum Paths {
     static let support: URL = {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        let url = base.appendingPathComponent("Slashlight", isDirectory: true)
+        // Each channel keeps its own settings, history and extensions: "Slashlight", "Slashlight Test", "Slashlight Dev".
+        let url = base.appendingPathComponent(BuildInfo.name, isDirectory: true)
         // The app was called My Spotlight before; carry its settings, commands and snippets over once.
         let old = base.appendingPathComponent("MySpotlight", isDirectory: true)
-        if !FileManager.default.fileExists(atPath: url.path), FileManager.default.fileExists(atPath: old.path) {
+        if BuildInfo.name == "Slashlight", !FileManager.default.fileExists(atPath: url.path), FileManager.default.fileExists(atPath: old.path) {
             try? FileManager.default.moveItem(at: old, to: url)
         }
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
@@ -190,6 +191,10 @@ struct Settings: Codable, Equatable {
     var betaUpdates: Bool = false
     /// False until the welcome tour has been finished or closed once.
     var onboardingCompleted: Bool = false
+    /// Which copy of the app last ran (`Install.marker`); a different one means it was installed again.
+    var installMarker: String?
+    /// Set just before an update replaces the app, so the updated copy is not taken for a new installation.
+    var updateInstalling: Bool = false
     /// Save clipboard history (encrypted) so it survives quitting and updates.
     var clipboardKeepHistory: Bool = true
     /// Entries older than this many days are forgotten; 0 keeps them until the 300-entry limit.
@@ -212,6 +217,8 @@ struct Settings: Codable, Equatable {
         betaUpdates = try c.decodeIfPresent(Bool.self, forKey: .betaUpdates) ?? d.betaUpdates
         // A settings file from before the tour existed belongs to someone who has already set the app up.
         onboardingCompleted = try c.decodeIfPresent(Bool.self, forKey: .onboardingCompleted) ?? true
+        installMarker = try c.decodeIfPresent(String.self, forKey: .installMarker)
+        updateInstalling = try c.decodeIfPresent(Bool.self, forKey: .updateInstalling) ?? false
         clipboardKeepHistory = try c.decodeIfPresent(Bool.self, forKey: .clipboardKeepHistory) ?? d.clipboardKeepHistory
         clipboardForgetAfterDays = max(0, try c.decodeIfPresent(Int.self, forKey: .clipboardForgetAfterDays) ?? d.clipboardForgetAfterDays)
     }

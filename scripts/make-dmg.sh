@@ -6,8 +6,10 @@ cd "$(dirname "$0")/.."
 
 APP="build/Slashlight.app"
 OUT="${1:-build/Slashlight.dmg}"
-VOLUME="Slashlight"
 [[ -d "$APP" ]] || { echo "Missing $APP; run scripts/build-app.sh first" >&2; exit 1; }
+# "Slashlight", "Slashlight Test" or "Slashlight Dev": the name it gets in /Applications, so channels sit side by side.
+NAME="$(/usr/libexec/PlistBuddy -c "Print :CFBundleName" "$APP/Contents/Info.plist")"
+VOLUME="$NAME"
 
 WORK="$(mktemp -d)"
 MOUNT="/Volumes/$VOLUME"
@@ -20,7 +22,7 @@ trap cleanup EXIT
 
 # Contents: the app, a link to /Applications, and the hidden background picture.
 mkdir -p "$WORK/stage/.background"
-ditto "$APP" "$WORK/stage/Slashlight.app"
+ditto "$APP" "$WORK/stage/$NAME.app"
 ln -s /Applications "$WORK/stage/Applications"
 cp scripts/dmg/background.tiff "$WORK/stage/.background/background.tiff"
 
@@ -41,7 +43,7 @@ tell application "Finder"
     set icon size of viewOptions to 112
     set text size of viewOptions to 13
     set background picture of viewOptions to file ".background:background.tiff"
-    set position of item "Slashlight.app" of container window to {170, 190}
+    set position of item "$NAME.app" of container window to {170, 190}
     set position of item "Applications" of container window to {490, 190}
     -- Finder only persists the layout reliably after a close and reopen.
     close

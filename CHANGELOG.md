@@ -10,6 +10,10 @@ All notable changes to this project are documented here. The format follows [Kee
 - `context.copy` in the SDK asks the host to write the clipboard (new `copy` message).
 
 ### Added
+- Each build says what it is: local builds are **Slashlight Dev** and CI builds of `test` and pull requests are **Slashlight Test**, each with its own app ID, settings folder and permissions. Both stay in the Dock with a DEV / TEST badge, and the panel's footer shows a tag (Local build, Test · build n, Beta · build n).
+- Build numbers: every pull request merged into `test` adds one; beta and stable keep the number of the test build they came from. Shown in Settings → About and Updates.
+- Uninstall from Settings → About or the menu bar icon: moves the app to the Trash, resets its permissions and login item, and optionally deletes its data. Reset Welcome Tour in Settings → About.
+- Installing the app again shows the welcome tour again (updates don't).
 - Clipboard History keeps images and files, with an Images view of large previews, and survives quitting and updates (encrypted; key in your Keychain). Settings → General → Clipboard History: keep after quitting, forget after 1/7/30 days or never, clear.
 - Recent on the home screen follows each extension's choice (`Manifest.recents` / manifest key `recents`): the commands, window layouts, apps and system actions you ran, or the extension itself.
 - `/` on its own lists every command, the one you ran last first.

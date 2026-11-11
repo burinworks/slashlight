@@ -4,11 +4,7 @@ import SwiftUI
 struct UpdateSettings: View {
     @ObservedObject var model: SettingsModel
 
-    private var version: String {
-        let info = Bundle.main.infoDictionary
-        let short = info?["CFBundleShortVersionString"] as? String ?? "dev"
-        return "\(short) (\(info?["CFBundleVersion"] as? String ?? "0"))"
-    }
+    private var version: String { BuildInfo.fullVersion }
 
     var body: some View {
         Section("Updates") {
@@ -23,7 +19,8 @@ struct UpdateSettings: View {
             } label: {
                 Text("Version \(version)")
                 if !Updater.shared.isAvailable {
-                    Text("Updates work in release builds").font(.caption).foregroundStyle(.secondary)
+                    Text(BuildInfo.isPreview ? "\(BuildInfo.name) doesn't update itself: install a newer build to update it"
+                         : "Updates work in release builds").font(.caption).foregroundStyle(.secondary)
                 }
             }
         }

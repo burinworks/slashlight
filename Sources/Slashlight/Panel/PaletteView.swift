@@ -152,11 +152,37 @@ struct PaletteView: View {
                 }
             }
             Spacer(minLength: 0)
+            if let tag = BuildInfo.tag { BuildTag(text: tag) }
         }
         .padding(.horizontal, 16)
         .frame(height: 40)
         .background(Theme.footer.opacity(style.opacity))
         .overlay(alignment: .top) { Rectangle().fill(Theme.divider).frame(height: 1) }
+    }
+}
+
+/// "Local build · abc1234", "Test · build 24", "Beta · build 24": which build is running. Stable builds have none.
+struct BuildTag: View {
+    let text: String
+
+    private var color: Color {
+        switch BuildInfo.channel {
+        case .local: return .orange
+        case .pr, .test: return .purple
+        case .beta: return .blue
+        case .stable: return .secondary
+        }
+    }
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(color)
+            .lineLimit(1)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .background(color.opacity(0.12), in: Capsule())
+            .help("\(BuildInfo.name) \(BuildInfo.fullVersion)")
     }
 }
 

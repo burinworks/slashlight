@@ -17,7 +17,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         if window == nil {
             let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 620, height: 520),
                              styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
-            w.title = "Slashlight Settings"
+            w.title = "\(BuildInfo.name) Settings"
             w.isReleasedWhenClosed = false
             w.delegate = self
             let model = SettingsModel(host: Host.shared)
@@ -388,13 +388,20 @@ private struct AboutSettings: View {
             Image(systemName: "sparkle.magnifyingglass")
                 .font(.system(size: 44, weight: .light))
                 .foregroundStyle(.tint)
-            Text("Slashlight").font(.title2.weight(.semibold))
-            Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev")")
+            Text(BuildInfo.name).font(.title2.weight(.semibold))
+            if let tag = BuildInfo.tag { BuildTag(text: tag) }
+            Text("Version \(BuildInfo.fullVersion)")
                 .foregroundStyle(.secondary)
+                .textSelection(.enabled)
             Text("Open-source, keyboard-first launcher for macOS.")
                 .foregroundStyle(.secondary)
-            Button("Show Welcome Tour") { OnboardingWindowController.shared.show() }
-                .padding(.top, 6)
+            HStack {
+                Button("Show Welcome Tour") { OnboardingWindowController.shared.show() }
+                Button("Reset Welcome Tour") { Install.resetOnboarding() }
+                    .help("Shows the tour now and on every launch until you finish it")
+            }
+            .padding(.top, 6)
+            Button("Uninstall \(BuildInfo.name)…", role: .destructive) { Install.confirmUninstall() }
             Spacer()
         }
         .frame(maxWidth: .infinity)
