@@ -47,6 +47,11 @@ final class Updater: NSObject, SPUUpdaterDelegate, @preconcurrency SPUStandardUs
         beta ? ["beta"] : []
     }
 
+    func updater(_ updater: SPUUpdater, willInstallUpdate item: SUAppcastItem) {
+        // The updated copy is a new folder on disk; this keeps it from being taken for a fresh installation.
+        Host.shared.update { $0.updateInstalling = true }
+    }
+
     // MARK: SPUStandardUserDriverDelegate
 
     // Slashlight is a menu bar agent, so a scheduled update alert would otherwise open behind other windows.

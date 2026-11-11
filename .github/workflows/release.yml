@@ -80,12 +80,16 @@ jobs:
     env:
       TAG: ${{ needs.plan.outputs.tag }}
       CHANNEL: ${{ needs.plan.outputs.channel }}
-      BUILD_NUMBER: ${{ github.run_number }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0 # the build number comes from test's history
+
+      - name: Build number
+        # The number of the test build this release was promoted from; promotions never add one.
+        run: echo "BUILD_NUMBER=$(scripts/build-number.sh)" | tee -a "$GITHUB_ENV"
 
       - name: Check update signing keys
         env:

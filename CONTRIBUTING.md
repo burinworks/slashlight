@@ -12,7 +12,20 @@ scripts/test.sh                   # tests (works with Xcode or just the Command 
 scripts/build-app.sh              # build/Slashlight.app
 ```
 
-Local builds are **Slashlight Dev** (`dev.slashlight.app.dev`), separate from an installed Slashlight: their own entries in System Settings → Privacy, their own Keychain key for clipboard history (`history-dev/`), and they can run side by side. Only builds signed with the release certificate in CI are `dev.slashlight.app`. Settings, commands and extensions in `~/Library/Application Support/Slashlight/` are shared.
+Every channel is its own app, so you can always tell which one is running:
+
+| Channel | Built by | App name | App ID | Dock | Panel tag |
+| --- | --- | --- | --- | --- | --- |
+| local | `scripts/build-app.sh` | Slashlight Dev | `dev.slashlight.app.dev` | yes, badge DEV | Local build · commit |
+| pr / test | CI on pull requests and on `test` | Slashlight Test | `dev.slashlight.app.test` | yes, badge TEST + build | PR #n / Test · build n |
+| beta | Release workflow on `beta` | Slashlight | `dev.slashlight.app` | no | Beta · build n |
+| stable | Release workflow on `main` | Slashlight | `dev.slashlight.app` | no | none |
+
+The executable, the Settings window, the menu items and the disk image carry the same name. Each channel has its own entries in System Settings → Privacy, its own Keychain key and its own folder in `~/Library/Application Support/` (`Slashlight`, `Slashlight Test`, `Slashlight Dev`), so they can run side by side. Set `CHANNEL=test` to build a test app locally.
+
+**Build numbers.** `CFBundleVersion` is the build number from `scripts/build-number.sh`: the length of `test`'s first-parent history, so every pull request merged into `test` adds one. Beta and stable releases keep the number of the test build they were promoted from, and pull request builds show the number of the `test` they are based on. CI fetches the full history for it.
+
+**Reinstalling.** A newly installed copy (a different folder on disk than the one that last ran, other than through an in-app update) shows the welcome tour again. Settings → About → Uninstall, or the menu bar icon's Uninstall item, moves the app to the Trash, resets its permissions and login item, and can delete its data.
 
 Open the folder in Xcode (`xed .`) or any editor with SourceKit-LSP.
 

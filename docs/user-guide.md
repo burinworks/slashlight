@@ -187,6 +187,14 @@ Everything lives in `~/Library/Application Support/Slashlight/`:
 
 If you build from source, run `scripts/dev-signing-identity.sh` once. Otherwise every rebuild is signed differently and macOS forgets these grants.
 
+## Which build is running
+
+Release builds are **Slashlight** and live in the menu bar only; beta releases show a *Beta · build n* tag in the panel's footer. Test builds (**Slashlight Test**) and local builds (**Slashlight Dev**) also stay in the Dock with a TEST or DEV badge and show their tag in the footer. Each keeps its own settings and permissions. Settings → About shows the version, build number and channel.
+
+## Uninstalling
+
+Settings → About → **Uninstall**, or **Uninstall…** in the menu bar icon's menu: moves the app to the Trash, removes its permissions and login item, and, if you leave the box ticked, deletes its settings, clipboard history, snippets, scripts and extensions. Installing it again starts with the welcome tour. **Reset Welcome Tour** in Settings → About brings the tour back without reinstalling.
+
 ## Troubleshooting
 
 - **No window thumbnails, or the switcher only shows the current Space:** grant Screen Recording and Accessibility in Settings → Permissions, then quit and reopen Slashlight.

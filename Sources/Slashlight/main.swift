@@ -6,7 +6,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.setActivationPolicy(.accessory)
+        // Local and test builds stay in the Dock with a badge, so it is always clear which build is running.
+        if BuildInfo.isPreview {
+            NSApp.setActivationPolicy(.regular)
+            NSApp.dockTile.badgeLabel = BuildInfo.badge
+            setUpMainMenu()
+        } else {
+            NSApp.setActivationPolicy(.accessory)
+        }
         setUpStatusItem()
         Updater.shared.start(with: Host.shared.settings)
         Task {
@@ -46,6 +53,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 OnboardingWindowController.shared.show(step: step)
                 return
             }
+            Install.noteLaunch()
             if !Host.shared.settings.onboardingCompleted {
                 OnboardingWindowController.shared.show()
                 return
@@ -90,9 +98,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setUpStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        item.button?.image = NSImage(systemSymbolName: "sparkle.magnifyingglass", accessibilityDescription: "Slashlight")
+        item.button?.image = NSImage(systemSymbolName: "sparkle.magnifyingglass", accessibilityDescription: BuildInfo.name)
         let menu = NSMenu()
-        menu.addItem(withTitle: "Open Slashlight", action: #selector(open), keyEquivalent: "").target = self
+        if let tag = BuildInfo.tag {
+            menu.addItem(withTitle: "\(BuildInfo.name) \(BuildInfo.version) · \(tag)", action: nil, keyEquivalent: "")
+            menu.addItem(.separator())
+        }
+        menu.addItem(withTitle: "Open \(BuildInfo.name)", action: #selector(open), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Settings…", action: #selector(settings), keyEquivalent: ",").target = self
         menu.addItem(withTitle: "Open Config Folder", action: #selector(config), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Show Welcome Tour", action: #selector(tour), keyEquivalent: "").target = self
@@ -100,10 +112,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             menu.addItem(withTitle: "Check for Updates…", action: #selector(Updater.checkForUpdates), keyEquivalent: "").target = Updater.shared
         }
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Quit Slashlight", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(withTitle: "Uninstall \(BuildInfo.name)…", action: #selector(uninstall), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "Quit \(BuildInfo.name)", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         item.menu = menu
         statusItem = item
     }
+
+    /// The menu bar of Dock builds: the app menu only, so the panel's own shortcuts keep working.
+    private func setUpMainMenu() {
+        let appMenu = NSMenu()
+        appMenu.addItem(withTitle: "Open \(BuildInfo.name)", action: #selector(open), keyEquivalent: "").target = self
+        appMenu.addItem(withTitle: "Settings…", action: #selector(settings), keyEquivalent: "").target = self
+        appMenu.addItem(withTitle: "Show Welcome Tour", action: #selector(tour), keyEquivalent: "").target = self
+        appMenu.addItem(.separator())
+        appMenu.addItem(withTitle: "Uninstall \(BuildInfo.name)…", action: #selector(uninstall), keyEquivalent: "").target = self
+        appMenu.addItem(withTitle: "Quit \(BuildInfo.name)", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "")
+        let root = NSMenuItem()
+        root.submenu = appMenu
+        let main = NSMenu()
+        main.addItem(root)
+        NSApp.mainMenu = main
+    }
+
+    /// Clicking the Dock icon opens the panel.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag { Host.shared.show() }
+        return true
+    }
+
+    @objc private func uninstall() { Install.confirmUninstall() }
 
     @objc private func open() { Host.shared.show() }
 
