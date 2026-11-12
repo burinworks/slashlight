@@ -11,7 +11,7 @@ struct ExtensionIsolationTests {
 
     private func run(_ path: String, _ args: [String]) throws -> String {
         let p = try ExtensionProcess(executable: URL(fileURLWithPath: path), arguments: args, directory: here,
-                                     extensionID: "evil", pipeStdin: false)
+                                     extensionID: "evil", sandbox: nil, pipeStdin: false)
         let out = p.stdout?.readDataToEndOfFile() ?? Data()
         _ = p.waitUntilExit()
         return String(decoding: out, as: UTF8.self)
@@ -29,7 +29,7 @@ struct ExtensionIsolationTests {
 
         // An extension is charged to itself: macOS asks the user before it can use Accessibility or Screen Recording.
         let ext = try ExtensionProcess(executable: URL(fileURLWithPath: "/bin/sleep"), arguments: ["5"], directory: here,
-                                       extensionID: "evil", pipeStdin: false)
+                                       extensionID: "evil", sandbox: nil, pipeStdin: false)
         defer { ext.terminate() }
         #expect(ExtensionProcess.responsiblePID(for: ext.pid) == ext.pid)
         #expect(ExtensionProcess.responsiblePID(for: ext.pid) != ours)
@@ -43,7 +43,7 @@ struct ExtensionIsolationTests {
         #expect(env.contains("SLASHLIGHT_EXTENSION_ID=evil"))
         #expect(env.contains("HOME="))
         let names = Set(env.split(separator: "\n").compactMap { $0.split(separator: "=").first.map(String.init) })
-        let allowed: Set = ["PATH", "HOME", "TMPDIR", "LANG", "USER", "LOGNAME", "SHELL", "LC_ALL", "LC_CTYPE", "SLASHLIGHT_EXTENSION_ID"]
+        let allowed: Set = ["PATH", "HOME", "TMPDIR", "LANG", "USER", "LOGNAME", "SHELL", "LC_ALL", "LC_CTYPE", "SLASHLIGHT_EXTENSION_ID", "PWD"]
         #expect(names.isSubset(of: allowed), "unexpected variables: \(names.subtracting(allowed))")
     }
 
@@ -71,7 +71,7 @@ struct ExtensionIsolationTests {
     @Test func terminateStopsWhatItStarted() throws {
         // The extension starts a grandchild and waits; stopping the extension must stop both.
         let p = try ExtensionProcess(executable: URL(fileURLWithPath: "/bin/sh"), arguments: ["-c", "sleep 30 & echo $!; wait"],
-                                     directory: here, extensionID: "evil", pipeStdin: false)
+                                     directory: here, extensionID: "evil", sandbox: nil, pipeStdin: false)
         let line = p.stdout.flatMap { String(data: $0.availableData, encoding: .utf8) } ?? ""
         let grandchild = try #require(pid_t(line.trimmingCharacters(in: .whitespacesAndNewlines)))
         p.terminate()

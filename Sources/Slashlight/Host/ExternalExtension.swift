@@ -22,10 +22,15 @@ final class ExternalExtension: Extension {
         var recents: String?
         /// Executable and arguments; relative paths resolve against the extension folder.
         var exec: [String]
+        /// What it needs beyond answering searches. See docs/extension-permissions.md.
+        var permissions: ExtensionPermissions.FileBlock?
+        /// One sentence per permission, written by the author.
+        var why: [String: String]?
     }
 
     private let file: FileManifest
     private let directory: URL
+    let granted: ExtensionPermissions
     private var process: ExtensionProcess?
     private var stdin: FileHandle?
     private var buffer = Data()
@@ -38,22 +43,43 @@ final class ExternalExtension: Extension {
         var errorDescription: String?
     }
 
-    init(file: FileManifest, directory: URL) {
+    /// Checks the manifest: a valid id that isn't a built-in's, permissions that can be granted, and triggers
+    /// that agree with them.
+    init(file: FileManifest, directory: URL, reservedIDs: Set<String> = []) throws {
+        let allowed = Set("abcdefghijklmnopqrstuvwxyz0123456789-_.")
+        guard !file.id.isEmpty, file.id.allSatisfy({ allowed.contains($0) }), !file.id.hasPrefix(".") else {
+            throw ProtocolError(errorDescription: "id \"\(file.id)\": use lowercase letters, digits, - _ and .")
+        }
+        guard !reservedIDs.contains(file.id), file.id != "scripts" else {
+            throw ProtocolError(errorDescription: "id \"\(file.id)\" belongs to a built-in extension")
+        }
+        let permissions = try ExtensionPermissions(file.permissions)
+        if file.triggers.contains("default") && !permissions.defaultSearch {
+            throw ProtocolError(errorDescription: "uses the default trigger without \"defaultSearch\": true in permissions")
+        }
         self.file = file
         self.directory = directory
+        self.granted = permissions
     }
 
-    static func discover(in root: URL) -> [Extension] {
+    static func discover(in root: URL, reservedIDs: Set<String> = []) -> [Extension] {
         let dirs = (try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? []
         return dirs.compactMap { dir in
             guard let data = try? Data(contentsOf: dir.appendingPathComponent("manifest.json")) else { return nil }
             do {
-                return ExternalExtension(file: try JSONDecoder().decode(FileManifest.self, from: data), directory: dir)
+                return try ExternalExtension(file: try JSONDecoder().decode(FileManifest.self, from: data), directory: dir,
+                                             reservedIDs: reservedIDs)
             } catch {
-                NSLog("Slashlight: bad manifest in \(dir.path): \(error)")
+                NSLog("Slashlight: didn't load \(dir.path): \(error.localizedDescription)")
                 return nil
             }
         }
+    }
+
+    /// `ExtensionData/<id>`, not a built-in's folder: an extension never sees Slashlight's own data.
+    private var sandbox: Sandbox {
+        let folders = Sandbox.folders(extensionID: file.id)
+        return Sandbox(permissions: granted, ownFolder: directory, dataFolder: folders.data, tempFolder: folders.temp)
     }
 
     override var manifest: Manifest {
@@ -135,7 +161,7 @@ final class ExternalExtension: Extension {
         try launchIfNeeded()
         var req = req
         req.id = nextID
-        req.supportDirectory = context.supportDirectory.path
+        req.supportDirectory = sandbox.dataFolder.path
         nextID += 1
         let id = req.id
         let reply: Wire.Message = try await withCheckedThrowingContinuation { cont in
@@ -162,7 +188,7 @@ final class ExternalExtension: Extension {
         guard let exe = file.exec.first else { throw ProtocolError(errorDescription: "manifest has empty exec") }
         let p = try ExtensionProcess(executable: exe.hasPrefix("/") ? URL(fileURLWithPath: exe) : directory.appendingPathComponent(exe),
                                      arguments: Array(file.exec.dropFirst()), directory: directory, extensionID: file.id,
-                                     pipeStdin: true, stderr: FileHandle.standardError.fileDescriptor)
+                                     sandbox: sandbox, pipeStdin: true, stderr: FileHandle.standardError.fileDescriptor)
         p.stdout?.readabilityHandler = { [weak self] handle in
             let chunk = handle.availableData
             DispatchQueue.main.async { MainActor.assumeIsolated { self?.receive(chunk) } }

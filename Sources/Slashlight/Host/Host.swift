@@ -26,7 +26,8 @@ final class Host {
         for ext in extensions { await ext.deactivate() }
         settings = Settings.load()
         settings.applyAppearance()
-        allExtensions = BuiltIns.all() + ExternalExtension.discover(in: Paths.extensions)
+        let builtIns = BuiltIns.all()
+        allExtensions = builtIns + ExternalExtension.discover(in: Paths.extensions, reservedIDs: Set(builtIns.map(\.manifest.id)))
         extensions = allExtensions.filter { !settings.disabledExtensions.contains($0.manifest.id) }
         for ext in extensions {
             await ext.start(context: HostContext(id: ext.manifest.id, host: self))

@@ -29,6 +29,10 @@ final class ScriptCommandsExtension: Extension {
         /// Inline mode: how long a result stays fresh (`@raycast.refreshTime`, never under 10 s).
         let refreshTime: TimeInterval
         let isExecutable: Bool
+        /// From `@slashlight.*` lines; a script without them can't use the network or read your files.
+        /// Nil with `permissionError` when a line names something that can't be granted.
+        let permissions: ExtensionPermissions?
+        let permissionError: String?
     }
 
     private var scripts: [Script] = []
@@ -94,9 +98,12 @@ final class ScriptCommandsExtension: Extension {
         }
         if !missing.isEmpty { subtitle = "\(s.title) · then type " + missing.map { "‹\($0)›" }.joined(separator: " ") }
         if !s.isExecutable { subtitle = "Not executable: choose Make Executable (chmod +x)" }
+        if let error = s.permissionError { subtitle = "Won't run: \(error)" }
 
         let primary: Action
-        if !s.isExecutable {
+        if s.permissionError != nil {
+            primary = Action("Open Script", icon: .symbol("exclamationmark.triangle")) { NSWorkspace.shared.open(s.url); return .close }
+        } else if !s.isExecutable {
             primary = Action("Make Executable", icon: .symbol("lock.open")) { [weak self] in
                 try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: s.url.path)
                 self?.scannedStamp = nil
@@ -233,8 +240,14 @@ final class ScriptCommandsExtension: Extension {
 
     /// Output and errors share one pipe. The script gets a clean environment and none of Slashlight's permissions.
     nonisolated private static func process(_ s: Script, _ args: [String]) throws -> ExtensionProcess {
-        try ExtensionProcess(executable: s.url, arguments: args, directory: s.directory,
-                             extensionID: "scripts/\(s.name)", pipeStdin: false)
+        guard let permissions = s.permissions else {
+            throw ExtensionProcess.LaunchError(errorDescription: s.permissionError ?? "Can't read this script's permissions")
+        }
+        let id = "scripts/\(s.name)"
+        let folders = Sandbox.folders(extensionID: id)
+        let sandbox = Sandbox(permissions: permissions, scriptFolder: s.url.deletingLastPathComponent(), dataFolder: folders.data, tempFolder: folders.temp)
+        return try ExtensionProcess(executable: s.url, arguments: args, directory: s.directory,
+                                    extensionID: id, sandbox: sandbox, pipeStdin: false)
     }
 
     /// Runs to completion (60 s at most) and returns the combined output.
@@ -328,12 +341,18 @@ final class ScriptCommandsExtension: Extension {
             let expanded = (path as NSString).expandingTildeInPath
             directory = expanded.hasPrefix("/") ? URL(fileURLWithPath: expanded) : dir.appendingPathComponent(expanded)
         }
+        var permissions: ExtensionPermissions?
+        var permissionError: String?
+        do { permissions = try ExtensionPermissions(scriptHeaders: ExtensionPermissions.scriptHeaders(source)) } catch {
+            permissionError = error.localizedDescription
+        }
         return Script(url: url, name: slug(url.deletingPathExtension().lastPathComponent), title: title,
                       mode: meta["mode"] ?? "fullOutput", packageName: meta["packageName"], description: meta["description"],
                       icon: icon(meta["icon"], relativeTo: dir), arguments: arguments,
                       needsConfirmation: meta["needsConfirmation"] == "true", directory: directory,
                       refreshTime: max(10, meta["refreshTime"].flatMap(duration) ?? 10),
-                      isExecutable: FileManager.default.isExecutableFile(atPath: url.path))
+                      isExecutable: FileManager.default.isExecutableFile(atPath: url.path),
+                      permissions: permissions, permissionError: permissionError)
     }
 
     /// `# @raycast.title Hello` / `// @raycast.title Hello` → ["title": "Hello"]

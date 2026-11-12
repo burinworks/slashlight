@@ -6,10 +6,14 @@ import Foundation
 ///
 /// - **Own responsible process.** macOS charges a child's privacy access (Accessibility, Screen Recording,
 ///   Automation…) to the app that started it, so a plain `Process` would inherit Slashlight's grants.
-///   `responsibility_spawnattrs_setdisclaim` makes the child responsible for itself, the way Terminal starts
-///   shells: it has to ask macOS for each permission in its own name.
+///   `responsibility_spawnattrs_setdisclaim` makes the child responsible for itself: it has to ask macOS for each
+///   permission in its own name. The exception is an extension granted ~/Documents, ~/Desktop or ~/Downloads, which
+///   macOS only lets a responsible app into (`Sandbox.needsSlashlightsFolderAccess`); its sandbox profile blocks
+///   Accessibility, the window server and screen capture instead.
 /// - **Clean environment.** Only the variables in `environment(extensionID:)`; tokens in the user's shell
 ///   environment (`GITHUB_TOKEN`, `OPENAI_API_KEY`…) are not passed on.
+/// - **Sandbox.** With a `Sandbox`, the program runs under `sandbox-exec` with a profile built from its
+///   permissions, and gets its own `TMPDIR` and `SLASHLIGHT_DATA_DIR`.
 final class ExtensionProcess: @unchecked Sendable {
     let pid: pid_t
     /// Nil when the caller passed its own descriptor for that stream.
@@ -26,7 +30,7 @@ final class ExtensionProcess: @unchecked Sendable {
     }
 
     /// Variables an extension gets. `PATH` includes Homebrew, since apps launched from Finder get a minimal one.
-    static func environment(extensionID: String) -> [String: String] {
+    static func environment(extensionID: String, sandbox: Sandbox? = nil) -> [String: String] {
         let parent = ProcessInfo.processInfo.environment
         var env: [String: String] = [
             "PATH": "/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin",
@@ -36,6 +40,10 @@ final class ExtensionProcess: @unchecked Sendable {
             "SLASHLIGHT_EXTENSION_ID": extensionID,
         ]
         for key in ["USER", "LOGNAME", "SHELL", "LC_ALL", "LC_CTYPE"] { env[key] = parent[key] }
+        if let sandbox {
+            env["TMPDIR"] = sandbox.tempFolder.path + "/"
+            env["SLASHLIGHT_DATA_DIR"] = sandbox.dataFolder.path
+        }
         return env
     }
 
@@ -43,7 +51,8 @@ final class ExtensionProcess: @unchecked Sendable {
     ///   - pipeStdin: give the child a pipe on stdin (`stdin` handle); otherwise /dev/null.
     ///   - stdout: a descriptor to write to, or nil for a pipe (`stdout` handle).
     ///   - stderr: a descriptor for errors; nil means the same as stdout.
-    init(executable: URL, arguments: [String], directory: URL, extensionID: String,
+    ///   - sandbox: the rules to run under; nil only for Slashlight's own helpers and tests.
+    init(executable: URL, arguments: [String], directory: URL, extensionID: String, sandbox: Sandbox?,
          pipeStdin: Bool, stdout outFD: Int32? = nil, stderr errFD: Int32? = nil) throws {
         var actions: posix_spawn_file_actions_t?
         posix_spawn_file_actions_init(&actions)
@@ -85,18 +94,27 @@ final class ExtensionProcess: @unchecked Sendable {
         posix_spawnattr_setsigmask(&attrs, &none)
         posix_spawnattr_setflags(&attrs, flags)
         posix_spawnattr_setpgroup(&attrs, 0)
-        guard Self.disclaim(&attrs) else {
+        guard sandbox?.needsSlashlightsFolderAccess == true || Self.disclaim(&attrs) else {
             throw LaunchError(errorDescription: "This macOS can't start extensions separately from Slashlight's permissions")
         }
 
-        let env = Self.environment(extensionID: extensionID).map { "\($0.key)=\($0.value)" }
-        let argv = [executable.path] + arguments
+        var environment = Self.environment(extensionID: extensionID, sandbox: sandbox)
+        // Shells trust PWD instead of walking up the tree, which the sandbox doesn't let them read.
+        environment["PWD"] = directory.path
+        let env = environment.map { "\($0.key)=\($0.value)" }
+        var program = executable
+        var argv = [executable.path] + arguments
+        if let sandbox {
+            sandbox.prepare()
+            program = Sandbox.executable
+            argv = [program.path, "-p", sandbox.profile, "--"] + argv
+        }
         var cArgs = argv.map { strdup($0) } + [nil]
         var cEnv = env.map { strdup($0) } + [nil]
         defer { (cArgs + cEnv).forEach { free($0) } }
 
         var child: pid_t = 0
-        let rc = posix_spawn(&child, executable.path, &actions, &attrs, &cArgs, &cEnv)
+        let rc = posix_spawn(&child, program.path, &actions, &attrs, &cArgs, &cEnv)
         guard rc == 0 else {
             throw LaunchError(errorDescription: "Couldn't start \(executable.lastPathComponent): \(String(cString: strerror(rc)))")
         }
