@@ -149,7 +149,18 @@ Titles are not recorded for Clipboard History, Calculator, Files and web searche
 
 ## Script commands
 
-Put Raycast-style scripts in `~/Library/Application Support/Slashlight/script-commands/`. They are listed with your other commands: `/hello-world`. Slashlight reads the `@raycast.title`, `icon`, `mode` (`fullOutput`, `compact`, `silent`, `inline`), `argument1…3`, `packageName`, `currentDirectoryPath`, `needsConfirmation` and `refreshTime` headers. The scripts from [raycast/script-commands](https://github.com/raycast/script-commands) work unchanged.
+Put Raycast-style scripts in `~/Library/Application Support/Slashlight/script-commands/`. They are listed with your other commands: `/hello-world`. Slashlight reads the `@raycast.title`, `icon`, `mode` (`fullOutput`, `compact`, `silent`, `inline`), `argument1…3`, `packageName`, `currentDirectoryPath`, `needsConfirmation` and `refreshTime` headers. The scripts from [raycast/script-commands](https://github.com/raycast/script-commands) work unchanged, as long as they only need what a script gets by default.
+
+Scripts run in a sandbox. By default a script can run other programs and use its own folder, a data folder (`$SLASHLIGHT_DATA_DIR`) and its own `$TMPDIR`. It **can't** use the network, read or change your files, open apps or websites, read the clipboard or the Keychain, or use Slashlight's Accessibility and Screen Recording access. Add header lines for what it needs:
+
+```bash
+# @slashlight.network any                     # or a host list: api.github.com, *.example.com
+# @slashlight.files.read ~/Documents/Notes    # folders in your home folder, separated by spaces
+# @slashlight.files.write ~/Projects/site     # write includes read
+# @slashlight.open true                       # open apps, files and websites (`open`)
+```
+
+`~/Library`, `~/.ssh`, `~/.aws`, `~/.config/gh`, shell history and other secrets can't be granted; a script asking for them shows "Won't run" and why. Setuid programs such as `ps` and `sudo` don't run in the sandbox; use `pgrep` instead of `ps`. Host lists are accepted but not filtered yet: until the filtering proxy ships, any host list allows all hosts.
 
 ## Configuration files
 
@@ -199,10 +210,11 @@ Settings → About → **Uninstall**, or **Uninstall…** in the menu bar icon's
 
 - **No window thumbnails, or the switcher only shows the current Space:** grant Screen Recording and Accessibility in Settings → Permissions, then quit and reopen Slashlight.
 - **⌥Space does nothing:** another app may own the shortcut. Record a new one in Settings → General.
+- **A script says "Operation not permitted":** it touched something outside its sandbox. Add the `@slashlight.*` line it needs (see Script commands).
 - **An external extension doesn't show up:** check that `manifest.json` is valid and `exec` is executable (`chmod +x`), then use Settings → Extensions → Reload. Extensions log to stderr, which Slashlight passes through: run `build/Slashlight.app/Contents/MacOS/Slashlight` from a terminal to see it.
 
 ## Known gaps
 
 - Terminal tabs do not survive quitting Slashlight.
-- External extensions cannot declare global hotkeys or permissions yet.
+- External extensions cannot declare global hotkeys yet. Permissions are enforced but not shown to you before the first run yet.
 - Releases are not notarized by Apple, so the first launch needs `xattr -dr com.apple.quarantine /Applications/Slashlight.app`.

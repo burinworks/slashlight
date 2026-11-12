@@ -5,6 +5,14 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Security
+- External extensions and script commands run in a macOS sandbox (Seatbelt). They get their own folder, a data folder and their own temp folder. Anything else needs a permission in `manifest.json` (`permissions`) or a `# @slashlight.*` header line:
+  - the network
+  - other folders in your home folder
+  - running other programs
+  - opening apps and websites
+  The clipboard, the Keychain, Apple Events, launchd jobs, Slashlight's data, `~/.ssh` and other secrets, the window server and Accessibility are always blocked. Writing outside the granted folders is blocked too, so an extension can't replace programs in `/opt/homebrew`.
+- Extensions granted ~/Documents, ~/Desktop or ~/Downloads run under Slashlight's folder access, since macOS gives a program that is its own responsible process no access to those folders. The sandbox still blocks Accessibility and Screen Recording for them.
+- External extensions keep their data in `ExtensionData/<id>`, and an extension can no longer use a built-in's id (such as `clipboard`) to reach its data. Manifests using the `default` trigger need `"defaultSearch": true`.
 - External extensions and Raycast script commands no longer inherit Slashlight's Accessibility, Screen Recording and Automation access: each runs as its own responsible process.
 - They start with a short, clean environment (no tokens from your shell), none of Slashlight's open files, default signal handlers, and in their own process group, so stopping one also stops what it started.
 - `context.copy` in the SDK asks the host to write the clipboard (new `copy` message).

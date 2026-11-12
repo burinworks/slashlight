@@ -63,6 +63,14 @@ Both run as separate processes. If your extension crashes, Slashlight keeps work
      "triggers": ["commands", "command:hello"], "exec": ["./hello"] }
    ```
 
+   The extension runs in a sandbox. It can use its own folder and `context.supportDirectory`; the network, other folders, running programs and opening apps need a `permissions` block ([extension-permissions.md](extension-permissions.md)):
+
+   ```json
+   "permissions": { "network": ["api.example.com"], "files": { "read": ["~/Documents/Notes"] } }
+   ```
+
+   The `default` trigger needs `"defaultSearch": true`.
+
 5. In Slashlight: Settings → Extensions → Reload, then type `/` to see its commands, or `hello` to open it.
 
 ## Concepts

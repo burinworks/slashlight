@@ -1,6 +1,6 @@
 # Extension permissions
 
-> Status: **proposal.** Step 1 of the rollout is done: extensions run without Slashlight's privacy permissions, with a clean environment, and copy through the host. The rest is the spec the sandbox work builds on.
+> Status: steps 1 and 2 of the rollout are done. Extensions and script commands run in a sandbox, with a clean environment, without Slashlight's privacy permissions, and copy through the host. Permissions are enforced as declared, but not yet shown to the user before the first run (step 3), and host lists don't filter hosts yet (step 4).
 
 An extension says in its `manifest.json` what it needs. Slashlight shows that list to the user in plain words before the extension runs for the first time, and enforces it: anything not declared is blocked by the operating system, not by asking the extension to behave.
 
@@ -24,7 +24,8 @@ An extension says in its `manifest.json` what it needs. Slashlight shows that li
     "files": { "read": ["~/Downloads"], "write": [] },
     "defaultSearch": false,
     "background": false,
-    "subprocesses": false
+    "subprocesses": false,
+    "open": false
   },
   "why": {
     "network": "Syncs your vault with your account."
@@ -39,6 +40,7 @@ An extension says in its `manifest.json` what it needs. Slashlight shows that li
 | `defaultSearch` | `true` when the `default` trigger is used | `false` |
 | `background` | `true` to keep running while the panel is closed | `false` |
 | `subprocesses` | `true` to start other programs (`curl`, `git`, `python3`) | `false` |
+| `open` | `true` to open apps, files and websites through Launch Services (`open`) | `false` |
 | `why` | one sentence per permission, written by the author | none; shown as "No reason given" |
 
 `triggers` and `permissions` must agree: an extension that uses the `default` trigger without `"defaultSearch": true` fails to load, and the error says why.
@@ -104,6 +106,7 @@ Rules for the screen:
 | `network: "any"` | Connect to any website or server | high |
 | `defaultSearch: true` | See everything you type in the search bar | high |
 | `subprocesses: true` | Run other programs on your Mac | high |
+| `open: true` | Open apps, files and websites (an app it opens runs outside the sandbox) | high |
 | `files.write` | Change files in *Downloads* | medium |
 | `network: [hosts]` | Connect to *api.vault.example* | medium |
 | `files.read` | Read files in *Downloads* | medium |
@@ -130,9 +133,26 @@ Script commands have no manifest, so they read optional header lines:
 # @raycast.title Create Gist
 # @slashlight.network api.github.com
 # @slashlight.files.read ~/Documents
+# @slashlight.files.write ~/Notes
+# @slashlight.open true
 ```
 
 A script without these lines gets the deny-by-default set plus `subprocesses` (a shell script calls other programs), and the first-run screen says "This script didn't say what it needs. It can't use the internet or read your files." When a script fails because the network was blocked, its error row offers "Allow network for this script", which shows the screen again.
+
+## The sandbox profile
+
+`Sandbox.swift` builds one Seatbelt profile per launch and starts the program as `sandbox-exec -p <profile> -- <exec>`. The profile starts from `allow default`, so system libraries, fonts and interpreters work, then takes away:
+
+1. Reading and writing the home folder and the per-user temp area (`/var/folders/…`). Writing anywhere else except `/dev` and `/tmp`.
+2. Then gives back the granted folders, takes away the never-allowed list again, and finally gives back the extension's own folder, `ExtensionData/<id>` and its `TMPDIR` (`…/T/Slashlight Extensions/<id>`). A script gets read access to the script folder.
+3. The network, forking, and Launch Services (`lsopen`), unless granted.
+4. Always: the pasteboard, the Keychain (`SecurityServer`), Apple Events, `tccd`, the window server, screen capture, Accessibility (`com.apple.axserver`), the camera, the microphone and new launchd jobs.
+
+Seatbelt only lets an `allow` override a `deny` written with the same operation name, so file rules always use `file-read-data` and `file-write*`. `stat()` stays allowed everywhere, so shells can `cd`; listing and reading don't. Shells get `PWD`, because walking up the tree to find the working folder isn't allowed. Setuid programs (`ps`, `sudo`) can't run inside a sandbox.
+
+### Folders macOS guards itself
+
+~/Documents, ~/Desktop and ~/Downloads have macOS's own privacy prompt. A program that is its own responsible process can create files there but not read them, and it can't ask. So an extension granted one of them is launched under Slashlight's responsibility instead: macOS asks the user once, in Slashlight's name. The profile alone then keeps it from Slashlight's Accessibility and Screen Recording, and a test checks that with a real probe that has both outside the sandbox.
 
 ## How each permission is enforced
 
@@ -143,9 +163,10 @@ A script without these lines gets the deny-by-default set plus `subprocesses` (a
 | `files` | Sandbox read and write rules for the listed folders, with the never-allowed list denied on top |
 | clipboard (never readable) | The sandbox always denies the pasteboard service. `copy` goes through the host |
 | `defaultSearch` | The host only sends plain typing to extensions that have it |
-| `background` | The host stops the process when the panel closes, unless granted |
+| `background` | The host stops the process when the panel closes, unless granted (not enforced yet) |
+| `open` | Sandbox `lsopen` rule |
 | `subprocesses` | Sandbox `process-exec` rule. Children inherit the same sandbox |
-| Accessibility, Screen Recording | The extension is spawned as its own responsible process, so the TCC grants stay with Slashlight |
+| Accessibility, Screen Recording | The extension is spawned as its own responsible process, so the TCC grants stay with Slashlight; the sandbox also denies the window server and `com.apple.axserver` |
 | environment | Extensions start with a clean environment (`PATH`, `HOME`, `LANG`, `TMPDIR` and `SLASHLIGHT_*` only), so tokens in your shell environment are not passed on |
 
 ## Limits
@@ -156,7 +177,7 @@ A script without these lines gets the deny-by-default set plus `subprocesses` (a
 ## Rollout
 
 1. ✅ Spawn extensions as their own responsible process, with a clean environment (`ExtensionProcess`).
-2. Sandbox with deny-by-default plus the always-allowed set; read `permissions` but grant everything declared without prompting.
+2. ✅ Sandbox with deny-by-default plus the always-allowed set; read `permissions` but grant everything declared without prompting (`Sandbox`, `ExtensionPermissions`, `SandboxTests`).
 3. First-run and update screens; hash tracking.
 4. Filtering proxy for host lists.
 5. Extension store: a GitHub index listing each extension's source, version, file hashes and permissions, checked in CI. Slashlight refuses a store install whose hashes don't match.

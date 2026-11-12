@@ -34,7 +34,7 @@ Triggers:
 ## Host → extension
 
 ```json
-{"type":"search","id":2,"query":"alex","mode":"command","filter":null,"supportDirectory":"/Users/…/Slashlight/hello"}
+{"type":"search","id":2,"query":"alex","mode":"command","filter":null,"supportDirectory":"/Users/…/Slashlight/ExtensionData/hello"}
 {"type":"run","id":3,"itemId":"greet","actionId":"say-hello"}
 {"type":"search","id":5,"view":"v1","query":"","mode":"scoped","filter":"Water"}
 {"type":"run","id":6,"view":"v1","itemId":"wave-6","actionId":"choose"}
@@ -45,7 +45,7 @@ Triggers:
 `mode` is `default` | `command` | `prefix` | `scoped`. `filter` is the active Tab filter in a scoped screen.
 `view` is set when the request belongs to a screen the extension pushed (see below); root requests omit it, as in v1.
 `dispose` (no reply) tells the extension the panel dropped that screen, so it can free it.
-Every request carries `supportDirectory`, a folder the extension may use for storage.
+Every request carries `supportDirectory` (`ExtensionData/<id>`, also in `$SLASHLIGHT_DATA_DIR`), a folder the extension may use for storage. The extension runs in a sandbox: anything beyond its own folders, such as the network or your files, needs a `permissions` block in `manifest.json` ([extension-permissions.md](extension-permissions.md)).
 A request that gets no reply within 5 s fails; a newer search makes older results irrelevant (the host drops them).
 
 ## Extension → host
