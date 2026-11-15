@@ -60,6 +60,8 @@ final class SettingsModel: ObservableObject {
     @Published var tab = SettingsTab.general
     /// The Hotkeys tab's search, so "Set Hotkey…" on a command can open the tab on that command.
     @Published var hotkeyFilter = ""
+    /// For the ⌘Space choice: whether Spotlight still has it.
+    @Published var spotlightOwnsCommandSpace = SpotlightShortcut.ownsCommandSpace
     private var timer: Timer?
 
     init(host: Host) {
@@ -78,6 +80,12 @@ final class SettingsModel: ObservableObject {
         var p: [Permission: Bool] = [:]
         for perm in [Permission.accessibility, .screenRecording] { p[perm] = Permissions.isGranted(perm) }
         if p != permissions { permissions = p }
+        let spotlight = SpotlightShortcut.ownsCommandSpace
+        if spotlight != spotlightOwnsCommandSpace {
+            spotlightOwnsCommandSpace = spotlight
+            // ⌘Space was skipped while Spotlight had it; take it now (or let it go).
+            host.registerHotkeys()
+        }
     }
 
     func update(_ change: @escaping (inout Settings) -> Void) {
@@ -204,10 +212,19 @@ private struct GeneralSettings: View {
     var body: some View {
         Form {
             Section {
-                LabeledContent("Open Slashlight") { HotkeyRecorder(value: model.binding(\.hotkey)) }
-                LabeledContent("Every other key") { Button("Hotkeys…") { model.tab = .hotkeys } }
+                OpenHotkeyPicker(model: model)
             } header: {
-                Text("Hotkeys")
+                Text("Open Slashlight")
+            } footer: {
+                if model.settings.hotkey == "cmd+space" && model.spotlightOwnsCommandSpace {
+                    HStack(spacing: 8) {
+                        Label("Spotlight still uses ⌘Space. Turn it off in Keyboard Shortcuts → Spotlight.",
+                              systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption).foregroundStyle(.orange)
+                        Spacer()
+                        Button("Open Keyboard Shortcuts", action: SpotlightShortcut.openKeyboardShortcuts).controlSize(.small)
+                    }
+                }
             }
             Section("Appearance") {
                 Picker("Theme", selection: model.binding(\.appearance)) {
@@ -383,6 +400,92 @@ private struct RecorderHint: View {
         }
         .fixedSize()
         .frame(width: 150, alignment: .leading)
+    }
+}
+
+// MARK: Open Slashlight
+
+/// The welcome tour's hotkey choice, at Settings' scale: three common keys and one to record.
+private struct OpenHotkeyPicker: View {
+    @ObservedObject var model: SettingsModel
+
+    static let presets: [(value: String, name: String, note: String)] = [
+        ("cmd+space", "Command Space", "Replaces Spotlight"),
+        ("opt+space", "Option Space", "The default"),
+        ("ctrl+space", "Control Space", "Rarely taken"),
+    ]
+
+    private var value: String { model.settings.hotkey }
+    private var isCustom: Bool { !Self.presets.contains { $0.value == value } }
+    private func set(_ v: String) { model.update { $0.hotkey = v } }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ForEach(Self.presets, id: \.value) { p in
+                ChoiceCard(selected: value == p.value, action: { set(p.value) }) {
+                    HStack(spacing: 4) {
+                        ForEach(HotkeyLabels.keys(p.value), id: \.self) { BigKey(label: $0, height: 24) }
+                    }
+                    .frame(height: 30)
+                    CardCaption(name: p.name, note: p.note)
+                }
+            }
+            ChoiceCard(selected: isCustom, action: nil) {
+                HotkeyRecorder(value: Binding(get: { value }, set: { set($0) }), placeholder: isCustom ? nil : "Record")
+                    .controlSize(.small)
+                    .frame(height: 30)
+                CardCaption(name: "Custom", note: isCustom ? "Click to change" : "Click, then press keys")
+            }
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+private struct CardCaption: View {
+    let name: String
+    let note: String
+
+    var body: some View {
+        VStack(spacing: 1) {
+            Text(name).font(.system(size: 12, weight: .semibold))
+            Text(note).font(.system(size: 10.5)).foregroundStyle(.secondary)
+        }
+        .lineLimit(1)
+        .minimumScaleFactor(0.85)
+    }
+}
+
+/// A selectable tile in the system's colours: accent border and check when chosen.
+private struct ChoiceCard<Content: View>: View {
+    let selected: Bool
+    /// Nil when the content handles clicks itself (the recorder).
+    let action: (() -> Void)?
+    @ViewBuilder let content: Content
+    @State private var hover = false
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+        let card = VStack(spacing: 8) { content }
+            .frame(maxWidth: .infinity, minHeight: 84)
+            .padding(.horizontal, 6)
+            .background(shape.fill(Color.primary.opacity(hover || selected ? 0.07 : 0.04)))
+            .overlay(shape.strokeBorder(selected ? Color.accentColor : Color.primary.opacity(0.1), lineWidth: selected ? 2 : 1))
+            .overlay(alignment: .topTrailing) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white, Color.accentColor)
+                    .padding(5)
+                    .opacity(selected ? 1 : 0)
+            }
+            .contentShape(shape)
+            .onHover { hover = $0 }
+            .animation(.easeOut(duration: 0.15), value: selected)
+            .animation(.easeOut(duration: 0.12), value: hover)
+        if let action {
+            Button(action: action) { card }.buttonStyle(.plain)
+        } else {
+            card
+        }
     }
 }
 

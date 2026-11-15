@@ -5,7 +5,7 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Added
-- Settings → Hotkeys: every key grouped by what it does (Slashlight, Open Extensions, Commands & Scripts, Windows), with an icon for where it works: globe for anywhere on the Mac, Slashlight's mark for anywhere in the panel, a puzzle piece for one extension. Record a new key (esc cancels, ⌫ removes) or reset it; keys that clash or that another app took are flagged. Open Slashlight stays in General; Esc is always Back.
+- Settings → Hotkeys: every key grouped by what it does (Slashlight, Open Extensions, Commands & Scripts, Windows), with an icon for where it works: globe for anywhere on the Mac, Slashlight's mark for anywhere in the panel, a puzzle piece for one extension. Record a new key (esc cancels, ⌫ removes) or reset it; keys that clash or that another app took are flagged. Open Slashlight stays in General, now as the welcome tour's choice of ⌘Space, ⌥Space, ⌃Space or a recorded key, with a warning while Spotlight still holds ⌘Space; Esc is always Back.
 - Every extension with a screen gets an "Open <extension>" global slot, and every command and script a global slot, without a key until you set one. `hotkey` in commands.json and `# @slashlight.hotkey` in a script set one, Set Hotkey… on a command opens Settings on it, and a command's key shows on its row.
 - Extensions offer hotkey actions: `hotkeys` in Swift, a `hotkeys` block in `manifest.json` and a `hotkey` request for external ones. The Python example pastes a new UUID on ⌃⌥U.
 - Hotkeys can't take what macOS or every app already uses: the recorder refuses the shortcuts macOS has turned on (read from macOS) and keys like ⌘C, ⌘V, ⌘Q, ⌘Tab as global keys, and says why.
