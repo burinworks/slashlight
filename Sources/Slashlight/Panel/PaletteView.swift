@@ -5,6 +5,7 @@ import SlashlightKit
 struct PaletteView: View {
     @ObservedObject var model: PaletteModel
     @ObservedObject var terminals = TerminalManager.shared
+    @ObservedObject var style = PanelStyle.shared
     let onCreateField: (NSTextField) -> Void
     let onHeight: (CGFloat) -> Void
 
@@ -35,7 +36,7 @@ struct PaletteView: View {
             footer
         }
         .frame(width: Theme.width)
-        .background(Theme.panel)
+        .background(PanelBackground(style: style))
         .clipShape(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous).stroke(Theme.border, lineWidth: 0.5))
         .fixedSize(horizontal: false, vertical: true)
@@ -57,7 +58,7 @@ struct PaletteView: View {
                 .padding(.vertical, 3)
                 .background(Theme.tile, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
                 .onTapGesture { model.pop() }
-                .help("⌫ to go back")
+                .help("\(model.backKey) to go back")
             } else {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 19, weight: .light))
@@ -76,36 +77,10 @@ struct PaletteView: View {
             if model.isLoading {
                 ProgressView().controlSize(.small).scaleEffect(0.7)
             }
-            extensionMenu
-            Keycap(label: "esc").onTapGesture { model.host.hide() }
+            Keycap(label: model.backKey).onTapGesture { model.back() }
         }
         .padding(.horizontal, 18)
         .frame(height: 60)
-    }
-
-    private var extensionMenu: some View {
-        Menu {
-            Button("All (default search)") { model.goHome() }
-            Divider()
-            ForEach(Array(model.host.extensions.enumerated()), id: \.offset) { _, ext in
-                if ext.rootView() != nil {
-                    Button(ext.manifest.title) { model.goHome(); model.open(ext) }
-                }
-            }
-            Divider()
-            Button("Settings…") { model.openSettings() }
-        } label: {
-            HStack(spacing: 4) {
-                Text(model.currentView == nil ? "All" : model.stack.compactMap { $0.extensionID }.last.flatMap { model.host.ext($0)?.manifest.title } ?? "All")
-                    .font(.system(size: 12))
-                Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold))
-            }
-            .foregroundStyle(Theme.secondary)
-        }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .fixedSize()
-        .help("Extensions (⌘E shows them all)")
     }
 
     // MARK: Results
@@ -150,15 +125,15 @@ struct PaletteView: View {
                         ForEach(section.rows) { row in
                             GridTile(row: row, selected: row.index == model.selection, compact: model.gridColumns >= 6)
                                 .id(row.id)
-                                .onHover { if $0 { model.hover(row.index) } }
+                                .onContinuousHover { if case .active = $0 { model.hover(row.index) } }
                                 .onTapGesture { model.click(row.index) }
                         }
                     }
                 } else {
                     ForEach(section.rows) { row in
-                        ResultRow(row: row, selected: row.index == model.selection)
+                        ResultRow(row: row, selected: row.index == model.selection, plain: model.currentView == nil)
                             .id(row.id)
-                            .onHover { if $0 { model.hover(row.index) } }
+                            .onContinuousHover { if case .active = $0 { model.hover(row.index) } }
                             .onTapGesture { model.click(row.index) }
                     }
                 }
@@ -177,11 +152,37 @@ struct PaletteView: View {
                 }
             }
             Spacer(minLength: 0)
+            if let tag = BuildInfo.tag { BuildTag(text: tag) }
         }
         .padding(.horizontal, 16)
         .frame(height: 40)
-        .background(Theme.footer)
+        .background(Theme.footer.opacity(style.opacity))
         .overlay(alignment: .top) { Rectangle().fill(Theme.divider).frame(height: 1) }
+    }
+}
+
+/// "Local build · abc1234", "Test · build 24", "Beta · build 24": which build is running. Stable builds have none.
+struct BuildTag: View {
+    let text: String
+
+    private var color: Color {
+        switch BuildInfo.channel {
+        case .local: return .orange
+        case .pr, .test: return .purple
+        case .beta: return .blue
+        case .stable: return .secondary
+        }
+    }
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(color)
+            .lineLimit(1)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .background(color.opacity(0.12), in: Capsule())
+            .help("\(BuildInfo.name) \(BuildInfo.fullVersion)")
     }
 }
 

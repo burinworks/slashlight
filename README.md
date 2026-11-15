@@ -31,7 +31,7 @@ Apps, files, windows on every Space, a calculator, snippets, clipboard history a
 | | |
 |---|---|
 | <img src="docs/images/calculator.png" alt="Calculator converting 100 USD to EUR" width="420"> | **Calculator as you type.** Math (`(3+4)*2^3`, `15% of 80`), units (`5 km in mi`, `100 f to c`) and live currency rates (`100 usd to eur`). ↵ copies, ⌘↵ pastes. |
-| <img src="docs/images/commands.png" alt="Command mode listing all extensions" width="420"> | **Command mode.** Type `/` for every extension and your own commands: shell scripts, URLs with `{query}` quicklinks, Shortcuts, HTTP calls and AppleScript. |
+| <img src="docs/images/commands.png" alt="Command mode listing your commands, most recent first" width="420"> | **Command mode.** Type `/` for your commands, the one you ran last first: shell scripts, Raycast script commands, URLs with `{query}` quicklinks, Shortcuts, HTTP calls and AppleScript. |
 | <img src="docs/images/emoji-dark.png" alt="Emoji picker grid" width="420"> | **Emoji & symbols.** A searchable grid with recents first, plus ⌘ ⌥ → © and friends. |
 | <img src="docs/images/system-dark.png" alt="System commands" width="420"> | **System commands.** Lock, sleep, restart, empty trash, eject disks, toggle dark mode, quit all apps. |
 | <img src="docs/images/insights-dark.png" alt="Usage Insights dashboard" width="420"> | **Usage Insights.** `/insights` shows what you use most, when you're busiest, your streak and how fast you get from opening the panel to an action. The data stays on your Mac. |
@@ -43,7 +43,7 @@ Also built in:
 - **Window layouts.** Halves, thirds, quarters, center and maximize on ⌃⌥ + arrow keys and letters.
 - **Terminal tabs.** `> npm run dev` opens a real terminal inside the panel. It keeps running when you go back to search, and a tab strip shows which tasks are busy, idle or failed.
 - **Clipboard history, snippets** (multi-line, with `{clipboard}` `{date}` `{time}` placeholders), **file search** and **web search fallback**.
-- **Settings window.** Hotkey recorder, light/dark theme, launch at login, per-extension on/off switches and permission status.
+- **Settings window.** Every hotkey in one place (global, in Slashlight, per extension), light/dark theme, launch at login, per-extension on/off switches and permission status.
 
 The [user guide](docs/user-guide.md) has every key and command.
 
@@ -132,7 +132,7 @@ Read [Architecture](docs/architecture.md) for the module layout, the search pipe
 
 - [ ] Signed and notarized releases, plus a Homebrew cask
 - [ ] Terminal tabs that survive a restart
-- [ ] Global hotkeys and permissions for external extensions
+- [x] Global hotkeys and permissions for external extensions
 - [ ] Extension store: browse and install from a GitHub index
 - [ ] AI command: ask a model about the selection or clipboard
 

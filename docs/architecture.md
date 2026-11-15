@@ -22,7 +22,7 @@ Tests/                    swift-testing suites for the Kit (fuzzy ranking, wire 
 │  PaletteView (SwiftUI)                        │   search bar, result list or grid, footer hints, terminal tabs
 │        ▲  rows / sections                     │
 │        │                                      │
-│  PaletteModel  ── screen stack ──▶ ListView   │   one screen per push; ⌫ on an empty bar pops
+│  PaletteModel  ── screen stack ──▶ ListView   │   one screen per push; Esc pops
 │        │ query                                │
 └────────┼──────────────────────────────────────┘
          ▼
@@ -54,7 +54,7 @@ An extension declares:
   | `.command("x")` | `/x` |
   | `.prefix(">")` | Text that starts with `>` |
 
-- optionally, `permissions` and `globalHotkeys`.
+- optionally, `permissions` and `hotkeys` (global or local; Settings → Hotkeys lists them with Slashlight's own keys, see `HotkeyMap`).
 
 `search(_:)` returns `[Section]`. Each `Item` carries up to N `Action`s, and each action returns an `Outcome`:
 
@@ -79,8 +79,8 @@ An extension declares:
 `PaletteModel.search()` routes on what is in the bar:
 
 1. **Inside a pushed screen:** that screen's `search` closure, scoped to its filter.
-2. **Empty bar:** the home screen. It shows up to 5 recently used extensions (`RecentExtensions`), then all extensions A–Z.
-3. **`/text`:** user commands first, then extension entry points ranked by `Fuzzy`, then other `.commands` providers.
+2. **Empty bar:** the home screen. Recent shows the last 5 things used (`Recents`): items from `.actions` extensions, rebuilt with `recentItem(id:title:)`, and `.wholeExtension` extensions. Then all extensions with a screen, A–Z.
+3. **`/`:** every `.commands` item, the most recently run first. **`/text`:** the Commands extension first, then other `.commands` providers. Extensions are not listed here; they open by name.
 4. **A registered prefix (`>`):** only that extension.
 5. **Plain text:** runs in three groups.
    1. Default providers, except files and the web: calculator, apps, clipboard.

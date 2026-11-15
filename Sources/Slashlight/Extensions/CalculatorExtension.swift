@@ -3,6 +3,7 @@ import SlashlightKit
 
 /// Live answers while typing: arithmetic ("(3+4)*2^3", "15% of 80"), units ("5 km in mi") and currencies ("100 usd to eur").
 /// Shows nothing unless the text is clearly a calculation, so plain words and bare numbers still reach apps and files.
+/// It answers before the text is finished: "12*(3+" shows 36, "5 km" shows miles, "100 usd" your own currency.
 final class CalculatorExtension: Extension {
     struct Answer {
         /// What ↵ copies and ⌘↵ pastes: a plain number, no grouping separators.
@@ -18,7 +19,7 @@ final class CalculatorExtension: Extension {
     private var fetching: Task<Void, Never>?
 
     override var manifest: Manifest {
-        Manifest(id: "calculator", title: "Calculator", subtitle: "Math, units and currencies as you type", icon: .symbol("equal.square"))
+        Manifest(id: "calculator", title: "Calculator", subtitle: "Math, units and currencies as you type", icon: .symbol("equal.square"), recents: .hidden)
     }
 
     override var triggers: [Trigger] { [.defaultSearch] }
@@ -29,11 +30,8 @@ final class CalculatorExtension: Extension {
         loadCachedRates()
     }
 
-    override func rootView() -> ListView? {
-        ListView(title: manifest.title, icon: manifest.icon, placeholder: "2^10, 15% of 80, 5 km in mi, 100 usd to eur…") { [unowned self] q in
-            try await self.search(q)
-        }
-    }
+    /// Inline only: answers appear in the search as you type; there is no Calculator screen to open.
+    override func rootView() -> ListView? { nil }
 
     override func search(_ query: Query) async throws -> [Section] {
         let text = query.text.trimmingCharacters(in: .whitespaces)
@@ -71,9 +69,64 @@ final class CalculatorExtension: Extension {
             return await convertCurrency(value, fromText, toText)
         }
 
-        guard var parser = MathParser(text), let value = parser.evaluate(), parser.isCalculation, value.isFinite else { return nil }
-        let plain = Self.format(value, grouping: false)
-        return Answer(value: plain, display: Self.format(value, grouping: true), expression: parser.normalized + " =")
+        // No target yet ("5 km", "100 usd"): metric ↔ imperial, or the user's own currency.
+        if let (amountText, fromText) = Self.splitQuantity(text), var amount = MathParser(amountText), let value = amount.evaluate() {
+            if let to = Self.defaultTarget(fromText), let a = Self.convertUnits(value, fromText, to) { return a }
+            let from = fromText.uppercased()
+            if Set(Locale.commonISOCurrencyCodes).contains(from) {
+                let local = Locale.current.currency?.identifier ?? "USD"
+                return await convertCurrency(value, fromText, local != from ? local : from == "USD" ? "EUR" : "USD")
+            }
+        }
+
+        return Self.calculate(text)
+    }
+
+    /// Arithmetic, including text still being typed: a dangling operator is ignored and open parentheses are closed,
+    /// so "12*(3+" already shows 36.
+    static func calculate(_ text: String) -> Answer? {
+        if var parser = MathParser(text), let value = parser.evaluate(), parser.isCalculation, value.isFinite {
+            return Answer(value: format(value, grouping: false), display: format(value, grouping: true), expression: parser.normalized + " =")
+        }
+        // Only text that already has an operator or a parenthesis: "12" or "word" stay with apps and files.
+        guard let typed = MathParser(text), typed.tokens.contains(where: { if case .ident = $0 { return false }; if case .number = $0 { return false }; return true })
+        else { return nil }
+        var t = text.trimmingCharacters(in: .whitespaces)
+        while let last = t.last, "+-−–*×·/÷^(".contains(last) || last.isWhitespace { t.removeLast() }
+        if t.lowercased().hasSuffix(" of") { t.removeLast(3) }
+        let open = t.filter { $0 == "(" }.count - t.filter { $0 == ")" }.count
+        if open > 0 { t += String(repeating: ")", count: open) }
+        guard !t.isEmpty, t != text, var parser = MathParser(t), let value = parser.evaluate(), value.isFinite else { return nil }
+        return Answer(value: format(value, grouping: false), display: format(value, grouping: true), expression: typed.normalized + " …")
+    }
+
+    /// "5 km", "100 usd", "20 °C": an amount and one unit, no target yet.
+    /// A one-letter unit needs a space ("4 k"), so "4k" stays a search for apps.
+    static func splitQuantity(_ text: String) -> (String, String)? {
+        let pattern = "^([0-9.,]+(?:\\s*[-+*/^×÷]\\s*[0-9.,]+)*)(\\s*)([a-zA-Z°µ$€£¥][a-zA-Z°µ/²³]*(?: oz| mile| ton| meter)?)\\s*(?:to|in|into|as)?\\s*$"
+        guard let re = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]),
+              let m = re.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              let a = Range(m.range(at: 1), in: text), let gap = Range(m.range(at: 2), in: text), let u = Range(m.range(at: 3), in: text)
+        else { return nil }
+        let unit = String(text[u])
+        if unit.count == 1 && text[gap].isEmpty { return nil }
+        return (String(text[a]), unit)
+    }
+
+    /// What a unit converts to when no target is typed: metric ↔ imperial, and the next practical unit for time and data.
+    static func defaultTarget(_ fromText: String) -> String? {
+        guard let from = unit(fromText) else { return nil }
+        let targets: [String: String] = [
+            "mm": "in", "cm": "in", "m": "ft", "km": "mi", "in": "cm", "ft": "m", "yd": "m", "mi": "km", "nmi": "km",
+            "mg": "g", "g": "oz", "kg": "lb", "t": "lb", "oz": "g", "lb": "kg", "st": "kg",
+            "°C": "f", "°F": "c", "K": "c",
+            "mL": "floz", "L": "gal", "m³": "l", "tsp": "ml", "tbsp": "ml", "fl oz": "ml", "cup": "ml", "pt": "l", "qt": "l", "gal": "l",
+            "m/s": "km/h", "km/h": "mph", "mph": "km/h", "kn": "km/h",
+            "ms": "s", "s": "min", "min": "h", "hr": "min", "d": "h", "wk": "d", "yr": "d",
+            "bit": "b", "B": "kilobyte", "kB": "b", "MB": "kilobyte", "GB": "mb", "TB": "gb", "KiB": "b", "MiB": "kib", "GiB": "mib",
+            "Mb": "mb", "Gb": "gb",
+        ]
+        return targets[from.symbol]
     }
 
     /// "5 km in mi" → ("5", "km", "mi"). The amount may itself be an expression ("2*3 kg to lb").

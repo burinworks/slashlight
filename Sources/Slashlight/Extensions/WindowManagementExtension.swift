@@ -75,15 +75,18 @@ final class WindowManagementExtension: Extension {
     private var previousFrames: [String: CGRect] = [:]
 
     override var manifest: Manifest {
-        Manifest(id: "window-management", title: "Window Layout", subtitle: "Halves, thirds, quarters, maximize, displays", icon: .symbol("rectangle.split.2x1"))
+        Manifest(id: "window-management", title: "Window Layout", subtitle: "Halves, thirds, quarters, maximize, displays", icon: .symbol("rectangle.split.2x1"), recents: .actions)
     }
 
     override var triggers: [Trigger] { [.commands, .command("windows")] }
     override var permissions: [Permission] { [.accessibility] }
 
-    override var globalHotkeys: [GlobalHotkey] {
-        Layout.allCases.compactMap { layout in
-            layout.hotkey.map { GlobalHotkey($0, title: layout.title) { [weak self] in self?.apply(layout, to: NSWorkspace.shared.frontmostApplication) } }
+    override var hotkeys: [HotkeyAction] {
+        Layout.allCases.map { layout in
+            HotkeyAction(id: layout.slug, title: layout.title, scope: .global, default: layout.hotkey) { [weak self] _ in
+                _ = self?.apply(layout, to: NSWorkspace.shared.frontmostApplication)
+                return .stay
+            }
         }
     }
 

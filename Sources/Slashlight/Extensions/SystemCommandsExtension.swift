@@ -16,7 +16,7 @@ final class SystemCommandsExtension: Extension {
     }
 
     override var manifest: Manifest {
-        Manifest(id: "system", title: "System", subtitle: "Lock, sleep, restart, empty trash, dark mode…", icon: .symbol("power"))
+        Manifest(id: "system", title: "System", subtitle: "Lock, sleep, restart, empty trash, dark mode…", icon: .symbol("power"), recents: .actions)
     }
 
     override var triggers: [Trigger] { [.defaultSearch, .commands, .command("system")] }

@@ -8,9 +8,10 @@ enum Theme {
     static let footer = dynamic(light: 0xFAFAFA, dark: 0x19191B)
     static let text = dynamic(light: 0x1A1A1A, dark: 0xF2F2F3)
     static let secondary = dynamic(light: 0x8A8A8A, dark: 0x8E8E93)
-    static let selection = dynamic(light: 0xF2F2F2, dark: 0x2C2C2F)
-    static let tile = dynamic(light: 0xF4F4F5, dark: 0x2A2A2D)
-    static let divider = dynamic(light: 0xEBEBEB, dark: 0x303033)
+    // Tints, not solid colors, so they read on the see-through background in both themes.
+    static let selection = tint(light: 0.07, dark: 0.09)
+    static let tile = tint(light: 0.05, dark: 0.07)
+    static let divider = tint(light: 0.08, dark: 0.08)
     static let border = dynamic(light: 0xE4E4E7, dark: 0x3A3A3D)
     static let keycapBorder = dynamic(light: 0xDADADA, dark: 0x48484C)
     static let keycapFill = dynamic(light: 0xFFFFFF, dark: 0x262629)
@@ -30,6 +31,14 @@ enum Theme {
     static let radius: CGFloat = 16
     static let maxListHeight: CGFloat = 430
 
+    /// Black at `light` opacity in the light theme, white at `dark` opacity in the dark one.
+    private static func tint(light: CGFloat, dark: CGFloat) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                ? NSColor(white: 1, alpha: dark) : NSColor(white: 0, alpha: light)
+        })
+    }
+
     private static func dynamic(light: UInt32, dark: UInt32) -> Color {
         Color(nsColor: NSColor(name: nil) { appearance in
             let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
@@ -43,6 +52,44 @@ extension NSColor {
         self.init(srgbRed: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255,
                   blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
     }
+}
+
+/// The panel's background settings, published so the open panel follows the Settings window live.
+@MainActor
+final class PanelStyle: ObservableObject {
+    static let shared = PanelStyle()
+    /// 0.5 (see-through) to 1 (solid).
+    @Published var opacity: Double = 0.85
+    /// Blur what is behind the panel. Without it, a see-through panel shows the desktop sharp.
+    @Published var blur = true
+}
+
+/// Blurred desktop with the theme's panel color on top, at the chosen opacity.
+struct PanelBackground: View {
+    @ObservedObject var style: PanelStyle
+    /// `.withinWindow` blurs the window's own content; used by the preview in Settings.
+    var blending: NSVisualEffectView.BlendingMode = .behindWindow
+
+    var body: some View {
+        ZStack {
+            if style.blur { VisualEffect(blending: blending) }
+            Theme.panel.opacity(style.opacity)
+        }
+    }
+}
+
+struct VisualEffect: NSViewRepresentable {
+    var blending: NSVisualEffectView.BlendingMode
+
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let v = NSVisualEffectView()
+        v.material = .hudWindow
+        v.blendingMode = blending
+        v.state = .active // the panel never becomes the active app's main window
+        return v
+    }
+
+    func updateNSView(_ v: NSVisualEffectView, context: Context) { v.blendingMode = blending }
 }
 
 /// Finder icons are slow-ish to look up; cache them by path.

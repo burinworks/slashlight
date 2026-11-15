@@ -260,7 +260,7 @@ final class TerminalSession: NSObject, ObservableObject {
     lazy var screen: ListView = {
         let list = ListView(title: title, icon: .symbol("terminal"), placeholder: "") { _ in [] }
         let screen = EmbeddedScreen(view: view, height: 440, hints: { [weak self] in
-            [PaletteModel.Hint(keys: "esc", label: self?.isBusy == true ? "To terminal" : "Close panel"),
+            [PaletteModel.Hint(keys: "esc", label: self?.isBusy == true ? "To terminal" : "Back to search"),
              PaletteModel.Hint(keys: "⌘⌫", label: "Back to search"),
              PaletteModel.Hint(keys: "⌘T", label: "New tab"),
              PaletteModel.Hint(keys: "⌃⇥", label: "Next tab"),
@@ -279,8 +279,8 @@ final class TerminalSession: NSObject, ObservableObject {
         let manager = TerminalManager.shared
         switch (KeyCodes.key(for: event), mods) {
         case ("escape", []) where !isBusy:
-            // At an idle prompt Esc closes the panel; while a program runs (vim, less) it belongs to the program.
-            model.host.hide()
+            // At an idle prompt Esc goes back to search; while a program runs (vim, less) it belongs to the program.
+            model.pop()
         case ("delete", [.command]), ("[", [.command]):
             model.pop()
         case ("t", [.command]):

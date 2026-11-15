@@ -63,7 +63,15 @@ Both run as separate processes. If your extension crashes, Slashlight keeps work
      "triggers": ["commands", "command:hello"], "exec": ["./hello"] }
    ```
 
-5. In Slashlight: Settings → Extensions → Reload, then type `/hello Alex`.
+   The extension runs in a sandbox. It can use its own folder and `context.supportDirectory`; the network, other folders, running programs and opening apps need a `permissions` block ([extension-permissions.md](extension-permissions.md)):
+
+   ```json
+   "permissions": { "network": ["api.example.com"], "files": { "read": ["~/Documents/Notes"] } }
+   ```
+
+   The `default` trigger needs `"defaultSearch": true`.
+
+5. In Slashlight: Settings → Extensions → Reload, then type `/` to see its commands, or `hello` to open it.
 
 ## Concepts
 
@@ -73,10 +81,24 @@ Both run as separate processes. If your extension crashes, Slashlight keeps work
 |---|---|---|
 | `.defaultSearch` | `default` | On plain typing (keep it fast, under 50 ms) |
 | `.commands` | `commands` | In `/` mode |
-| `.command("x")` | `command:x` | When the user opens `/x`. This shows your root screen |
+| `.command("x")` | `command:x` | Never: `x` is another name your extension is found by. Typing a name and pressing ↵ shows your root screen |
 | `.prefix("!")` | `prefix:!` | When the text starts with `!`; you own the bar |
 
 `query.mode` tells you which one fired: `.default`, `.command`, `.prefix(p)` or `.scoped`. In scoped mode the user is on your own screen.
+
+An extension that only adds results to the search, like the calculator, returns `nil` from `rootView()`: it has no screen and is not listed on the home screen.
+
+### Recent
+
+`Manifest(recents:)` (manifest key `recents`) decides what the home screen's Recent section shows after the user used your extension:
+
+| Swift | manifest | Recent shows |
+|---|---|---|
+| `.actions` | `actions` | The items the user ran. Use it when each item is a command ("Left Half", "/my-ip") |
+| `.wholeExtension` | `extension` | Your extension (the default). Use it when items are content, like clipboard entries |
+| `.hidden` | `none` | Nothing |
+
+With `.actions`, the host rebuilds each recent item when the panel opens by calling `recentItem(id:title:)`. The default searches your extension for the title and picks the item with that id; override it when titles change.
 
 ### Items and actions
 
@@ -111,6 +133,20 @@ ListView(title: "Pick a Wave", icon: .symbol("square.grid.3x3"), placeholder: "F
 ```
 
 For live output, pass a `DetailModel` and update `detail.text` and `detail.isRunning` from a `Task`. The SDK streams every change to the panel.
+
+### Hotkeys
+
+Offer actions the user can run with a key. They show in Settings → Hotkeys, where the user can change or clear the key:
+
+```swift
+override var hotkeys: [HotkeyAction] {
+    [HotkeyAction(id: "paste-new", title: "Paste a new UUID", scope: .global, default: Shortcut("u", [.control, .option])) { _ in
+        .paste(UUID().uuidString)
+    }]
+}
+```
+
+`.global` works anywhere on the Mac while Slashlight runs and needs ⌘, ⌥ or ⌃. `.local` works only while your extension is open in the panel. A global action's `.push` opens the panel on that screen; `.close`, `.stay` and `.pop` do nothing. An external extension also lists its hotkeys in `manifest.json` ([extension-protocol.md](extension-protocol.md#hotkeys)).
 
 ### Storage
 

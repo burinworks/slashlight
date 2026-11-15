@@ -78,12 +78,14 @@ final class PaletteModel: ObservableObject {
         stack = [Screen()]
         filterIndex = 0
         holdModifier = nil
+        // The panel opens under a still mouse: keyboard first, until the mouse actually moves.
+        lastMouse = NSEvent.mouseLocation
         if text.isEmpty { search() } else { text = "" }
     }
 
     func open(_ ext: Extension) {
         guard let view = ext.rootView() else { return }
-        RecentExtensions.record(ext.manifest.id)
+        Recents.record(ext: ext.manifest.id, item: nil, mode: ext.manifest.recents)
         push(view, extensionID: ext.manifest.id)
     }
 
@@ -118,6 +120,11 @@ final class PaletteModel: ObservableObject {
         filterIndex = current.filterIndex
         setTextSilently(current.text)
         search(selecting: current.selection)
+    }
+
+    /// The Back key (Esc unless changed): back one screen, or close the panel from the main search.
+    func back() {
+        if stack.count > 1 { pop() } else { host.hide() }
     }
 
     func goHome() {
@@ -166,23 +173,20 @@ final class PaletteModel: ObservableObject {
 
         if text.isEmpty {
             publish(home(), selecting: keep)
+            resolveRecents(gen: gen)
             return
         }
 
+        // `/` lists commands only; extensions open by typing their name.
         if text.hasPrefix("/") {
             let cmd = String(text.dropFirst())
             let providers = host.extensions.filter { $0.triggers.contains(.commands) }
-            let entries: [(String?, Section)] = host.extensions
-                .compactMap { ext -> (Int, Extension)? in
-                    guard ext.rootView() != nil else { return nil }
-                    guard let score = Fuzzy.score(cmd, [commandName(ext) ?? "", ext.manifest.title]) else { return nil }
-                    return (score, ext)
-                }
-                .sorted { $0.0 > $1.0 }
-                .map { (_, ext) in (ext.manifest.id, Section("Extensions", [entryItem(ext)])) }
-            // User commands first, then extension entry points, then the other providers.
-            let first = providers.prefix { $0.manifest.id == "commands" }
-            stream(providers: Array(first), query: Query(text: cmd, mode: .command), fixedAfter: entries,
+            if cmd.trimmingCharacters(in: .whitespaces).isEmpty {
+                listCommands(providers, gen: gen, keep: keep)
+                return
+            }
+            // Your own commands first, then the other providers.
+            stream(providers: providers.filter { $0.manifest.id == "commands" }, query: Query(text: cmd, mode: .command),
                    more: providers.filter { $0.manifest.id != "commands" }, gen: gen, keep: keep)
             return
         }
@@ -215,6 +219,32 @@ final class PaletteModel: ObservableObject {
                after: (text.count >= 2 ? commandProviders.map { Job(ext: $0, query: commandQuery, nameMatchesOnly: 3) } : [])
                    + defaults.filter { late.contains($0.manifest.id) }.map { Job(ext: $0, query: query) },
                gen: gen, keep: keep)
+    }
+
+    /// Bare `/`: every command, the most recently used first, then in the order the extensions list them.
+    private func listCommands(_ providers: [Extension], gen: Int, keep: Int) {
+        isLoading = true
+        tasks.append(Task {
+            var all: [(ext: String, item: Item)] = []
+            for ext in providers {
+                let sections = (try? await ext.search(Query(text: "", mode: .command))) ?? []
+                guard gen == self.generation, !Task.isCancelled else { return }
+                all += sections.flatMap(\.items).map { (ext.manifest.id, $0) }
+            }
+            let recents = Recents.list
+            let ordered = all.enumerated().sorted { a, b in
+                let da = recents.lastUsed(ext: a.element.ext, item: a.element.item.id)
+                let db = recents.lastUsed(ext: b.element.ext, item: b.element.item.id)
+                switch (da, db) {
+                case let (x?, y?) where x != y: return x > y
+                case (_?, nil): return true
+                case (nil, _?): return false
+                default: return a.offset < b.offset
+                }
+            }
+            self.isLoading = false
+            self.publish(ordered.map { ($0.element.ext, Section("Commands", [$0.element.item])) }, selecting: keep)
+        })
     }
 
     /// A name counts as matching typed text in the root search only when it contains it, not by subsequence.
@@ -321,21 +351,37 @@ final class PaletteModel: ObservableObject {
 
     private func entryItem(_ ext: Extension, idPrefix: String = "") -> Item {
         let m = ext.manifest
-        return Item(id: "\(idPrefix)open-\(m.id)", title: m.title, subtitle: m.subtitle, icon: m.icon,
-                    accessories: commandName(ext).map { [.text("/\($0)")] } ?? [],
+        return Item(id: "\(idPrefix)open-\(m.id)", title: m.title, icon: m.icon,
                     primary: Action("Open", icon: .symbol("arrow.right")) { [weak ext] in
                         guard let view = ext?.rootView() else { return .stay }
                         return .push(view)
                     })
     }
 
+    /// Items shown under Recent, rebuilt by their extensions each time the panel opens. Key: "extension|item".
+    private var recentItems: [String: Item] = [:]
+    private static let recentLimit = 5
+
+    private func recentPicks() -> [RecentsList.Pick] {
+        Recents.list.home(limit: Self.recentLimit) { id in
+            guard let ext = self.host.ext(id) else { return nil }
+            // An extension with no screen can only show items.
+            if ext.manifest.recents == .wholeExtension && ext.rootView() == nil { return nil }
+            return ext.manifest.recents
+        }
+    }
+
     private func home() -> [(String?, Section)] {
-        // Up to five recently used extensions, then every extension A to Z.
+        // Recently used extensions and items, then every extension A to Z.
+        var parts: [(String?, Section)] = recentPicks().compactMap { pick in
+            switch pick {
+            case .wholeExtension(let id):
+                return host.ext(id).map { (id, Section("Recent", [entryItem($0, idPrefix: "recent-")])) }
+            case .item(let ext, let id, _):
+                return recentItems["\(ext)|\(id)"].map { (ext, Section("Recent", [$0])) }
+            }
+        }
         let openable = host.extensions.filter { $0.rootView() != nil }
-        let byID = Dictionary(openable.map { ($0.manifest.id, $0) }, uniquingKeysWith: { a, _ in a })
-        let recent = RecentExtensions.ids.compactMap { byID[$0] }.prefix(5)
-        var parts: [(String?, Section)] = recent
-            .map { ($0.manifest.id, Section("Recent", [entryItem($0, idPrefix: "recent-")])) }
         parts += openable
             .sorted { $0.manifest.title.localizedCaseInsensitiveCompare($1.manifest.title) == .orderedAscending }
             .map { ($0.manifest.id, Section("All Extensions", [entryItem($0)])) }
@@ -345,6 +391,25 @@ final class PaletteModel: ObservableObject {
                  primary: Action("Open Settings") { SettingsWindowController.shared.show(); return .close }),
         ])))
         return parts
+    }
+
+    /// Asks each extension for the items under Recent, then shows them if the home screen is still up.
+    private func resolveRecents(gen: Int) {
+        let wanted = recentPicks().compactMap { pick -> (String, String, String)? in
+            if case .item(let ext, let id, let title) = pick { return (ext, id, title) }
+            return nil
+        }
+        guard !wanted.isEmpty else { return }
+        tasks.append(Task {
+            var fresh: [String: Item] = [:]
+            for (ext, id, title) in wanted {
+                if let item = await self.host.ext(ext)?.recentItem(id: id, title: title) { fresh["\(ext)|\(id)"] = item }
+                guard gen == self.generation, !Task.isCancelled else { return }
+            }
+            self.recentItems = fresh
+            // Row ids stay the same, so items shown from the last open are replaced in place.
+            self.publish(self.home(), selecting: self.selection)
+        })
     }
 
     private func permissionSections(for ext: Extension) -> [(String?, Section)] {
@@ -367,8 +432,12 @@ final class PaletteModel: ObservableObject {
 
     func run(_ action: Action, from row: Row?) {
         let extensionID = row?.extensionID ?? current.extensionID
-        if let id = extensionID { RecentExtensions.record(id) }
         let fromMenu = actionsMenu != nil && actionsMenu === currentView
+        if let id = extensionID, let ext = host.ext(id) {
+            // Opening an extension from the list counts as using the extension, not one of its items.
+            let item = row.flatMap { $0.item.id.hasSuffix("open-\(id)") || fromMenu ? nil : ($0.item.id, $0.item.title) }
+            Recents.record(ext: id, item: item, mode: ext.manifest.recents)
+        }
         UsageStore.shared.actionRan(extensionID: extensionID, item: fromMenu ? actionsMenuItem : row?.item.title,
                                     action: action.title, rank: fromMenu ? nil : row?.index,
                                     queryLength: text.count, input: fromMenu ? .shortcut : pendingInput ?? .key)
@@ -381,6 +450,9 @@ final class PaletteModel: ObservableObject {
             }
         }
     }
+
+    /// Applies what an action returned: a hotkey's, or a row's.
+    func apply(_ outcome: Outcome, extensionID: String?) { handle(outcome, extensionID: extensionID) }
 
     private func handle(_ outcome: Outcome, extensionID: String?) {
         switch outcome {
@@ -442,7 +514,8 @@ final class PaletteModel: ObservableObject {
     }
 
     func hover(_ index: Int) {
-        // Ignore hover caused by the list scrolling under a still mouse.
+        // Only a mouse that moved picks the row: not the panel opening under it, and not the list scrolling under it.
+        // After a move, ↑↓ continue from the row the mouse picked.
         let loc = NSEvent.mouseLocation
         guard loc != lastMouse else { return }
         lastMouse = loc
@@ -463,9 +536,13 @@ final class PaletteModel: ObservableObject {
         if let embedded { return embedded.handleKey(event, self) || editingShortcut(key, mods) }
         if editingShortcut(key, mods) { return true }
 
+        let pressed = Shortcut(key, mods)
+        if let hotkey = host.panelHotkey(pressed, extensionID: current.extensionID) {
+            hotkey.run(pressed)
+            return true
+        }
+
         switch (key, mods) {
-        case ("escape", _):
-            host.hide()
         case ("up", _), ("p", [.control]):
             move(isGrid && key == "up" ? -gridColumns : -1)
         case ("down", _), ("n", [.control]):
@@ -482,16 +559,6 @@ final class PaletteModel: ObservableObject {
             if holdModifier != nil || filters.isEmpty { move(1) } else { cycleFilter(1) }
         case ("tab", [.shift]):
             if holdModifier != nil || filters.isEmpty { move(-1) } else { cycleFilter(-1) }
-        case ("delete", []) where text.isEmpty && stack.count > 1:
-            pop()
-        case ("k", [.command]):
-            showActions()
-        case ("e", [.command]):
-            goHome()
-        case (",", [.command]):
-            openSettings()
-        case ("tab", [.control]):
-            if let s = TerminalManager.shared.lastShown ?? TerminalManager.shared.sessions.last { showTerminal(s) }
         case ("t", [.command]) where current.extensionID == "terminal" || text.hasPrefix(">"):
             showTerminal(TerminalManager.shared.start(command: nil))
         case (let k, [.command]) where Int(k).map({ (1...9).contains($0) }) == true:
@@ -529,6 +596,9 @@ final class PaletteModel: ObservableObject {
         return false
     }
 
+    /// The Back key as the header and footer show it.
+    var backKey: String { host.hotkeyBindings.first { $0.id == "slashlight/back" }?.shortcut?.display ?? "esc" }
+
     var hints: [Hint] {
         if let embedded { return embedded.hints() }
         var out: [Hint] = []
@@ -539,7 +609,7 @@ final class PaletteModel: ObservableObject {
         }
         out.append(Hint(keys: isGrid ? "←→" : "↑↓", label: "Navigate"))
         if let f = activeFilter ?? filters.first { out.append(Hint(keys: "tab", label: f)) }
-        if stack.count > 1 { out.append(Hint(keys: "⌫", label: "Back")) }
+        if stack.count > 1 { out.append(Hint(keys: backKey, label: "Back")) }
         return Array(out.prefix(6))
     }
 }
