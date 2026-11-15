@@ -95,6 +95,18 @@ final class StdioHost: ExtensionContext {
             } catch {
                 send(Wire.Message(type: "error", id: req.id, message: "\(error)"))
             }
+        case "hotkey":
+            guard let action = ext.hotkeys.first(where: { $0.id == req.actionId }) else {
+                send(Wire.Message(type: "error", id: req.id, message: "unknown hotkey \(req.actionId ?? "")"))
+                return
+            }
+            let pressed = req.query.flatMap(Shortcut.init(string:)) ?? action.defaultShortcut ?? Shortcut("return")
+            do {
+                let outcome = try await action.run(pressed)
+                send(Wire.Message(type: "outcome", id: req.id, outcome: encode(outcome)))
+            } catch {
+                send(Wire.Message(type: "error", id: req.id, message: "\(error)"))
+            }
         case "dispose":
             if let viewID = req.view { forget(viewID) }
         case "shutdown":

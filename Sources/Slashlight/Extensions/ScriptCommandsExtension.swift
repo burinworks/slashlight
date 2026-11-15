@@ -53,6 +53,17 @@ final class ScriptCommandsExtension: Extension {
         rescanIfChanged()
     }
 
+    /// One slot per script that needs no argument. Listed under Commands, which hosts this extension.
+    override var hotkeys: [HotkeyAction] {
+        rescanIfChanged()
+        return scripts.filter { s in !s.arguments.contains { $0.optional != true } }.map { s in
+            HotkeyAction(id: "script:\(s.name)", title: "Run /\(s.name)", scope: .global) { [weak self] _ in
+                guard let self, let action = self.item(s, arguments: []).primary else { return .stay }
+                return try await action.run()
+            }
+        }
+    }
+
     /// Scripts matching the typed text, best first. "hello-world Alex": the first word picks the script, the rest are its arguments.
     func scored(_ query: String) -> [(score: Int, item: Item)] {
         rescanIfChanged()

@@ -81,9 +81,12 @@ final class WindowManagementExtension: Extension {
     override var triggers: [Trigger] { [.commands, .command("windows")] }
     override var permissions: [Permission] { [.accessibility] }
 
-    override var globalHotkeys: [GlobalHotkey] {
-        Layout.allCases.compactMap { layout in
-            layout.hotkey.map { GlobalHotkey($0, title: layout.title) { [weak self] in self?.apply(layout, to: NSWorkspace.shared.frontmostApplication) } }
+    override var hotkeys: [HotkeyAction] {
+        Layout.allCases.map { layout in
+            HotkeyAction(id: layout.slug, title: layout.title, scope: .global, default: layout.hotkey) { [weak self] _ in
+                _ = self?.apply(layout, to: NSWorkspace.shared.frontmostApplication)
+                return .stay
+            }
         }
     }
 

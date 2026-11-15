@@ -134,6 +134,20 @@ ListView(title: "Pick a Wave", icon: .symbol("square.grid.3x3"), placeholder: "F
 
 For live output, pass a `DetailModel` and update `detail.text` and `detail.isRunning` from a `Task`. The SDK streams every change to the panel.
 
+### Hotkeys
+
+Offer actions the user can run with a key. They show in Settings → Hotkeys, where the user can change or clear the key:
+
+```swift
+override var hotkeys: [HotkeyAction] {
+    [HotkeyAction(id: "paste-new", title: "Paste a new UUID", scope: .global, default: Shortcut("u", [.control, .option])) { _ in
+        .paste(UUID().uuidString)
+    }]
+}
+```
+
+`.global` works anywhere on the Mac while Slashlight runs and needs ⌘, ⌥ or ⌃. `.local` works only while your extension is open in the panel. A global action's `.push` opens the panel on that screen; `.close`, `.stay` and `.pop` do nothing. An external extension also lists its hotkeys in `manifest.json` ([extension-protocol.md](extension-protocol.md#hotkeys)).
+
 ### Storage
 
 `context.storage(.persistent)` keeps values across restarts; `.ephemeral` keeps them in memory only:

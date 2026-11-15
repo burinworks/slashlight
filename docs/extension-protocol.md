@@ -31,6 +31,22 @@ Triggers:
 | `command:<name>` | Another name the extension is found by when typed; opening it shows a scoped search. Extensions are not opened with `/<name>` |
 | `prefix:<p>` | Owns the bar when the text starts with `p` |
 
+### Hotkeys
+
+An extension can offer actions the user runs with a key. Each shows in Settings → Hotkeys, where the user can record another key or clear it:
+
+```json
+"hotkeys": [
+  { "id": "paste-new", "title": "Paste a new UUID", "scope": "global", "default": "ctrl+opt+u" },
+  { "id": "pin", "title": "Pin", "scope": "local", "default": "cmd+p" }
+]
+```
+
+- `scope` `global` works anywhere on the Mac while Slashlight runs; its key needs `cmd`, `opt` or `ctrl`. `local` works only while one of the extension's screens is open in the panel, and may also be `escape`, `tab` or `f1`…`f12` alone.
+- `default` is optional: without it the action has no key until the user sets one.
+- `id` uses lowercase letters, digits, `-`, `_` and `.`; `open` is taken by the "Open <title>" slot every extension with a screen gets.
+- Slashlight's own panel keys (Back, ⌘K…) come before a `local` key that clashes with them; Settings flags the clash.
+
 ## Host → extension
 
 ```json
@@ -38,12 +54,14 @@ Triggers:
 {"type":"run","id":3,"itemId":"greet","actionId":"say-hello"}
 {"type":"search","id":5,"view":"v1","query":"","mode":"scoped","filter":"Water"}
 {"type":"run","id":6,"view":"v1","itemId":"wave-6","actionId":"choose"}
+{"type":"hotkey","id":7,"actionId":"paste-new","query":"ctrl+opt+u"}
 {"type":"dispose","id":0,"view":"v1"}
 {"type":"shutdown","id":4}
 ```
 
 `mode` is `default` | `command` | `prefix` | `scoped`. `filter` is the active Tab filter in a scoped screen.
 `view` is set when the request belongs to a screen the extension pushed (see below); root requests omit it, as in v1.
+`hotkey` means the user pressed one of the manifest's hotkeys: `actionId` names it, `query` holds the key pressed. Answer with an `outcome`, as for `run`. For a `global` hotkey, `push` opens the panel on that screen, `hud` and `paste` work as usual, and `close`, `stay` and `pop` do nothing.
 `dispose` (no reply) tells the extension the panel dropped that screen, so it can free it.
 Every request carries `supportDirectory` (`ExtensionData/<id>`, also in `$SLASHLIGHT_DATA_DIR`), a folder the extension may use for storage. The extension runs in a sandbox: anything beyond its own folders, such as the network or your files, needs a `permissions` block in `manifest.json` ([extension-permissions.md](extension-permissions.md)).
 A request that gets no reply within 5 s fails; a newer search makes older results irrelevant (the host drops them).
@@ -123,4 +141,4 @@ unless they push. Ignore unknown fields and message types.
 
 ## Not yet supported
 
-Global hotkeys and permission declarations for external extensions.
+Hotkeys inside a pushed screen's own context: a `local` hotkey reaches the extension without `view`.

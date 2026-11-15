@@ -54,7 +54,7 @@ An extension declares:
   | `.command("x")` | `/x` |
   | `.prefix(">")` | Text that starts with `>` |
 
-- optionally, `permissions` and `globalHotkeys`.
+- optionally, `permissions` and `hotkeys` (global or local; Settings → Hotkeys lists them with Slashlight's own keys, see `HotkeyMap`).
 
 `search(_:)` returns `[Section]`. Each `Item` carries up to N `Action`s, and each action returns an `Outcome`:
 

@@ -104,6 +104,33 @@ final class SettingsModel: ObservableObject {
         loginItem = LoginItem.isEnabled
     }
 
+    // MARK: Hotkeys
+
+    /// Every key, from the current settings.
+    var hotkeys: [HotkeyBinding] { HotkeyMap.bindings(host: host, settings: settings) }
+
+    /// Saves `value` ("cmd+k", or "" for none) for `binding`. A key equal to the default is stored as no change.
+    func setHotkey(_ binding: HotkeyBinding, _ value: String) {
+        update { s in
+            if binding.id == "\(HotkeyMap.slashlight)/open" {
+                if !value.isEmpty { s.hotkey = value }
+            } else if value == (binding.defaultShortcut?.string ?? "") {
+                s.hotkeys.removeValue(forKey: binding.id)
+            } else {
+                s.hotkeys[binding.id] = value
+            }
+        }
+    }
+
+    func resetHotkey(_ binding: HotkeyBinding) { setHotkey(binding, binding.defaultShortcut?.string ?? "") }
+
+    func resetAllHotkeys() {
+        update { s in
+            s.hotkeys = [:]
+            s.hotkey = Settings().hotkey
+        }
+    }
+
     func reloadExtensions() {
         Task {
             await host.reload()
@@ -113,11 +140,12 @@ final class SettingsModel: ObservableObject {
 }
 
 enum SettingsTab: String, CaseIterable {
-    case general = "General", extensions = "Extensions", permissions = "Permissions", about = "About"
+    case general = "General", hotkeys = "Hotkeys", extensions = "Extensions", permissions = "Permissions", about = "About"
 
     var symbol: String {
         switch self {
         case .general: return "gearshape"
+        case .hotkeys: return "keyboard"
         case .extensions: return "puzzlepiece.extension"
         case .permissions: return "lock.shield"
         case .about: return "info.circle"
@@ -151,6 +179,7 @@ struct SettingsView: View {
             Group {
                 switch model.tab {
                 case .general: GeneralSettings(model: model)
+                case .hotkeys: HotkeysSettings(model: model)
                 case .extensions: ExtensionsSettings(model: model)
                 case .permissions: PermissionsSettings(model: model)
                 case .about: AboutSettings()
@@ -169,13 +198,11 @@ private struct GeneralSettings: View {
 
     var body: some View {
         Form {
-            Section("Hotkeys") {
+            Section {
                 LabeledContent("Open Slashlight") { HotkeyRecorder(value: model.binding(\.hotkey)) }
-                LabeledContent("Switch window") { HotkeyRecorder(value: model.binding(\.windowSwitcherHotkey)) }
-                Toggle(isOn: model.binding(\.windowManagementHotkeys)) {
-                    Text("Window layout hotkeys")
-                    Text("⌃⌥ + arrows, ↵, C, ⌫, D F G E T, U I J K").font(.caption).foregroundStyle(.secondary)
-                }
+                LabeledContent("Every other key") { Button("Hotkeys…") { model.tab = .hotkeys } }
+            } header: {
+                Text("Hotkeys")
             }
             Section("Appearance") {
                 Picker("Theme", selection: model.binding(\.appearance)) {
@@ -244,16 +271,19 @@ private struct GeneralSettings: View {
 struct HotkeyRecorder: View {
     @Binding var value: String
     var placeholder: String?
+    /// Which keys it accepts: global ones need ⌘, ⌥ or ⌃ (see `HotkeyMap.isAllowed`).
+    var scope: HotkeyBinding.Scope = .global
     @State private var recording = false
     @State private var monitor: Any?
     @State private var clickMonitor: Any?
     /// When a click ended recording. The same click then reaches this button, which must not start again.
     @State private var stoppedByClick = Date.distantPast
+    @State private var lastEsc = Date.distantPast
 
     var body: some View {
         HStack(spacing: 6) {
             Button(action: toggle) {
-                Text(recording ? "Press keys…" : placeholder ?? Shortcut(string: value)?.display ?? value)
+                Text(recording ? "Press keys…" : placeholder ?? Shortcut(string: value)?.display ?? (value.isEmpty ? "Record" : value))
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .frame(minWidth: 110)
             }
@@ -274,10 +304,22 @@ struct HotkeyRecorder: View {
         // Carbon hotkeys swallow their keys before the app sees them, so pause them while recording.
         HotKeyCenter.shared.unregisterAll()
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            if event.keyCode == 53 { stop(); return nil } // esc
             let mods = Shortcut.Modifiers(event.modifierFlags)
-            guard !mods.isDisjoint(with: [.command, .option, .control]) else { NSSound.beep(); return nil }
-            value = Shortcut(KeyCodes.key(for: event), mods).string
+            // Esc cancels, except where Esc alone is a valid answer: press it twice quickly for that.
+            if event.keyCode == 53 && mods.isEmpty {
+                if scope != .global && Date().timeIntervalSince(lastEsc) < 0.6 {
+                    value = Shortcut("escape").string
+                    stop()
+                } else if scope != .global {
+                    lastEsc = Date()
+                } else {
+                    stop()
+                }
+                return nil
+            }
+            let shortcut = Shortcut(KeyCodes.key(for: event), mods)
+            guard HotkeyMap.isAllowed(shortcut, scope: scope) else { NSSound.beep(); return nil }
+            value = shortcut.string
             stop()
             return nil
         }
@@ -296,6 +338,106 @@ struct HotkeyRecorder: View {
         monitor = nil
         clickMonitor = nil
         Host.shared.registerHotkeys()
+    }
+}
+
+// MARK: Hotkeys
+
+private struct HotkeysSettings: View {
+    @ObservedObject var model: SettingsModel
+    @State private var filter = ""
+
+    private var groups: [(owner: String, title: String, rows: [HotkeyBinding])] {
+        let all = model.hotkeys
+        var out: [(owner: String, title: String, rows: [HotkeyBinding])] = []
+        for b in all where matches(b) {
+            if let i = out.firstIndex(where: { $0.owner == b.owner }) { out[i].rows.append(b) }
+            else { out.append((b.owner, b.ownerTitle, [b])) }
+        }
+        return out
+    }
+
+    private func matches(_ b: HotkeyBinding) -> Bool {
+        filter.isEmpty || Fuzzy.score(filter, [b.title, b.ownerTitle, b.shortcut?.display ?? ""]) != nil
+    }
+
+    var body: some View {
+        let all = model.hotkeys
+        Form {
+            Section {
+                TextField("Find a hotkey", text: $filter, prompt: Text("Find a hotkey"))
+                    .labelsHidden()
+            } footer: {
+                Text("Global keys work anywhere on your Mac. Keys marked In Slashlight work in every screen of the panel; "
+                     + "In extension keys only while that extension is open. Click a key to record a new one. "
+                     + "For Esc alone, press it twice.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            ForEach(groups, id: \.owner) { group in
+                Section {
+                    if group.owner == "window-management" {
+                        Toggle("Use Window Layout's global keys", isOn: model.binding(\.windowManagementHotkeys))
+                    }
+                    ForEach(group.rows) { b in HotkeyRow(binding: b, all: all, model: model) }
+                } header: {
+                    HStack(spacing: 6) {
+                        if let ext = model.host.ext(group.owner) { IconView(icon: ext.manifest.icon, size: 16) }
+                        Text(group.title)
+                    }
+                }
+            }
+            Section {
+                LabeledContent("All hotkeys") {
+                    Button("Reset to Defaults", role: .destructive, action: model.resetAllHotkeys)
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .id(model.extensionsVersion)
+    }
+}
+
+private struct HotkeyRow: View {
+    let binding: HotkeyBinding
+    let all: [HotkeyBinding]
+    @ObservedObject var model: SettingsModel
+
+    private var warning: String? {
+        let clashes = HotkeyMap.conflicts(of: binding, in: all)
+        if !clashes.isEmpty {
+            return "Also used by " + clashes.map { $0.owner == binding.owner ? $0.title : "\($0.ownerTitle): \($0.title)" }
+                .joined(separator: ", ")
+        }
+        if model.host.failedHotkeys.contains(binding.id) { return "macOS or another app already uses this key" }
+        return nil
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(binding.title)
+                Text(binding.scope.label).font(.caption).foregroundStyle(.secondary).help(binding.scope.help)
+                if let warning {
+                    Label(warning, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption).foregroundStyle(.orange).lineLimit(2)
+                }
+            }
+            Spacer(minLength: 8)
+            HotkeyRecorder(value: Binding(get: { binding.shortcut?.string ?? "" },
+                                          set: { model.setHotkey(binding, $0) }),
+                           scope: binding.scope)
+            Button { model.resetHotkey(binding) } label: { Image(systemName: "arrow.counterclockwise") }
+                .buttonStyle(.borderless)
+                .help("Back to \(binding.defaultShortcut?.display ?? "no key")")
+                .opacity(binding.isDefault ? 0 : 1)
+                .disabled(binding.isDefault)
+            Button { model.setHotkey(binding, "") } label: { Image(systemName: "xmark.circle.fill") }
+                .buttonStyle(.borderless)
+                .foregroundStyle(.secondary)
+                .help("No key")
+                .opacity(binding.canClear && binding.shortcut != nil ? 1 : 0)
+                .disabled(!binding.canClear || binding.shortcut == nil)
+        }
     }
 }
 
