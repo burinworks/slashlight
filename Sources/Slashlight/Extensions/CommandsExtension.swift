@@ -41,6 +41,18 @@ final class CommandsExtension: Extension {
 
     override func deactivate() async { await scripts.deactivate() }
 
+    /// A key slot for every command and script that runs without an argument; none has a key until the user sets one.
+    override var hotkeys: [HotkeyAction] {
+        reloadIfChanged()
+        let own = commands.filter { !Self.takesArgument($0) }.map { c in
+            HotkeyAction(id: "command:\(c.name)", title: "Run /\(c.name)", scope: .global) { [weak self] _ in
+                guard let self, let action = self.item(c, argument: "").primary else { return .stay }
+                return try await action.run()
+            }
+        }
+        return own + scripts.hotkeys
+    }
+
     override func recentItem(id: String, title: String) async -> Item? {
         reloadIfChanged()
         if let c = commands.first(where: { $0.name == id }) { return item(c, argument: "") }

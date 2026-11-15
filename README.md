@@ -43,7 +43,7 @@ Also built in:
 - **Window layouts.** Halves, thirds, quarters, center and maximize on ⌃⌥ + arrow keys and letters.
 - **Terminal tabs.** `> npm run dev` opens a real terminal inside the panel. It keeps running when you go back to search, and a tab strip shows which tasks are busy, idle or failed.
 - **Clipboard history, snippets** (multi-line, with `{clipboard}` `{date}` `{time}` placeholders), **file search** and **web search fallback**.
-- **Settings window.** Hotkey recorder, light/dark theme, launch at login, per-extension on/off switches and permission status.
+- **Settings window.** Every hotkey in one place (global, in Slashlight, per extension), light/dark theme, launch at login, per-extension on/off switches and permission status.
 
 The [user guide](docs/user-guide.md) has every key and command.
 
@@ -132,7 +132,7 @@ Read [Architecture](docs/architecture.md) for the module layout, the search pipe
 
 - [ ] Signed and notarized releases, plus a Homebrew cask
 - [ ] Terminal tabs that survive a restart
-- [ ] Global hotkeys and permissions for external extensions
+- [x] Global hotkeys and permissions for external extensions
 - [ ] Extension store: browse and install from a GitHub index
 - [ ] AI command: ask a model about the selection or clipboard
 

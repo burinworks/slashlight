@@ -7,7 +7,9 @@ public enum Wire {
 
     /// Host → extension.
     public struct Request: Codable {
-        /// "hello" | "search" | "run" | "dispose" | "shutdown"
+        /// "hello" | "search" | "run" | "hotkey" | "dispose" | "shutdown".
+        /// `hotkey`: the user pressed one of the manifest's hotkeys; `actionId` names it and `query` holds the key
+        /// ("cmd+shift+j"). Answer with an `outcome`, as for `run`.
         public var type: String
         public var id: Int
         public var query: String?

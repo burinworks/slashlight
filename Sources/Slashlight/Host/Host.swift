@@ -34,16 +34,52 @@ final class Host {
         }
     }
 
+    /// Every key Settings → Hotkeys shows, rebuilt with the global ones. The panel looks up its keys here.
+    private(set) var hotkeyBindings: [HotkeyBinding] = []
+    /// Global keys macOS refused, usually because another app already uses them.
+    private(set) var failedHotkeys: Set<String> = []
+
     func registerHotkeys() {
         settings = Settings.load()
         HotKeyCenter.shared.unregisterAll()
-        if let s = Shortcut(string: settings.hotkey) {
-            HotKeyCenter.shared.register(s) { [weak self] in self?.toggle() }
+        hotkeyBindings = HotkeyMap.bindings(host: self, settings: settings)
+        failedHotkeys = []
+        for b in hotkeyBindings where b.scope == .global {
+            guard let s = b.shortcut else { continue }
+            if b.owner == "window-management" && !settings.windowManagementHotkeys { continue }
+            if !HotKeyCenter.shared.register(s, handler: { b.run(s) }) { failedHotkeys.insert(b.id) }
         }
-        for ext in extensions {
-            if ext.manifest.id == "window-management" && !settings.windowManagementHotkeys { continue }
-            for hk in ext.globalHotkeys {
-                HotKeyCenter.shared.register(hk.shortcut) { hk.run() }
+    }
+
+    /// The panel's key for `pressed`: Slashlight's own first, then the open extension's.
+    func panelHotkey(_ pressed: Shortcut, extensionID: String?) -> HotkeyBinding? {
+        hotkeyBindings.first { $0.scope == .system && $0.shortcut == pressed }
+            ?? hotkeyBindings.first { $0.scope == .local && $0.owner == extensionID && $0.shortcut == pressed }
+    }
+
+    /// Runs an extension's hotkey action. A local one acts on the panel like any action; a global one opens the
+    /// panel only when it pushes a screen.
+    func runHotkey(_ action: HotkeyAction, pressed: Shortcut, extensionID: String) {
+        Task {
+            do {
+                let outcome = try await action.run(pressed)
+                if action.scope == .local {
+                    model.apply(outcome, extensionID: extensionID)
+                    return
+                }
+                switch outcome {
+                case .close: if isVisible { hide() }
+                case .stay, .pop: break
+                case .push(let view):
+                    show()
+                    model.push(view, extensionID: extensionID)
+                case .hud(let message):
+                    hide()
+                    showHUD(message)
+                case .paste(let text): paste(text)
+                }
+            } catch {
+                showHUD("⚠︎ \(error.localizedDescription)")
             }
         }
     }

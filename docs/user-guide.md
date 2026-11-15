@@ -24,9 +24,17 @@ Return moves forward and ← goes back. Closing the window ends the tour too; it
 
 ## Keys
 
+Change any of these in Settings → Hotkeys. It lists three kinds of key:
+
+- **Global**: works anywhere on your Mac while Slashlight runs (Open Slashlight, window layouts, and any extension's "Open" slot or action you give a key, e.g. ⌥⌘V for Clipboard History).
+- **In Slashlight**: works in every screen of the panel (Back, ⌘K, ⌘E, ⌘,, ⌃⇥).
+- **In extension**: works only while that extension is open.
+
+Click a key to record a new one, the ↺ button to go back to the default, ✕ for no key. To record Esc on its own, press it twice. A key used twice where both could fire is flagged in orange, as is a global key another app already took.
+
 | Key | Action |
 |---|---|
-| ⌥Space | Open / close (change it in Settings → General) |
+| ⌥Space | Open / close |
 | ↑ ↓, ⌃N ⌃P | Move the selection |
 | ↵ / click | Primary action |
 | ⌘↵ / ⌘-click | Secondary action |
@@ -180,7 +188,7 @@ Everything lives in `~/Library/Application Support/Slashlight/`:
 ```json
 {
   "hotkey": "opt+space",
-  "windowSwitcherHotkey": "opt+tab",
+  "hotkeys": {},
   "windowManagementHotkeys": true,
   "appearance": "system",
   "disabledExtensions": []

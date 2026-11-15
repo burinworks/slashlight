@@ -4,7 +4,14 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+- Settings → Hotkeys: every key in one place, each marked Global, In Slashlight or In extension. Record a new key, reset it or clear it; keys that clash or that another app took are flagged.
+- Every extension with a screen gets an "Open <extension>" global slot, and every command and script that takes no argument a "Run /name" slot, all without a key until you set one.
+- Extensions offer hotkey actions: `hotkeys` in Swift, a `hotkeys` block in `manifest.json` and a `hotkey` request for external ones. The Python example pastes a new UUID on ⌃⌥U.
+- Hotkeys can use F1–F12 and the ; ' [ ] and backslash keys.
+
 ### Changed
+- The window switcher's key moved from `windowSwitcherHotkey` to Settings → Hotkeys; a changed key carries over.
 - The main search shows each result's icon and name only, with no subtitle or status pill such as "Running". Lists inside an extension still show them.
 - Esc goes back one screen and closes the panel only from the main search. Backspace on an empty bar no longer goes back. In the terminal, Esc at an idle prompt goes back to search; ⌘⌫ still works there too.
 
