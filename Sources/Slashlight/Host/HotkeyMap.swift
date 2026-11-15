@@ -155,7 +155,7 @@ enum HotkeyMap {
                                      scope: .system, group: .slashlight, icon: .symbol(key.symbol),
                                      defaultShortcut: key.defaultShortcut,
                                      shortcut: fixed ? key.defaultShortcut : shortcut(id, default: key.defaultShortcut, in: settings),
-                                     isEditable: !fixed,
+                                     isEditable: !fixed, isListed: !fixed,
                                      run: { [weak host] _ in if let host { key.run(host.model) } }))
         }
         let sorted = host.extensions.sorted { $0.manifest.title.localizedCaseInsensitiveCompare($1.manifest.title) == .orderedAscending }
