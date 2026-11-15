@@ -5,12 +5,20 @@ import SlashlightKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
 
+    /// The Dock icon appears only once the switch to `.regular` has gone through, and a badge set before that is
+    /// dropped, so set it again until it sticks.
+    private func showBadge() {
+        for delay in [0, 0.5, 2.0] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { NSApp.dockTile.badgeLabel = BuildInfo.badge }
+        }
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Local and test builds stay in the Dock with a badge, so it is always clear which build is running.
         if BuildInfo.isPreview {
             NSApp.setActivationPolicy(.regular)
-            NSApp.dockTile.badgeLabel = BuildInfo.badge
             setUpMainMenu()
+            showBadge()
         } else {
             NSApp.setActivationPolicy(.accessory)
         }
