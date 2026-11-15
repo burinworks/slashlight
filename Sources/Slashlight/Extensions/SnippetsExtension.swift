@@ -22,6 +22,14 @@ final class SnippetsExtension: Extension {
 
     override var triggers: [Trigger] { [.command("snippets")] }
 
+    /// Shortcuts of this extension's item actions, listed in Settings → Hotkeys so they can be changed.
+    override var hotkeys: [HotkeyAction] {
+        [
+         .itemAction("edit-text", title: "Edit Text", default: Shortcut("e", [.command, .shift])),
+         .itemAction("delete-snippet", title: "Delete Snippet", default: Shortcut("delete", [.command])),
+        ]
+    }
+
     override func activate(context: ExtensionContext) async {
         Self.shared = self
         snippets = context.storage(.persistent).value([Snippet].self, forKey: "snippets") ?? []

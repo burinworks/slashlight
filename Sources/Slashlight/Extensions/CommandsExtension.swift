@@ -58,7 +58,12 @@ final class CommandsExtension: Extension {
                 return try await action.run()
             }
         }
-        return own + scripts.hotkeys
+        let items: [HotkeyAction] = [
+            .itemAction("set-hotkey…", title: "Set Hotkey…", default: Shortcut("h", [.command, .shift])),
+            .itemAction("show-in-finder", title: "Show script in Finder", default: Shortcut("f", [.command, .shift])),
+            .itemAction("copy-path", title: "Copy script path", default: Shortcut("c", [.command, .shift])),
+        ]
+        return items + own + scripts.hotkeys
     }
 
     static func hotkeyID(command name: String) -> String { "command:\(name)" }

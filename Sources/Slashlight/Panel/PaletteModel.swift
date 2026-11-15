@@ -484,7 +484,7 @@ final class PaletteModel: ObservableObject {
         let view = ListView(title: "Actions", icon: .symbol("command"), placeholder: "Actions for \(item.title)…") { q in
             [Section(item.title, item.actions.enumerated().compactMap { i, a in
                 guard Fuzzy.score(q.text, a.title) != nil else { return nil }
-                let key: Shortcut? = i == 0 ? .primary : i == 1 ? .secondary : a.shortcut
+                let key: Shortcut? = i == 0 ? .primary : i == 1 ? .secondary : self.host.itemActionKey(a, extensionID: row.extensionID)
                 return Item(id: "\(i)-\(a.id)", title: a.title, icon: a.icon ?? .symbol(a.isDestructive ? "trash" : "bolt"),
                             accessories: key.map { [.keycap($0)] } ?? [],
                             primary: Action(a.title) {
@@ -537,37 +537,40 @@ final class PaletteModel: ObservableObject {
         if editingShortcut(key, mods) { return true }
 
         let pressed = Shortcut(key, mods)
+        // "> npm test": the terminal's New tab key starts a tab right from the search bar.
+        if text.hasPrefix(">"), pressed == TerminalExtension.key("new-tab") {
+            showTerminal(TerminalManager.shared.start(command: nil))
+            return true
+        }
         if let hotkey = host.panelHotkey(pressed, extensionID: current.extensionID) {
             hotkey.run(pressed)
             return true
         }
 
         switch (key, mods) {
-        case ("up", _), ("p", [.control]):
-            move(isGrid && key == "up" ? -gridColumns : -1)
-        case ("down", _), ("n", [.control]):
-            move(isGrid && key == "down" ? gridColumns : 1)
+        case ("up", _):
+            move(isGrid ? -gridColumns : -1)
+        case ("down", _):
+            move(isGrid ? gridColumns : 1)
         case ("left", []) where isGrid:
             move(-1)
         case ("right", []) where isGrid:
             move(1)
         case ("return", []), ("enter", []):
             runPrimary()
-        case ("return", [.command]), ("enter", [.command]):
-            runSecondary()
         case ("tab", []):
             if holdModifier != nil || filters.isEmpty { move(1) } else { cycleFilter(1) }
         case ("tab", [.shift]):
             if holdModifier != nil || filters.isEmpty { move(-1) } else { cycleFilter(-1) }
-        case ("t", [.command]) where current.extensionID == "terminal" || text.hasPrefix(">"):
-            showTerminal(TerminalManager.shared.start(command: nil))
         case (let k, [.command]) where Int(k).map({ (1...9).contains($0) }) == true:
             pendingInput = .number
             runPrimary(Int(k)! - 1)
         default:
             if plain { return false }
             guard let row = selectedRow,
-                  let action = row.item.actions.first(where: { $0.shortcut == Shortcut(key, mods) }) else { return false }
+                  let action = row.item.actions.first(where: {
+                      host.itemActionKey($0, extensionID: row.extensionID) == Shortcut(key, mods)
+                  }) else { return false }
             pendingInput = .shortcut
             run(action, from: row)
         }

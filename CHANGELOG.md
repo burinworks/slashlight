@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+- Settings → Hotkeys lists every key Slashlight uses: ⌃P/⌃N, ⌘↵, the terminal tab keys (⌘⌫ ⌘T ⌘W ⌃⇥ ⌃⇧⇥), Insights' Clear, and every item action's shortcut (Copy Path, Quit App, Delete, Paste as Plain Text…), each changeable. Arrows, ↵, Tab, Esc and ⌘1…⌘9 stay fixed.
+- A clash warning has **Use it here**: it takes the key from the others, so ⌃⇥ can open Switch Window anywhere.
+
+### Changed
+- Versions are CORE.STABLE.MINOR and CI picks them: each promotion to beta adds one to MINOR (v0.4.1, v0.4.2…), each promotion to main adds one to STABLE and resets MINOR (v0.5.0). `VERSION` sets CORE.
+
 ## [0.4.0] - 2026-11-15
 
 ### Added

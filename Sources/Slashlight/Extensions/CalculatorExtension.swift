@@ -24,6 +24,13 @@ final class CalculatorExtension: Extension {
 
     override var triggers: [Trigger] { [.defaultSearch] }
 
+    /// Shortcuts of this extension's item actions, listed in Settings → Hotkeys so they can be changed.
+    override var hotkeys: [HotkeyAction] {
+        [
+         .itemAction("copy-with-unit", title: "Copy with Unit", default: Shortcut("c", [.command, .shift])),
+        ]
+    }
+
     private var ratesFile: URL { context.supportDirectory.appendingPathComponent("rates.json") }
 
     override func activate(context: ExtensionContext) async {

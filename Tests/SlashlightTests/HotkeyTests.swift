@@ -91,6 +91,23 @@ struct HotkeyTests {
         #expect(script?.permissionError == nil)
     }
 
+    @Test func itemActionKeysAreListedAndKeepTheirAction() {
+        let a = HotkeyAction.itemAction("copy-path", title: "Copy Path", default: Shortcut("c", [.command, .shift]))
+        #expect(a.id == "item:copy-path" && a.itemActionID == "copy-path" && a.scope == .local)
+        // The id an Action gets from its title is what the declaration names.
+        #expect(Action("Copy Path") { .stay }.id == "copy-path")
+        #expect(Action("Set Hotkey…") { .stay }.id == "set-hotkey…")
+    }
+
+    @Test func screensThatTakeKeysFirstDontClashWithSlashlightsKeys() {
+        let next = HotkeyBinding(owner: "terminal", ownerTitle: "Terminal", action: "next-tab", title: "Next tab", scope: .local,
+                                 group: .other("Terminal"), icon: nil, defaultShortcut: nil, shortcut: Shortcut("tab", .control), run: { _ in })
+        let last = binding("slashlight", "terminal", .system, "ctrl+tab")
+        let global = binding("window-switcher", "open", .global, "ctrl+tab")
+        #expect(HotkeyMap.conflicts(of: next, in: [next, last]).isEmpty)
+        #expect(HotkeyMap.conflicts(of: global, in: [next, last, global]).count == 2)
+    }
+
     @Test func functionKeysAndPunctuationRegister() {
         for key in ["f5", "f12", ";", "[", "\\"] { #expect(KeyCodes.code(for: key) != nil, "\(key)") }
         #expect(Shortcut(string: "ctrl+f5")?.display == "⌃F5")

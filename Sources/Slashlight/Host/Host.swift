@@ -56,7 +56,19 @@ final class Host {
     /// The panel's key for `pressed`: Slashlight's own first, then the open extension's.
     func panelHotkey(_ pressed: Shortcut, extensionID: String?) -> HotkeyBinding? {
         hotkeyBindings.first { $0.scope == .system && $0.shortcut == pressed }
-            ?? hotkeyBindings.first { $0.scope == .local && $0.owner == extensionID && $0.shortcut == pressed }
+            ?? hotkeyBindings.first { $0.scope == .local && $0.itemActionID == nil && $0.owner == extensionID && $0.shortcut == pressed }
+    }
+
+    /// The key an item action runs on: the user's choice from Settings → Hotkeys, else the action's own.
+    func itemActionKey(_ action: Action, extensionID: String?) -> Shortcut? {
+        guard let extensionID, let b = hotkeyBindings.first(where: { $0.owner == extensionID && $0.itemActionID == action.id })
+        else { return action.shortcut }
+        return b.shortcut
+    }
+
+    /// A local key of `extensionID`'s, for screens that handle keys themselves (the terminal, Insights).
+    func localHotkey(_ pressed: Shortcut, extensionID: String) -> HotkeyBinding? {
+        hotkeyBindings.first { $0.scope == .local && $0.itemActionID == nil && $0.owner == extensionID && $0.shortcut == pressed }
     }
 
     /// Runs an extension's hotkey action. A local one acts on the panel like any action; a global one opens the

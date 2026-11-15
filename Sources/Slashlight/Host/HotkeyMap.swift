@@ -62,6 +62,11 @@ struct HotkeyBinding: Identifiable {
     var isEditable = true
     /// Open Slashlight is set in Settings → General, not in the Hotkeys list.
     var isListed = true
+    /// An item action's key: the panel runs the selected item's action, not `run`.
+    var itemActionID: String?
+    /// Keys a screen handles before the panel's own (a terminal tab, Insights): they shadow Slashlight's keys
+    /// on that screen instead of clashing with them.
+    var screenFirst: Bool { scope == .local && itemActionID == nil && HotkeyMap.screenFirstOwners.contains(owner) }
     let run: @MainActor (Shortcut) -> Void
 
     var id: String { "\(owner)/\(action)" }
@@ -70,6 +75,7 @@ struct HotkeyBinding: Identifiable {
     /// Whether the two keys could both be live at the same moment.
     func overlaps(_ other: HotkeyBinding) -> Bool {
         if scope == .global || other.scope == .global { return true }
+        if (scope == .system && other.screenFirst) || (other.scope == .system && screenFirst) { return false }
         if scope == .local && other.scope == .local { return owner == other.owner }
         return true
     }
@@ -77,7 +83,7 @@ struct HotkeyBinding: Identifiable {
 
 /// The panel's own keys. They work in every list; screens with a text editor or terminal keep their own Esc.
 enum SystemHotkey: String, CaseIterable {
-    case back, actions, home, settings, terminal
+    case back, actions, home, settings, terminal, previous, next, secondary
 
     var title: String {
         switch self {
@@ -86,6 +92,9 @@ enum SystemHotkey: String, CaseIterable {
         case .home: return "Back to the main search"
         case .settings: return "Open Settings"
         case .terminal: return "Go to the last terminal tab"
+        case .previous: return "Select the previous result"
+        case .next: return "Select the next result"
+        case .secondary: return "Run the second action"
         }
     }
 
@@ -96,6 +105,9 @@ enum SystemHotkey: String, CaseIterable {
         case .home: return Shortcut("e", .command)
         case .settings: return Shortcut(",", .command)
         case .terminal: return Shortcut("tab", .control)
+        case .previous: return Shortcut("p", .control)
+        case .next: return Shortcut("n", .control)
+        case .secondary: return Shortcut("return", .command)
         }
     }
 
@@ -106,8 +118,12 @@ enum SystemHotkey: String, CaseIterable {
         case .home: return "house"
         case .settings: return "gearshape"
         case .terminal: return "terminal"
+        case .previous: return "chevron.up"
+        case .next: return "chevron.down"
+        case .secondary: return "return"
         }
     }
+
 
     @MainActor
     func run(_ model: PaletteModel) {
@@ -118,6 +134,9 @@ enum SystemHotkey: String, CaseIterable {
         case .settings: model.openSettings()
         case .terminal:
             if let s = TerminalManager.shared.lastShown ?? TerminalManager.shared.sessions.last { model.showTerminal(s) }
+        case .previous: model.move(model.isGrid ? -model.gridColumns : -1)
+        case .next: model.move(model.isGrid ? model.gridColumns : 1)
+        case .secondary: model.runSecondary()
         }
     }
 }
@@ -125,6 +144,8 @@ enum SystemHotkey: String, CaseIterable {
 @MainActor
 enum HotkeyMap {
     static let slashlight = "slashlight"
+    /// Extensions whose screens take keys before the panel does.
+    static let screenFirstOwners: Set<String> = ["terminal", "insights"]
 
     /// The key in effect for `id`: what the user recorded ("" = cleared), else the default.
     static func shortcut(_ id: String, default d: Shortcut?, in settings: Settings) -> Shortcut? {
@@ -173,6 +194,7 @@ enum HotkeyMap {
                                          group: group(owner: owner, action: action.id, title: title),
                                          icon: action.icon ?? ext.manifest.icon, defaultShortcut: action.defaultShortcut,
                                          shortcut: shortcut("\(owner)/\(action.id)", default: action.defaultShortcut, in: settings),
+                                         itemActionID: action.itemActionID,
                                          run: { [weak host] pressed in host?.runHotkey(action, pressed: pressed, extensionID: owner) }))
             }
         }

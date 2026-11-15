@@ -105,9 +105,15 @@ Commits use the imperative mood: "Add emoji recents", not "Added…".
 
 Releases come from branches; you don't push tags.
 
-1. On `test`, set `VERSION` to the next version and move the `CHANGELOG.md` entries from Unreleased to it.
-2. Promote `test → beta`. Each push to `beta` publishes the pre-release `vX.Y.Z-beta.N` for beta testers.
-3. Promote `beta → main`. The release workflow waits for your approval in the `stable` environment (Actions → the run → **Review deployments**), then publishes `vX.Y.Z`.
+Versions are **CORE.STABLE.MINOR**, and CI picks them (`scripts/next-version.sh`), so there is nothing to bump by hand:
+
+- every promotion to `beta` adds one to MINOR: `v0.4.1`, `v0.4.2`…
+- every promotion to `main` adds one to STABLE and resets MINOR: `v0.5.0`. A stable release always ends in `.0`, a beta never does.
+- CORE changes only when you edit `VERSION` (say to `1.0.0`): the next stable release is then `v1.0.0`, the next beta `v1.0.1`. `VERSION` is a floor; its last number is ignored.
+
+1. Promote `test → beta` (Actions → **Promote**). The push to `beta` publishes the next beta for beta testers. A promotion with nothing new since the last release publishes nothing.
+2. Promote `beta → main`. The release workflow waits for your approval in the `stable` environment (Actions → the run → **Review deployments**), then publishes the stable release.
+3. Move the `CHANGELOG.md` entries from Unreleased to a section named after the release.
 
 Each release builds a universal app with `scripts/build-app.sh`, packs `Slashlight-<tag>.dmg` with `scripts/make-dmg.sh`, publishes it with `SHA256SUMS.txt` and adds the signed update to the appcast on `gh-pages`. Pushing a `v*` tag by hand still works; a tag with a hyphen is a pre-release.
 
