@@ -31,13 +31,17 @@ final class WindowSwitcherExtension: Extension {
     }
 
     override var triggers: [Trigger] { [.command("switch")] }
+
     override var permissions: [Permission] { [.screenRecording, .accessibility] }
 
     override var hotkeys: [HotkeyAction] {
         [HotkeyAction(id: "switch", title: "Switch Window", scope: .global, default: Shortcut("tab", .option)) { [weak self] s in
             self?.hotkeyPressed(s)
             return .stay
-        }]
+        },
+         .itemAction("minimize-window", title: "Minimize Window", default: Shortcut("m", [.command])),
+         .itemAction("close-window", title: "Close Window", default: Shortcut("w", [.command])),
+         .itemAction("quit-app", title: "Quit App", default: Shortcut("q", [.command, .option]))]
     }
 
     override func activate(context: ExtensionContext) async {

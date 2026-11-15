@@ -22,6 +22,13 @@ final class EmojiExtension: Extension {
 
     override var triggers: [Trigger] { [.commands, .command("emoji")] }
 
+    /// Shortcuts of this extension's item actions, listed in Settings → Hotkeys so they can be changed.
+    override var hotkeys: [HotkeyAction] {
+        [
+         .itemAction("copy-name", title: "Copy Name", default: Shortcut("c", [.command, .shift])),
+        ]
+    }
+
     override func activate(context: ExtensionContext) async {
         recent = context.storage(.persistent).value([String].self, forKey: "recent") ?? []
     }

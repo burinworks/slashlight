@@ -22,6 +22,14 @@ final class AppsExtension: Extension {
 
     override var triggers: [Trigger] { [.defaultSearch, .command("apps")] }
 
+    /// Shortcuts of this extension's item actions, listed in Settings → Hotkeys so they can be changed.
+    override var hotkeys: [HotkeyAction] {
+        [
+         .itemAction("copy-path", title: "Copy Path", default: Shortcut("c", [.command, .shift])),
+         .itemAction("quit-app", title: "Quit App", default: Shortcut("q", [.command, .option])),
+        ]
+    }
+
     override func activate(context: ExtensionContext) async {
         launches = context.storage(.persistent).value([String: Date].self, forKey: "launches") ?? [:]
         await reindex()

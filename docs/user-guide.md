@@ -30,7 +30,7 @@ Open Slashlight is set in Settings → General. Every other key is in Settings �
 - Slashlight's mark (a slash in a rounded square) **In Slashlight**: every screen of the panel (⌘K, ⌘E, ⌘,, ⌃⇥).
 - 🧩 **In extension**: only while that extension is open.
 
-Click a key and press a new one; while recording, esc cancels and ⌫ removes the key. ↺ goes back to the default. Esc itself is always Back and can't be changed. A key used twice where both could fire is flagged in orange, as is a global key another app already took.
+Every key Slashlight uses is listed, including the terminal tab keys and the shortcuts of item actions such as Copy Path; only arrows, ↵, Tab, Esc and ⌘1…⌘9 are fixed. When a key clashes, **Use it here** takes it from the others. Click a key and press a new one; while recording, esc cancels and ⌫ removes the key. ↺ goes back to the default. Esc itself is always Back and can't be changed. A key used twice where both could fire is flagged in orange, as is a global key another app already took.
 
 Some keys can't be recorded: the shortcuts macOS has turned on in System Settings → Keyboard → Keyboard Shortcuts (⌘Space for Spotlight, ⇧⌘4 for screenshots…), read from macOS itself, and keys every app uses (⌘C, ⌘V, ⌘Q, ⌘W, ⌘Tab…) as global keys. ⌘C ⌘V ⌘X ⌘A ⌘Z stay with the search field inside the panel too. The recorder says why it refused a key. Turn a macOS shortcut off in System Settings to use its key here.
 

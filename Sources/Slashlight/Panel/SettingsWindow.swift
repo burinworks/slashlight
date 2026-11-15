@@ -586,12 +586,19 @@ private struct HotkeyRow: View {
     let all: [HotkeyBinding]
     @ObservedObject var model: SettingsModel
 
+    /// Editable keys this one clashes with: "Use it here" clears them.
+    private var clashes: [HotkeyBinding] {
+        guard binding.isEditable else { return [] }
+        return HotkeyMap.conflicts(of: binding, in: all).filter(\.isEditable)
+    }
+
     private var warning: String? {
         guard binding.isEditable else { return nil }
         if let s = binding.shortcut, let reason = ReservedKeys.reason(s, scope: binding.scope) { return reason }
         let clashes = HotkeyMap.conflicts(of: binding, in: all)
         if !clashes.isEmpty {
-            return "Also used by " + clashes.map(\.title).joined(separator: ", ")
+            return "Also used by " + clashes.map { $0.group == binding.group ? $0.title : "\($0.title) (\($0.group.title))" }
+                .joined(separator: ", ")
         }
         if model.host.failedHotkeys.contains(binding.id) { return "macOS or another app already uses this key" }
         return nil
@@ -603,7 +610,15 @@ private struct HotkeyRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(binding.title).lineLimit(1)
                 if let warning {
-                    Text(warning).font(.caption).foregroundStyle(.orange).lineLimit(2)
+                    HStack(spacing: 6) {
+                        Text(warning).font(.caption).foregroundStyle(.orange).lineLimit(2)
+                        if !clashes.isEmpty {
+                            Button("Use it here") { for other in clashes { model.setHotkey(other, "") } }
+                                .buttonStyle(.link)
+                                .font(.caption)
+                                .help("Removes the key from " + clashes.map(\.title).joined(separator: ", "))
+                        }
+                    }
                 }
             }
             Spacer(minLength: 12)
