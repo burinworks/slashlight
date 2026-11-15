@@ -131,7 +131,7 @@ struct PaletteView: View {
                     }
                 } else {
                     ForEach(section.rows) { row in
-                        ResultRow(row: row, selected: row.index == model.selection)
+                        ResultRow(row: row, selected: row.index == model.selection, plain: model.currentView == nil)
                             .id(row.id)
                             .onContinuousHover { if case .active = $0 { model.hover(row.index) } }
                             .onTapGesture { model.click(row.index) }
