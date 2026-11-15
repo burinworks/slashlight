@@ -39,8 +39,9 @@ open class Extension {
     /// macOS permissions this extension needs. The host asks for them only when the extension is used.
     open var permissions: [Permission] { [] }
 
-    /// System-wide hotkeys that work even when the panel is closed.
-    open var globalHotkeys: [GlobalHotkey] { [] }
+    /// Actions the user can run with a key. Each lists in Settings → Hotkeys, where the user can record another
+    /// key or clear it. Every extension with a screen also gets an "Open <title>" slot there, with no key by default.
+    open var hotkeys: [HotkeyAction] { [] }
 
     // MARK: Lifecycle
 
@@ -134,14 +135,35 @@ public enum Permission: String, CaseIterable {
     case automation
 }
 
-public struct GlobalHotkey {
-    public var shortcut: Shortcut
-    public var title: String
-    public var run: @MainActor () -> Void
+/// An action an extension offers to run with a key (`Extension.hotkeys`).
+public struct HotkeyAction {
+    public enum Scope: String, Sendable, CaseIterable {
+        /// Works anywhere on the Mac while Slashlight runs, panel open or not. The key needs ⌘, ⌥ or ⌃.
+        case global
+        /// Works only while one of this extension's screens is open in the panel.
+        case local
+    }
 
-    public init(_ shortcut: Shortcut, title: String, run: @escaping @MainActor () -> Void) {
-        self.shortcut = shortcut
+    /// Stable within the extension; the user's key is saved under it.
+    public var id: String
+    public var title: String
+    public var scope: Scope
+    /// The key until the user changes it; nil leaves the action without one.
+    public var defaultShortcut: Shortcut?
+    /// Shown next to it in Settings; the extension's icon when nil.
+    public var icon: Icon?
+    /// Gets the key that was pressed, which is the user's choice when they changed it. A global action's
+    /// outcome applies to the panel only when it asks for it: `.push` opens the panel, `.hud` and `.paste` work as
+    /// usual, the rest do nothing.
+    public var run: @MainActor (Shortcut) async throws -> Outcome
+
+    public init(id: String, title: String, scope: Scope, default shortcut: Shortcut? = nil, icon: Icon? = nil,
+                run: @escaping @MainActor (Shortcut) async throws -> Outcome) {
+        self.icon = icon
+        self.id = id
         self.title = title
+        self.scope = scope
+        self.defaultShortcut = shortcut
         self.run = run
     }
 }

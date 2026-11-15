@@ -187,3 +187,24 @@ struct SearchField: NSViewRepresentable {
         }
     }
 }
+
+/// Slashlight's mark drawn flat: a rounded square with the slash cut through it. Follows the text colour.
+struct SlashlightGlyph: View {
+    var size: CGFloat = 14
+
+    var body: some View {
+        Canvas { ctx, box in
+            let r = box.width
+            let square = Path(roundedRect: CGRect(x: 0, y: 0, width: r, height: r), cornerRadius: r * 0.26, style: .continuous)
+            ctx.fill(square, with: .foreground)
+            var slash = Path()
+            slash.move(to: CGPoint(x: r * 0.62, y: r * 0.22))
+            slash.addLine(to: CGPoint(x: r * 0.38, y: r * 0.78))
+            ctx.blendMode = .destinationOut
+            ctx.stroke(slash, with: .color(.black), style: StrokeStyle(lineWidth: r * 0.13, lineCap: .round))
+        }
+        .frame(width: size, height: size)
+        .compositingGroup()
+        .accessibilityLabel("Slashlight")
+    }
+}

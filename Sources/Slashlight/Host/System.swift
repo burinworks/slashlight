@@ -176,7 +176,9 @@ enum Permissions {
 /// `~/Library/Application Support/Slashlight/settings.json`
 struct Settings: Codable, Equatable {
     var hotkey: String = "opt+space"
-    var windowSwitcherHotkey: String = "opt+tab"
+    /// Keys the user changed in Settings → Hotkeys, by "<extension id>/<action id>" ("slashlight/back" for the
+    /// panel's own keys). An empty string means the user cleared the key.
+    var hotkeys: [String: String] = [:]
     var windowManagementHotkeys: Bool = true
     /// "system" | "light" | "dark"
     var appearance: String = "system"
@@ -207,7 +209,13 @@ struct Settings: Codable, Equatable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = Settings()
         hotkey = try c.decodeIfPresent(String.self, forKey: .hotkey) ?? d.hotkey
-        windowSwitcherHotkey = try c.decodeIfPresent(String.self, forKey: .windowSwitcherHotkey) ?? d.windowSwitcherHotkey
+        hotkeys = try c.decodeIfPresent([String: String].self, forKey: .hotkeys) ?? d.hotkeys
+        // Before Settings → Hotkeys, the window switcher had a setting of its own.
+        let legacy = try decoder.container(keyedBy: LegacyKeys.self)
+        if hotkeys["window-switcher/switch"] == nil,
+           let old = try legacy.decodeIfPresent(String.self, forKey: .windowSwitcherHotkey), old != "opt+tab" {
+            hotkeys["window-switcher/switch"] = old
+        }
         windowManagementHotkeys = try c.decodeIfPresent(Bool.self, forKey: .windowManagementHotkeys) ?? d.windowManagementHotkeys
         appearance = try c.decodeIfPresent(String.self, forKey: .appearance) ?? d.appearance
         panelOpacity = min(1, max(0.5, try c.decodeIfPresent(Double.self, forKey: .panelOpacity) ?? d.panelOpacity))
@@ -222,6 +230,8 @@ struct Settings: Codable, Equatable {
         clipboardKeepHistory = try c.decodeIfPresent(Bool.self, forKey: .clipboardKeepHistory) ?? d.clipboardKeepHistory
         clipboardForgetAfterDays = max(0, try c.decodeIfPresent(Int.self, forKey: .clipboardForgetAfterDays) ?? d.clipboardForgetAfterDays)
     }
+
+    private enum LegacyKeys: String, CodingKey { case windowSwitcherHotkey }
 
     static func load() -> Settings {
         if let data = try? Data(contentsOf: Paths.settings), let s = try? JSONDecoder().decode(Settings.self, from: data) {

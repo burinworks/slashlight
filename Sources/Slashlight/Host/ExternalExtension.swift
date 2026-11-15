@@ -26,6 +26,17 @@ final class ExternalExtension: Extension {
         var permissions: ExtensionPermissions.FileBlock?
         /// One sentence per permission, written by the author.
         var why: [String: String]?
+        /// Actions the user can run with a key; see docs/extension-protocol.md.
+        var hotkeys: [FileHotkey]?
+    }
+
+    struct FileHotkey: Codable {
+        var id: String
+        var title: String
+        /// "global" | "local"
+        var scope: String
+        /// "cmd+shift+j"; absent leaves the action without a key until the user sets one.
+        var `default`: String?
     }
 
     private let file: FileManifest
@@ -56,6 +67,28 @@ final class ExternalExtension: Extension {
         let permissions = try ExtensionPermissions(file.permissions)
         if file.triggers.contains("default") && !permissions.defaultSearch {
             throw ProtocolError(errorDescription: "uses the default trigger without \"defaultSearch\": true in permissions")
+        }
+        for hk in file.hotkeys ?? [] {
+            guard !hk.id.isEmpty, hk.id != "open", hk.id.allSatisfy({ allowed.contains($0) }) else {
+                throw ProtocolError(errorDescription: "hotkey id \"\(hk.id)\": use lowercase letters, digits, - _ and . (not \"open\")")
+            }
+            guard let scope = HotkeyAction.Scope(rawValue: hk.scope) else {
+                throw ProtocolError(errorDescription: "hotkey \"\(hk.id)\": scope must be \"global\" or \"local\"")
+            }
+            if let d = hk.default {
+                guard let s = Shortcut(string: d), KeyCodes.code(for: s.key) != nil else {
+                    throw ProtocolError(errorDescription: "hotkey \"\(hk.id)\": can't read the key \"\(d)\"")
+                }
+                guard HotkeyMap.isAllowed(s, scope: scope == .global ? .global : .local) else {
+                    throw ProtocolError(errorDescription: "hotkey \"\(hk.id)\": a global key needs cmd, opt or ctrl")
+                }
+                if let reason = ReservedKeys.standardReason(s, scope: scope == .global ? .global : .local) {
+                    throw ProtocolError(errorDescription: "hotkey \"\(hk.id)\": \(reason)")
+                }
+            }
+        }
+        if Set((file.hotkeys ?? []).map(\.id)).count != (file.hotkeys ?? []).count {
+            throw ProtocolError(errorDescription: "two hotkeys share an id")
         }
         self.file = file
         self.directory = directory
@@ -89,6 +122,18 @@ final class ExternalExtension: Extension {
     }
 
     override var triggers: [Trigger] { file.triggers.compactMap(Wire.decodeTrigger) }
+
+    /// Each press sends a `hotkey` request; the extension answers with an outcome, as for `run`.
+    override var hotkeys: [HotkeyAction] {
+        (file.hotkeys ?? []).compactMap { hk in
+            guard let scope = HotkeyAction.Scope(rawValue: hk.scope) else { return nil }
+            return HotkeyAction(id: hk.id, title: hk.title, scope: scope, default: hk.default.flatMap(Shortcut.init(string:))) { [weak self] pressed in
+                guard let self else { return .stay }
+                let reply = try await self.request(Wire.Request(type: "hotkey", id: 0, query: pressed.string, actionId: hk.id))
+                return self.outcome(reply.outcome)
+            }
+        }
+    }
 
     override func deactivate() async {
         if process?.isRunning == true { send(Wire.Request(type: "shutdown", id: 0)) }

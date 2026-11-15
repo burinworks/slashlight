@@ -33,6 +33,8 @@ final class ScriptCommandsExtension: Extension {
         /// Nil with `permissionError` when a line names something that can't be granted.
         let permissions: ExtensionPermissions?
         let permissionError: String?
+        /// `# @slashlight.hotkey ctrl+opt+j`: its key until changed in Settings → Hotkeys.
+        var hotkey: Shortcut?
     }
 
     private var scripts: [Script] = []
@@ -51,6 +53,23 @@ final class ScriptCommandsExtension: Extension {
     override func activate(context: ExtensionContext) async {
         seedExampleIfEmpty()
         rescanIfChanged()
+    }
+
+    /// One global slot per script, listed under Commands, which hosts this extension. A script that needs an
+    /// argument opens the panel on "/name ".
+    override var hotkeys: [HotkeyAction] {
+        rescanIfChanged()
+        return scripts.map { s in
+            HotkeyAction(id: "script:\(s.name)", title: CommandsExtension.hotkeyTitle(s.name, s.title), scope: .global,
+                         default: s.hotkey, icon: s.icon) { [weak self] _ in
+                if s.arguments.contains(where: { $0.optional != true }) {
+                    CommandsExtension.ask(for: s.name)
+                    return .stay
+                }
+                guard let self, let action = self.item(s, arguments: []).primary else { return .stay }
+                return try await action.run()
+            }
+        }
     }
 
     /// Scripts matching the typed text, best first. "hello-world Alex": the first word picks the script, the rest are its arguments.
@@ -119,7 +138,8 @@ final class ScriptCommandsExtension: Extension {
 
         // Named like every other command: "/hello-world Alex", with the script's own title underneath.
         return Item(id: s.url.path, title: (["/\(s.name)"] + args).joined(separator: " "), subtitle: subtitle,
-                    icon: s.icon, accessories: s.isExecutable ? [] : [.pill("chmod +x", .orange)],
+                    icon: s.icon, accessories: (s.isExecutable ? [] : [.pill("chmod +x", .orange)])
+                        + (CommandsExtension.key("script:\(s.name)").map { [.keycap($0)] } ?? []),
                     primary: primary,
                     secondary: Action("Open Script", icon: .symbol("doc.text")) { NSWorkspace.shared.open(s.url); return .close },
                     more: [
@@ -131,6 +151,7 @@ final class ScriptCommandsExtension: Extension {
                             self?.context.copy(s.url.path)
                             return .hud("Copied")
                         },
+                        CommandsExtension.setHotkey(s.name),
                     ])
     }
 
@@ -343,7 +364,8 @@ final class ScriptCommandsExtension: Extension {
         }
         var permissions: ExtensionPermissions?
         var permissionError: String?
-        do { permissions = try ExtensionPermissions(scriptHeaders: ExtensionPermissions.scriptHeaders(source)) } catch {
+        let headers = ExtensionPermissions.scriptHeaders(source)
+        do { permissions = try ExtensionPermissions(scriptHeaders: headers) } catch {
             permissionError = error.localizedDescription
         }
         return Script(url: url, name: slug(url.deletingPathExtension().lastPathComponent), title: title,
@@ -352,7 +374,8 @@ final class ScriptCommandsExtension: Extension {
                       needsConfirmation: meta["needsConfirmation"] == "true", directory: directory,
                       refreshTime: max(10, meta["refreshTime"].flatMap(duration) ?? 10),
                       isExecutable: FileManager.default.isExecutableFile(atPath: url.path),
-                      permissions: permissions, permissionError: permissionError)
+                      permissions: permissions, permissionError: permissionError,
+                      hotkey: headers["hotkey"].flatMap(Shortcut.init(string:)))
     }
 
     /// `# @raycast.title Hello` / `// @raycast.title Hello` → ["title": "Hello"]

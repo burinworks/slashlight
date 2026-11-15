@@ -4,7 +4,15 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+- Settings → Hotkeys: every key grouped by what it does (Slashlight, Open Extensions, Commands & Scripts, Windows), with an icon for where it works: globe for anywhere on the Mac, Slashlight's mark for anywhere in the panel, a puzzle piece for one extension. Record a new key (esc cancels, ⌫ removes) or reset it; keys that clash or that another app took are flagged. Open Slashlight stays in General, now as the welcome tour's choice of ⌘Space, ⌥Space, ⌃Space or a recorded key, with a warning while Spotlight still holds ⌘Space; Esc is always Back.
+- Every extension with a screen gets an "Open <extension>" global slot, and every command and script a global slot, without a key until you set one. `hotkey` in commands.json and `# @slashlight.hotkey` in a script set one, Set Hotkey… on a command opens Settings on it, and a command's key shows on its row.
+- Extensions offer hotkey actions: `hotkeys` in Swift, a `hotkeys` block in `manifest.json` and a `hotkey` request for external ones. The Python example pastes a new UUID on ⌃⌥U.
+- Hotkeys can't take what macOS or every app already uses: the recorder refuses the shortcuts macOS has turned on (read from macOS) and keys like ⌘C, ⌘V, ⌘Q, ⌘Tab as global keys, and says why.
+- Hotkeys can use F1–F12 and the ; ' [ ] and backslash keys.
+
 ### Changed
+- The window switcher's key moved from `windowSwitcherHotkey` to Settings → Hotkeys; a changed key carries over.
 - The main search shows each result's icon and name only, with no subtitle or status pill such as "Running". Lists inside an extension still show them.
 - Esc goes back one screen and closes the panel only from the main search. Backspace on an empty bar no longer goes back. In the terminal, Esc at an idle prompt goes back to search; ⌘⌫ still works there too.
 
