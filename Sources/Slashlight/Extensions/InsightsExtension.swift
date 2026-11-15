@@ -30,7 +30,7 @@ final class InsightsExtension: Extension {
         let screen = EmbeddedScreen(view: host, height: 460, hints: {
             [PaletteModel.Hint(keys: "tab", label: model.period.rawValue),
              PaletteModel.Hint(keys: "↑↓", label: "Scroll"),
-             PaletteModel.Hint(keys: "⌘⌫", label: "Back"),
+             PaletteModel.Hint(keys: "esc", label: "Back"),
              PaletteModel.Hint(keys: "⌘⇧⌫", label: model.confirmClear ? "Press again to clear" : "Clear data")]
         }) { event, palette in
             let mods = Shortcut.Modifiers(event.modifierFlags)
@@ -39,9 +39,8 @@ final class InsightsExtension: Extension {
             case ("tab", [.shift]): model.cyclePeriod(-1)
             case ("down", _), ("n", [.control]): model.scroll(1)
             case ("up", _), ("p", [.control]): model.scroll(-1)
-            case ("delete", [.command]), ("[", [.command]): palette.pop()
+            case ("escape", _), ("[", [.command]): palette.pop()
             case ("delete", [.command, .shift]): model.clear()
-            case ("escape", _): palette.host.hide()
             default: return false
             }
             palette.objectWillChange.send() // refresh the footer hints

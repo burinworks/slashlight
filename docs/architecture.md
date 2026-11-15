@@ -22,7 +22,7 @@ Tests/                    swift-testing suites for the Kit (fuzzy ranking, wire 
 │  PaletteView (SwiftUI)                        │   search bar, result list or grid, footer hints, terminal tabs
 │        ▲  rows / sections                     │
 │        │                                      │
-│  PaletteModel  ── screen stack ──▶ ListView   │   one screen per push; ⌫ on an empty bar pops
+│  PaletteModel  ── screen stack ──▶ ListView   │   one screen per push; Esc pops
 │        │ query                                │
 └────────┼──────────────────────────────────────┘
          ▼
