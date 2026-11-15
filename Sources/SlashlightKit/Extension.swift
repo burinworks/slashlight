@@ -156,6 +156,8 @@ public struct HotkeyAction {
     /// outcome applies to the panel only when it asks for it: `.push` opens the panel, `.hud` and `.paste` work as
     /// usual, the rest do nothing.
     public var run: @MainActor (Shortcut) async throws -> Outcome
+    /// Set by `itemAction(_:title:default:)`: the key runs the selected item's action with this id instead of `run`.
+    public private(set) var itemActionID: String?
 
     public init(id: String, title: String, scope: Scope, default shortcut: Shortcut? = nil, icon: Icon? = nil,
                 run: @escaping @MainActor (Shortcut) async throws -> Outcome) {
@@ -165,5 +167,13 @@ public struct HotkeyAction {
         self.scope = scope
         self.defaultShortcut = shortcut
         self.run = run
+    }
+
+    /// Lists an item action's shortcut in Settings → Hotkeys so the user can change it. `id` is the `Action`'s id
+    /// (its title in lowercase with dashes unless given); `default` should equal the `shortcut` the action has.
+    public static func itemAction(_ id: String, title: String, default shortcut: Shortcut?) -> HotkeyAction {
+        var a = HotkeyAction(id: "item:\(id)", title: title, scope: .local, default: shortcut) { _ in .stay }
+        a.itemActionID = id
+        return a
     }
 }

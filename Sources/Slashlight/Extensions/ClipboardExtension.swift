@@ -23,6 +23,19 @@ final class ClipboardExtension: Extension {
 
     override var triggers: [Trigger] { [.command("clipboard")] }
 
+    /// Shortcuts of this extension's item actions, listed in Settings → Hotkeys so they can be changed.
+    override var hotkeys: [HotkeyAction] {
+        [
+         .itemAction("paste-as-plain-text", title: "Paste as Plain Text", default: Shortcut("v", [.command, .shift])),
+         .itemAction("save-as-snippet", title: "Save as Snippet", default: Shortcut("s", [.command])),
+         .itemAction("open-in-preview", title: "Open in Preview", default: Shortcut("o", [.command])),
+         .itemAction("open", title: "Open file", default: Shortcut("o", [.command])),
+         .itemAction("show-in-finder", title: "Show in Finder", default: Shortcut("f", [.command, .shift])),
+         .itemAction("delete", title: "Delete", default: Shortcut("delete", [.command])),
+         .itemAction("clear-history", title: "Clear History", default: Shortcut("delete", [.command, .shift])),
+        ]
+    }
+
     override func activate(context: ExtensionContext) async {
         Self.shared = self
         apply(Host.shared.settings)
