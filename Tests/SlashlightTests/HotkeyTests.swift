@@ -6,7 +6,7 @@ import Testing
 @Suite("Hotkeys") @MainActor
 struct HotkeyTests {
     private func binding(_ owner: String, _ action: String, _ scope: HotkeyBinding.Scope, _ key: String?) -> HotkeyBinding {
-        HotkeyBinding(owner: owner, ownerTitle: owner, action: action, title: action, scope: scope,
+        HotkeyBinding(owner: owner, ownerTitle: owner, action: action, title: action, scope: scope, group: .other(owner), icon: nil,
                       defaultShortcut: nil, shortcut: key.flatMap(Shortcut.init(string:)), run: { _ in })
     }
 
@@ -32,7 +32,9 @@ struct HotkeyTests {
         #expect(HotkeyMap.isAllowed(Shortcut("v", [.command, .option]), scope: .global))
         #expect(!HotkeyMap.isAllowed(Shortcut("v", .shift), scope: .global))
         #expect(!HotkeyMap.isAllowed(Shortcut("escape"), scope: .global))
-        #expect(HotkeyMap.isAllowed(Shortcut("escape"), scope: .system))
+        // Esc is always Back.
+        #expect(!HotkeyMap.isAllowed(Shortcut("escape"), scope: .system))
+        #expect(ReservedKeys.standardReason(Shortcut("escape"), scope: .local) == "esc always goes back")
         #expect(HotkeyMap.isAllowed(Shortcut("f5"), scope: .local))
         #expect(!HotkeyMap.isAllowed(Shortcut("a"), scope: .local))
     }
@@ -65,7 +67,7 @@ struct HotkeyTests {
         #expect(ReservedKeys.standardReason(Shortcut("q", .command), scope: .local) == nil)
         #expect(ReservedKeys.standardReason(Shortcut("v", [.command, .option]), scope: .global) == nil)
         // Slashlight's own defaults don't trip over the list.
-        for key in SystemHotkey.allCases where key != .settings {
+        for key in SystemHotkey.allCases where key != .settings && key != .back {
             #expect(ReservedKeys.standardReason(key.defaultShortcut, scope: .system) == nil, "\(key)")
         }
     }
@@ -76,6 +78,17 @@ struct HotkeyTests {
             #expect(!name.isEmpty)
             #expect(KeyCodes.code(for: s.key) != nil)
         }
+    }
+
+    @Test func commandsAndScriptsCarryTheirOwnKey() throws {
+        let json = #"[{"name":"my-ip","type":"shell","run":"curl x","hotkey":"ctrl+opt+i"},{"name":"gh","type":"url","run":"https://github.com/search?q={query}"}]"#
+        let commands = try JSONDecoder().decode([CommandsExtension.Command].self, from: Data(json.utf8))
+        #expect(commands[0].hotkey.flatMap(Shortcut.init(string:)) == Shortcut("i", [.control, .option]))
+        #expect(commands[1].hotkey == nil)
+        let script = ScriptCommandsExtension.parse(URL(fileURLWithPath: "/tmp/x.sh"),
+                                                   "#!/bin/sh\n# @raycast.title X\n# @slashlight.hotkey ctrl+opt+x\necho\n")
+        #expect(script?.hotkey == Shortcut("x", [.control, .option]))
+        #expect(script?.permissionError == nil)
     }
 
     @Test func functionKeysAndPunctuationRegister() {

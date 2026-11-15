@@ -150,13 +150,16 @@ public struct HotkeyAction {
     public var scope: Scope
     /// The key until the user changes it; nil leaves the action without one.
     public var defaultShortcut: Shortcut?
+    /// Shown next to it in Settings; the extension's icon when nil.
+    public var icon: Icon?
     /// Gets the key that was pressed, which is the user's choice when they changed it. A global action's
     /// outcome applies to the panel only when it asks for it: `.push` opens the panel, `.hud` and `.paste` work as
     /// usual, the rest do nothing.
     public var run: @MainActor (Shortcut) async throws -> Outcome
 
-    public init(id: String, title: String, scope: Scope, default shortcut: Shortcut? = nil,
+    public init(id: String, title: String, scope: Scope, default shortcut: Shortcut? = nil, icon: Icon? = nil,
                 run: @escaping @MainActor (Shortcut) async throws -> Outcome) {
+        self.icon = icon
         self.id = id
         self.title = title
         self.scope = scope
