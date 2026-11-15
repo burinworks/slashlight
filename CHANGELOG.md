@@ -5,8 +5,15 @@ All notable changes to this project are documented here. The format follows [Kee
 ## [Unreleased]
 
 ### Changed
+- Beta and stable builds hide Show Welcome Tour, Reset Welcome Tour and Uninstall in Settings → About until you click the version a few times. Local and test builds still show them.
+
+## [0.4.2] - 2026-11-15
+
+### Changed
 - The main search ranks across extensions instead of always listing apps first. The best result is the **Top Hit**, and lists follow in order of their best result. A word that starts with what you typed beats letters inside a word ("his" finds Clipboard *His*tory before About T*his* Mac), extensions edge out apps when the match is as good, files come later and the web search last.
 - It learns: what you open for what you typed ranks first next time, also for shorter and longer versions of the query ("hi", "hist"). The memory fades over about a month and stays in `search-memory.json` on this Mac.
+
+## [0.4.1] - 2026-11-15
 
 ### Added
 - Settings → Hotkeys lists every key Slashlight uses: ⌃P/⌃N, ⌘↵, the terminal tab keys (⌘⌫ ⌘T ⌘W ⌃⇥ ⌃⇧⇥), Insights' Clear, and every item action's shortcut (Copy Path, Quit App, Delete, Paste as Plain Text…), each changeable. Arrows, ↵, Tab, Esc and ⌘1…⌘9 stay fixed.
