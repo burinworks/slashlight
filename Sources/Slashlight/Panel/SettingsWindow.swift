@@ -308,7 +308,7 @@ struct HotkeyRecorder: View {
     @State private var refusal: String?
 
     var body: some View {
-        HStack(spacing: 8) {
+        VStack(alignment: .trailing, spacing: 3) {
             Button(action: toggle) {
                 Text(recording ? "Press keys…" : placeholder ?? Shortcut(string: value)?.display ?? (value.isEmpty ? "Record" : value))
                     .font(.system(size: 13, weight: .medium, design: .rounded))
@@ -320,6 +320,7 @@ struct HotkeyRecorder: View {
             .popover(isPresented: Binding(get: { refusal != nil }, set: { if !$0 { refusal = nil } }), arrowEdge: .bottom) {
                 Label(refusal ?? "", systemImage: "nosign").font(.callout).padding(10)
             }
+            // Always laid out, only shown while recording, so the button never moves.
             if showsHint {
                 RecorderHint(canClear: canClear && !value.isEmpty).opacity(recording ? 1 : 0)
             }
@@ -385,21 +386,30 @@ struct HotkeyRecorder: View {
     }
 }
 
-/// "esc cancel  ⌫ remove", in the panel's footer style.
+/// "esc cancel · ⌫ remove" under the recorder: one short line, so rows grow only a little.
 private struct RecorderHint: View {
     let canClear: Bool
 
+    private func key(_ k: String) -> some View {
+        Text(k)
+            .font(.system(size: 9.5, weight: .medium))
+            .padding(.horizontal, 3)
+            .background(RoundedRectangle(cornerRadius: 3, style: .continuous).stroke(.secondary.opacity(0.5), lineWidth: 0.75))
+    }
+
     var body: some View {
-        HStack(spacing: 4) {
-            Keycap(label: "esc")
-            Text("cancel").font(.caption).foregroundStyle(.secondary)
+        HStack(spacing: 3) {
+            key("esc")
+            Text("cancel")
             if canClear {
-                Keycap(label: "⌫").padding(.leading, 4)
-                Text("remove").font(.caption).foregroundStyle(.secondary)
+                key("⌫").padding(.leading, 5)
+                Text("remove")
             }
         }
+        .font(.system(size: 10))
+        .foregroundStyle(.secondary)
+        .frame(height: 13)
         .fixedSize()
-        .frame(width: 150, alignment: .leading)
     }
 }
 
@@ -409,10 +419,8 @@ private struct RecorderHint: View {
 private struct OpenHotkeyPicker: View {
     @ObservedObject var model: SettingsModel
 
-    static let presets: [(value: String, name: String, note: String)] = [
-        ("cmd+space", "Command Space", "Replaces Spotlight"),
-        ("opt+space", "Option Space", "The default"),
-        ("ctrl+space", "Control Space", "Rarely taken"),
+    static let presets: [(value: String, name: String)] = [
+        ("cmd+space", "Command Space"), ("opt+space", "Option Space"), ("ctrl+space", "Control Space"),
     ]
 
     private var value: String { model.settings.hotkey }
@@ -427,14 +435,14 @@ private struct OpenHotkeyPicker: View {
                         ForEach(HotkeyLabels.keys(p.value), id: \.self) { BigKey(label: $0, height: 24) }
                     }
                     .frame(height: 30)
-                    CardCaption(name: p.name, note: p.note)
+                    CardCaption(name: p.name)
                 }
             }
             ChoiceCard(selected: isCustom, action: nil) {
                 HotkeyRecorder(value: Binding(get: { value }, set: { set($0) }), placeholder: isCustom ? nil : "Record")
                     .controlSize(.small)
                     .frame(height: 30)
-                CardCaption(name: "Custom", note: isCustom ? "Click to change" : "Click, then press keys")
+                CardCaption(name: "Custom")
             }
         }
         .padding(.vertical, 4)
@@ -443,15 +451,9 @@ private struct OpenHotkeyPicker: View {
 
 private struct CardCaption: View {
     let name: String
-    let note: String
 
     var body: some View {
-        VStack(spacing: 1) {
-            Text(name).font(.system(size: 12, weight: .semibold))
-            Text(note).font(.system(size: 10.5)).foregroundStyle(.secondary)
-        }
-        .lineLimit(1)
-        .minimumScaleFactor(0.85)
+        Text(name).font(.system(size: 12, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.85)
     }
 }
 
@@ -466,7 +468,7 @@ private struct ChoiceCard<Content: View>: View {
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
         let card = VStack(spacing: 8) { content }
-            .frame(maxWidth: .infinity, minHeight: 84)
+            .frame(maxWidth: .infinity, minHeight: 72)
             .padding(.horizontal, 6)
             .background(shape.fill(Color.primary.opacity(hover || selected ? 0.07 : 0.04)))
             .overlay(shape.strokeBorder(selected ? Color.accentColor : Color.primary.opacity(0.1), lineWidth: selected ? 2 : 1))
@@ -510,39 +512,41 @@ private struct HotkeysSettings: View {
 
     var body: some View {
         let all = model.hotkeys
-        Form {
-            Section {
-                TextField("Find a hotkey", text: $model.hotkeyFilter, prompt: Text("Find a hotkey"))
-                    .labelsHidden()
-            } footer: {
-                HStack(spacing: 14) {
-                    ScopeLegend(scope: .global, text: "anywhere on your Mac")
-                    ScopeLegend(scope: .system, text: "anywhere in Slashlight")
-                    ScopeLegend(scope: .local, text: "only in that extension")
-                }
-                .font(.caption).foregroundStyle(.secondary)
-            }
-            ForEach(groups(all), id: \.group) { group in
+        VStack(spacing: 0) {
+            Form {
                 Section {
-                    if group.group == .windows {
-                        Toggle("Use Window Layout's global keys", isOn: model.binding(\.windowManagementHotkeys))
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                        TextField("Find a hotkey", text: $model.hotkeyFilter, prompt: Text("Find a hotkey"))
+                            .labelsHidden()
+                            .textFieldStyle(.plain)
                     }
-                    ForEach(group.rows) { b in HotkeyRow(binding: b, all: all, model: model) }
-                } header: {
-                    Text(group.group.title)
-                } footer: {
-                    if group.group == .slashlight {
-                        Text("Open Slashlight is set in General.").font(.caption).foregroundStyle(.secondary)
+                }
+                ForEach(groups(all), id: \.group) { group in
+                    Section(group.group.title) {
+                        if group.group == .windows {
+                            Toggle("Use Window Layout's global keys", isOn: model.binding(\.windowManagementHotkeys))
+                        }
+                        ForEach(group.rows) { b in HotkeyRow(binding: b, all: all, model: model) }
+                    }
+                }
+                Section {
+                    LabeledContent("All hotkeys") {
+                        Button("Reset to Defaults", role: .destructive, action: model.resetAllHotkeys)
                     }
                 }
             }
-            Section {
-                LabeledContent("All hotkeys") {
-                    Button("Reset to Defaults", role: .destructive, action: model.resetAllHotkeys)
-                }
+            .formStyle(.grouped)
+            Divider()
+            HStack(spacing: 18) {
+                ScopeLegend(scope: .global, text: "anywhere on your Mac")
+                ScopeLegend(scope: .system, text: "anywhere in Slashlight")
+                ScopeLegend(scope: .local, text: "only in that extension")
             }
+            .font(.caption).foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 34)
         }
-        .formStyle(.grouped)
         .id(model.extensionsVersion)
     }
 }
@@ -594,37 +598,25 @@ private struct HotkeyRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 10) {
-            if let icon = binding.icon { IconView(icon: icon, size: 18).frame(width: 20) }
+        HStack(alignment: .top, spacing: 10) {
+            ScopeIcon(scope: binding.scope).frame(width: 18, height: 22)
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(binding.title).lineLimit(1)
-                    ScopeIcon(scope: binding.scope)
-                }
+                Text(binding.title).lineLimit(1).frame(height: 22)
                 if let warning {
                     Label(warning, systemImage: "exclamationmark.triangle.fill")
                         .font(.caption).foregroundStyle(.orange).lineLimit(2)
                 }
             }
             Spacer(minLength: 8)
-            if binding.isEditable {
-                Button { model.resetHotkey(binding) } label: { Image(systemName: "arrow.counterclockwise") }
-                    .buttonStyle(.borderless)
-                    .help("Back to \(binding.defaultShortcut?.display ?? "no key")")
-                    .opacity(binding.isDefault ? 0 : 1)
-                    .disabled(binding.isDefault)
-                HotkeyRecorder(value: Binding(get: { binding.shortcut?.string ?? "" },
-                                              set: { model.setHotkey(binding, $0) }),
-                               scope: binding.scope, canClear: true, showsHint: true)
-            } else {
-                HStack(spacing: 8) {
-                    Keycap(label: binding.shortcut?.display ?? "")
-                        .frame(minWidth: 126)
-                    Text("can't be changed").font(.caption).foregroundStyle(.secondary)
-                        .frame(width: 150, alignment: .leading)
-                }
-                .help("Esc always goes back")
-            }
+            Button { model.resetHotkey(binding) } label: { Image(systemName: "arrow.counterclockwise") }
+                .buttonStyle(.borderless)
+                .help("Back to \(binding.defaultShortcut?.display ?? "no key")")
+                .frame(height: 22)
+                .opacity(binding.isDefault ? 0 : 1)
+                .disabled(binding.isDefault)
+            HotkeyRecorder(value: Binding(get: { binding.shortcut?.string ?? "" },
+                                          set: { model.setHotkey(binding, $0) }),
+                           scope: binding.scope, canClear: true, showsHint: true)
         }
     }
 }
@@ -739,35 +731,75 @@ private struct AboutSettings: View {
 }
 
 /// A small panel over a colorful backdrop, so the opacity and blur settings can be judged without opening the panel.
+/// The real panel, drawn with its own parts at a smaller scale over a busy wallpaper, so the opacity and blur
+/// settings show what they will do.
 private struct PanelPreview: View {
     @ObservedObject var style = PanelStyle.shared
+    private let scale: CGFloat = 0.62
+
+    private static let rows: [PaletteModel.Row] = [
+        ("safari", "Safari", Icon.file("/Applications/Safari.app")),
+        ("notes", "Notes", Icon.file("/System/Applications/Notes.app")),
+        ("clipboard", "Clipboard History", Icon.symbol("doc.on.clipboard")),
+    ].enumerated().map { i, r in
+        PaletteModel.Row(id: r.0, index: i, item: Item(id: r.0, title: r.1, icon: r.2, primary: Action("Open") { .close }), extensionID: nil)
+    }
+
+    private var panel: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                Image(systemName: "magnifyingglass").font(.system(size: 19, weight: .light)).foregroundStyle(Theme.text)
+                Text("Search…").font(.system(size: 20)).foregroundStyle(Theme.secondary)
+                Spacer()
+                Keycap(label: "esc")
+            }
+            .padding(.horizontal, 18)
+            .frame(height: 60)
+            Rectangle().fill(Theme.divider).frame(height: 1)
+            VStack(alignment: .leading, spacing: 0) {
+                Text("RECENT")
+                    .font(.system(size: 11, weight: .medium)).tracking(1.4).foregroundStyle(Theme.secondary)
+                    .padding(.leading, 10).padding(.top, 8).padding(.bottom, 4)
+                ForEach(Self.rows) { row in ResultRow(row: row, selected: row.index == 0, plain: true) }
+            }
+            .padding(8)
+            HStack(spacing: 14) {
+                ForEach([("↵", "Open"), ("⌘K", "Actions"), ("↑↓", "Navigate")], id: \.0) { k, label in
+                    HStack(spacing: 6) {
+                        Keycap(label: k)
+                        Text(label).font(.system(size: 12)).foregroundStyle(Theme.secondary)
+                    }
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .frame(height: 40)
+            .background(Theme.footer.opacity(style.opacity))
+            .overlay(alignment: .top) { Rectangle().fill(Theme.divider).frame(height: 1) }
+        }
+        .frame(width: Theme.width)
+        .background(PanelBackground(style: style, blending: .withinWindow))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous).stroke(Theme.border, lineWidth: 0.5))
+        .shadow(color: .black.opacity(0.25), radius: 24, y: 10)
+    }
 
     var body: some View {
         ZStack {
             LinearGradient(colors: [.orange, .pink, .purple, .blue], startPoint: .topLeading, endPoint: .bottomTrailing)
-            HStack(spacing: 18) { ForEach(0..<6) { _ in Circle().fill(.white.opacity(0.8)).frame(width: 18) } }
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass").foregroundStyle(Theme.text)
-                    Text("Search…").foregroundStyle(Theme.secondary)
-                    Spacer()
+            // Something with edges behind the panel, so blur and see-through are visible.
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(0..<6) { i in
+                    RoundedRectangle(cornerRadius: 3).fill(.white.opacity(0.75)).frame(width: CGFloat(140 + (i * 53) % 220), height: 9)
                 }
-                HStack(spacing: 8) {
-                    IconView(icon: .symbol("square.grid.2x2"), size: 22)
-                    Text("All Apps").foregroundStyle(Theme.text)
-                    Spacer()
-                }
-                .padding(6)
-                .background(Theme.selection, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
             }
-            .font(.system(size: 13))
-            .padding(12)
-            .frame(width: 260)
-            .background(PanelBackground(style: style, blending: .withinWindow))
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Theme.border, lineWidth: 0.5))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.leading, 40)
+            panel
+                .scaleEffect(scale)
+                .frame(width: Theme.width * scale, height: 286 * scale)
         }
-        .frame(height: 130)
+        .frame(height: 210)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
