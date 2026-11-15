@@ -4,32 +4,14 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-15
+
 ### Added
 - Settings → Hotkeys: every key grouped by what it does (Slashlight, Open Extensions, Commands & Scripts, Windows), with an icon for where it works: globe for anywhere on the Mac, Slashlight's mark for anywhere in the panel, a puzzle piece for one extension. Record a new key (esc cancels, ⌫ removes) or reset it; keys that clash or that another app took are flagged. Open Slashlight stays in General, now as the welcome tour's choice of ⌘Space, ⌥Space, ⌃Space or a recorded key, with a warning while Spotlight still holds ⌘Space; Esc is always Back.
 - Every extension with a screen gets an "Open <extension>" global slot, and every command and script a global slot, without a key until you set one. `hotkey` in commands.json and `# @slashlight.hotkey` in a script set one, Set Hotkey… on a command opens Settings on it, and a command's key shows on its row.
 - Extensions offer hotkey actions: `hotkeys` in Swift, a `hotkeys` block in `manifest.json` and a `hotkey` request for external ones. The Python example pastes a new UUID on ⌃⌥U.
 - Hotkeys can't take what macOS or every app already uses: the recorder refuses the shortcuts macOS has turned on (read from macOS) and keys like ⌘C, ⌘V, ⌘Q, ⌘Tab as global keys, and says why.
 - Hotkeys can use F1–F12 and the ; ' [ ] and backslash keys.
-
-### Changed
-- The window switcher's key moved from `windowSwitcherHotkey` to Settings → Hotkeys; a changed key carries over.
-- The main search shows each result's icon and name only, with no subtitle or status pill such as "Running". Lists inside an extension still show them.
-- Esc goes back one screen and closes the panel only from the main search. Backspace on an empty bar no longer goes back. In the terminal, Esc at an idle prompt goes back to search; ⌘⌫ still works there too.
-
-### Security
-- External extensions and script commands run in a macOS sandbox (Seatbelt). They get their own folder, a data folder and their own temp folder. Anything else needs a permission in `manifest.json` (`permissions`) or a `# @slashlight.*` header line:
-  - the network
-  - other folders in your home folder
-  - running other programs
-  - opening apps and websites
-  The clipboard, the Keychain, Apple Events, launchd jobs, Slashlight's data, `~/.ssh` and other secrets, the window server and Accessibility are always blocked. Writing outside the granted folders is blocked too, so an extension can't replace programs in `/opt/homebrew`.
-- Extensions granted ~/Documents, ~/Desktop or ~/Downloads run under Slashlight's folder access, since macOS gives a program that is its own responsible process no access to those folders. The sandbox still blocks Accessibility and Screen Recording for them.
-- External extensions keep their data in `ExtensionData/<id>`, and an extension can no longer use a built-in's id (such as `clipboard`) to reach its data. Manifests using the `default` trigger need `"defaultSearch": true`.
-- External extensions and Raycast script commands no longer inherit Slashlight's Accessibility, Screen Recording and Automation access: each runs as its own responsible process.
-- They start with a short, clean environment (no tokens from your shell), none of Slashlight's open files, default signal handlers, and in their own process group, so stopping one also stops what it started.
-- `context.copy` in the SDK asks the host to write the clipboard (new `copy` message).
-
-### Added
 - Each build says what it is: local builds are **Slashlight Dev** and CI builds of `test` and pull requests are **Slashlight Test**, each with its own app ID, settings folder and permissions. Both stay in the Dock with a DEV / TEST badge, and the panel's footer shows a tag (Local build, Test · build n, Beta · build n).
 - Build numbers: every pull request merged into `test` adds one; beta and stable keep the number of the test build they came from. Shown in Settings → About and Updates.
 - Uninstall from Settings → About or the menu bar icon: moves the app to the Trash, resets its permissions and login item, and optionally deletes its data. Reset Welcome Tour in Settings → About.
@@ -41,19 +23,13 @@ All notable changes to this project are documented here. The format follows [Kee
 - `Extension.recentItem(id:title:)` rebuilds a recent item when the panel opens.
 - Settings → General → Appearance: background opacity (see-through to solid) and blur behind the panel, with a live preview.
 - `Extension.panelWillOpen()`: called each time the panel opens, so extensions can reload cached data.
-- Usage Insights (`/stats`): a dashboard of your own usage, with actions per day, busiest hours, top extensions and items, streak, median time to action and tips. Recorded locally only.
-- Welcome tour on first launch: pick a hotkey (with a shortcut to free ⌘Space from Spotlight), see what you can type, where extensions live and which optional permissions help. Replay it from the menu bar icon or Settings → About. Existing installs skip it.
-- `--onboarding --step N --snapshot-onboarding out.png` renders a tour step for checking UI changes.
-- Test suites for fuzzy ranking, the wire protocol and the calculator parser.
-- CI (build, test, universal app artifact), CodeQL and tag-driven GitHub releases.
-- Python example extension and a guide to writing extensions.
-- App icon, and releases ship as a drag-to-Applications `.dmg`.
-- In-app updates with Sparkle: **Check for Updates…** in the menu bar menu and Settings → General, plus **Automatically install updates** and **Join the beta program** switches.
-- Release channels: work lands on `test`, is promoted to `beta` (pre-releases `vX.Y.Z-beta.N`) and then `main` (stable releases), each with an EdDSA-signed appcast entry.
 - Security workflow: zizmor (workflow audit), TruffleHog (committed secrets), OSV-Scanner (known vulnerabilities in dependencies) and dependency review on pull requests. Every action is pinned to a commit SHA.
 - [Extension permissions](docs/extension-permissions.md) proposal: what extensions declare in `manifest.json`, what the user is shown, and how each permission is enforced.
 
 ### Changed
+- The window switcher's key moved from `windowSwitcherHotkey` to Settings → Hotkeys; a changed key carries over.
+- The main search shows each result's icon and name only, with no subtitle or status pill such as "Running". Lists inside an extension still show them.
+- Esc goes back one screen and closes the panel only from the main search. Backspace on an empty bar no longer goes back. In the terminal, Esc at an idle prompt goes back to search; ⌘⌫ still works there too.
 - Local builds are named **Slashlight Dev** with their own app ID, so they no longer take over the installed app's permissions or Keychain item.
 - Welcome tour shows the new search: `/` lists commands, extensions open by name, and `5 km` converts without a target.
 - Extensions open by typing their name; `/` lists commands only. `command:<name>` triggers are now extra names to find the extension by.
@@ -73,6 +49,33 @@ All notable changes to this project are documented here. The format follows [Kee
   - Screen Recording shows as granted without restarting Slashlight.
   - Settings → Permissions and the welcome tour have a **Reset** button for a switch left over from an earlier copy.
 - Hotkey recording stops when you click anything else, such as a suggested hotkey in the welcome tour.
+
+### Security
+- External extensions and script commands run in a macOS sandbox (Seatbelt). They get their own folder, a data folder and their own temp folder. Anything else needs a permission in `manifest.json` (`permissions`) or a `# @slashlight.*` header line:
+  - the network
+  - other folders in your home folder
+  - running other programs
+  - opening apps and websites
+  The clipboard, the Keychain, Apple Events, launchd jobs, Slashlight's data, `~/.ssh` and other secrets, the window server and Accessibility are always blocked. Writing outside the granted folders is blocked too, so an extension can't replace programs in `/opt/homebrew`.
+- Extensions granted ~/Documents, ~/Desktop or ~/Downloads run under Slashlight's folder access, since macOS gives a program that is its own responsible process no access to those folders. The sandbox still blocks Accessibility and Screen Recording for them.
+- External extensions keep their data in `ExtensionData/<id>`, and an extension can no longer use a built-in's id (such as `clipboard`) to reach its data. Manifests using the `default` trigger need `"defaultSearch": true`.
+- External extensions and Raycast script commands no longer inherit Slashlight's Accessibility, Screen Recording and Automation access: each runs as its own responsible process.
+- They start with a short, clean environment (no tokens from your shell), none of Slashlight's open files, default signal handlers, and in their own process group, so stopping one also stops what it started.
+- `context.copy` in the SDK asks the host to write the clipboard (new `copy` message).
+
+## [0.3.0] - 2026-11-01
+
+### Added
+- Usage Insights (`/insights`): a dashboard of your own usage, with actions per day, busiest hours, top extensions and items, streak, median time to action and tips. Recorded locally only.
+- Welcome tour on first launch: pick a hotkey (with a shortcut to free ⌘Space from Spotlight), see what you can type, where extensions live and which optional permissions help. Replay it from the menu bar icon or Settings → About. Existing installs skip it.
+- `--onboarding --step N --snapshot-onboarding out.png` renders a tour step for checking UI changes.
+- Home screen shows your 5 most recently used extensions above the full A–Z list.
+- Test suites for fuzzy ranking, the wire protocol and the calculator parser.
+- CI (build, test, universal app artifact), CodeQL and tag-driven GitHub releases.
+- Python example extension and a guide to writing extensions.
+- App icon, and releases ship as a drag-to-Applications `.dmg`.
+- In-app updates with Sparkle: **Check for Updates…** in the menu bar menu and Settings → General, plus **Automatically install updates** and **Join the beta program** switches.
+- Release channels: work lands on `test`, is promoted to `beta` (pre-releases `vX.Y.Z-beta.N`) and then `main` (stable releases), each with an EdDSA-signed appcast entry.
 
 ## [0.2.0] - 2026-10-29
 
