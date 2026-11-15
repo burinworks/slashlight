@@ -279,6 +279,8 @@ struct HotkeyRecorder: View {
     /// When a click ended recording. The same click then reaches this button, which must not start again.
     @State private var stoppedByClick = Date.distantPast
     @State private var lastEsc = Date.distantPast
+    /// Why the last key pressed was refused (⌘C is Copy…); shown under the button for a moment.
+    @State private var refusal: String?
 
     var body: some View {
         HStack(spacing: 6) {
@@ -289,6 +291,9 @@ struct HotkeyRecorder: View {
             }
             .buttonStyle(.bordered)
             .tint(recording ? .accentColor : nil)
+            .popover(isPresented: Binding(get: { refusal != nil }, set: { if !$0 { refusal = nil } }), arrowEdge: .bottom) {
+                Label(refusal ?? "", systemImage: "nosign").font(.callout).padding(10)
+            }
         }
         .onDisappear(perform: stop)
         // Another control set the hotkey (a suggested one was picked).
@@ -318,7 +323,14 @@ struct HotkeyRecorder: View {
                 return nil
             }
             let shortcut = Shortcut(KeyCodes.key(for: event), mods)
-            guard HotkeyMap.isAllowed(shortcut, scope: scope) else { NSSound.beep(); return nil }
+            guard HotkeyMap.isAllowed(shortcut, scope: scope) else {
+                refuse(scope == .global ? "Add ⌘, ⌥ or ⌃" : "Add ⌘, ⌥ or ⌃, or use Esc, Tab or F1–F12")
+                return nil
+            }
+            if let reason = ReservedKeys.reason(shortcut, scope: scope) {
+                refuse(reason)
+                return nil
+            }
             value = shortcut.string
             stop()
             return nil
@@ -330,7 +342,15 @@ struct HotkeyRecorder: View {
         }
     }
 
+    /// Keeps recording, so the next key can be tried straight away.
+    private func refuse(_ reason: String) {
+        NSSound.beep()
+        refusal = reason
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { if refusal == reason { refusal = nil } }
+    }
+
     private func stop() {
+        refusal = nil
         guard recording else { return }
         recording = false
         if let monitor { NSEvent.removeMonitor(monitor) }
@@ -403,6 +423,7 @@ private struct HotkeyRow: View {
     @ObservedObject var model: SettingsModel
 
     private var warning: String? {
+        if let s = binding.shortcut, let reason = ReservedKeys.reason(s, scope: binding.scope) { return reason }
         let clashes = HotkeyMap.conflicts(of: binding, in: all)
         if !clashes.isEmpty {
             return "Also used by " + clashes.map { $0.owner == binding.owner ? $0.title : "\($0.ownerTitle): \($0.title)" }

@@ -47,6 +47,8 @@ final class Host {
         for b in hotkeyBindings where b.scope == .global {
             guard let s = b.shortcut else { continue }
             if b.owner == "window-management" && !settings.windowManagementHotkeys { continue }
+            // Never take ⌘C and the like from every app; macOS's own keys would never arrive anyway.
+            if ReservedKeys.reason(s, scope: .global) != nil { failedHotkeys.insert(b.id); continue }
             if !HotKeyCenter.shared.register(s, handler: { b.run(s) }) { failedHotkeys.insert(b.id) }
         }
     }

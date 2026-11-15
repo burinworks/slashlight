@@ -56,6 +56,28 @@ struct HotkeyTests {
         #expect(HotkeyMap.conflicts(of: binding("x", "y", .global, nil), in: all).isEmpty)
     }
 
+    @Test func everyAppsKeysAreOffLimits() {
+        // ⌘C copies in every app: never a global key, and not a panel key either (the search field needs it).
+        #expect(ReservedKeys.standardReason(Shortcut("c", .command), scope: .global) == "⌘C is Copy in every app")
+        #expect(ReservedKeys.standardReason(Shortcut("c", .command), scope: .local) != nil)
+        // ⌘Q quits other apps, but inside the panel it is free to use.
+        #expect(ReservedKeys.standardReason(Shortcut("q", .command), scope: .global) != nil)
+        #expect(ReservedKeys.standardReason(Shortcut("q", .command), scope: .local) == nil)
+        #expect(ReservedKeys.standardReason(Shortcut("v", [.command, .option]), scope: .global) == nil)
+        // Slashlight's own defaults don't trip over the list.
+        for key in SystemHotkey.allCases where key != .settings {
+            #expect(ReservedKeys.standardReason(key.defaultShortcut, scope: .system) == nil, "\(key)")
+        }
+    }
+
+    @Test func macOSShortcutsAreReadWithoutCrashing() {
+        // Whatever this Mac has turned on; every entry needs a key Slashlight can name.
+        for (s, name) in ReservedKeys.macOS {
+            #expect(!name.isEmpty)
+            #expect(KeyCodes.code(for: s.key) != nil)
+        }
+    }
+
     @Test func functionKeysAndPunctuationRegister() {
         for key in ["f5", "f12", ";", "[", "\\"] { #expect(KeyCodes.code(for: key) != nil, "\(key)") }
         #expect(Shortcut(string: "ctrl+f5")?.display == "⌃F5")
@@ -75,5 +97,7 @@ struct HotkeyTests {
         #expect(throws: (any Error).self) { try ext(#"[{"id":"open","title":"A","scope":"local"}]"#) }
         #expect(throws: (any Error).self) { try ext(#"[{"id":"a","title":"A","scope":"local"},{"id":"a","title":"B","scope":"local"}]"#) }
         #expect(throws: (any Error).self) { try ext(#"[{"id":"a","title":"A","scope":"local","default":"cmd+nosuchkey"}]"#) }
+        #expect(throws: (any Error).self) { try ext(#"[{"id":"a","title":"A","scope":"global","default":"cmd+c"}]"#) }
+        #expect(throws: (any Error).self) { try ext(#"[{"id":"a","title":"A","scope":"local","default":"cmd+v"}]"#) }
     }
 }

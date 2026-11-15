@@ -43,7 +43,7 @@ An extension can offer actions the user runs with a key. Each shows in Settings 
 ```
 
 - `scope` `global` works anywhere on the Mac while Slashlight runs; its key needs `cmd`, `opt` or `ctrl`. `local` works only while one of the extension's screens is open in the panel, and may also be `escape`, `tab` or `f1`…`f12` alone.
-- `default` is optional: without it the action has no key until the user sets one.
+- `default` is optional: without it the action has no key until the user sets one. A manifest whose global default is a key every app uses (⌘C, ⌘Q, ⌘Tab…), or whose local default is ⌘C ⌘V ⌘X ⌘A ⌘Z, doesn't load. A default that macOS itself uses on the user's Mac is not registered and shows a warning in Settings.
 - `id` uses lowercase letters, digits, `-`, `_` and `.`; `open` is taken by the "Open <title>" slot every extension with a screen gets.
 - Slashlight's own panel keys (Back, ⌘K…) come before a `local` key that clashes with them; Settings flags the clash.
 
