@@ -153,6 +153,7 @@ final class PaletteModel: ObservableObject {
     func search(selecting keep: Int = 0) {
         cancelTasks()
         generation += 1
+        ranksRoot = false
         let gen = generation
         let text = self.text
 
@@ -206,6 +207,7 @@ final class PaletteModel: ObservableObject {
         let query = Query(text: text, mode: .default)
         let commandQuery = Query(text: text, mode: .command)
         let commandProviders = host.extensions.filter { $0.triggers.contains(.commands) && !$0.triggers.contains(.defaultSearch) }
+        ranksRoot = true
         let entries: [(String?, Section)] = host.extensions
             .compactMap { ext -> (Int, Extension)? in
                 guard ext.rootView() != nil,
@@ -294,12 +296,24 @@ final class PaletteModel: ObservableObject {
         }
     }
 
+    /// Plain typing in the main search: results are ordered across extensions by `RootRanking`.
+    private var ranksRoot = false
+
     private func publish(_ parts: [(String?, Section)], selecting keep: Int) {
+        var parts = parts
+        if ranksRoot && currentView == nil && !text.isEmpty {
+            let query = text
+            parts = RootRanking.rank(parts, query: query, topHit: activeFilter == nil) {
+                SearchMemory.shared.boost(query: query, key: $0)
+            }
+        }
         unfiltered = parts
         if currentView == nil && text.isEmpty { rootFilters = []; filterIndex = 0 }
         if currentView == nil && !text.isEmpty {
             var titles: [String] = []
-            for (_, s) in parts where !s.items.isEmpty && !titles.contains(s.title) { titles.append(s.title) }
+            for (_, s) in parts where !s.items.isEmpty && !titles.contains(s.title) && s.title != RootRanking.topHit {
+                titles.append(s.title)
+            }
             let newFilters = titles.count > 1 ? ["All"] + titles : []
             if newFilters != rootFilters {
                 let active = activeFilter
@@ -437,6 +451,10 @@ final class PaletteModel: ObservableObject {
             // Opening an extension from the list counts as using the extension, not one of its items.
             let item = row.flatMap { $0.item.id.hasSuffix("open-\(id)") || fromMenu ? nil : ($0.item.id, $0.item.title) }
             Recents.record(ext: id, item: item, mode: ext.manifest.recents)
+        }
+        // Learn what was picked for what was typed, so it ranks first next time.
+        if currentView == nil, !fromMenu, let row, !text.trimmingCharacters(in: .whitespaces).isEmpty, !text.hasPrefix("/") {
+            SearchMemory.shared.record(query: text, key: RootRanking.key(row.extensionID, row.item))
         }
         UsageStore.shared.actionRan(extensionID: extensionID, item: fromMenu ? actionsMenuItem : row?.item.title,
                                     action: action.title, rank: fromMenu ? nil : row?.index,
