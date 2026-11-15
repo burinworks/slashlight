@@ -308,21 +308,21 @@ struct HotkeyRecorder: View {
     @State private var refusal: String?
 
     var body: some View {
-        VStack(alignment: .trailing, spacing: 3) {
+        HStack(spacing: 10) {
+            // Always laid out, only shown while recording, so the button never moves.
+            if showsHint {
+                RecorderHint(canClear: canClear && !value.isEmpty).opacity(recording ? 1 : 0)
+            }
             Button(action: toggle) {
                 Text(recording ? "Press keys…" : placeholder ?? Shortcut(string: value)?.display ?? (value.isEmpty ? "Record" : value))
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundStyle(!recording && value.isEmpty && placeholder == nil ? .secondary : .primary)
-                    .frame(minWidth: 110)
+                    .frame(minWidth: 92)
             }
             .buttonStyle(.bordered)
             .tint(recording ? .accentColor : nil)
             .popover(isPresented: Binding(get: { refusal != nil }, set: { if !$0 { refusal = nil } }), arrowEdge: .bottom) {
                 Label(refusal ?? "", systemImage: "nosign").font(.callout).padding(10)
-            }
-            // Always laid out, only shown while recording, so the button never moves.
-            if showsHint {
-                RecorderHint(canClear: canClear && !value.isEmpty).opacity(recording ? 1 : 0)
             }
         }
         .onDisappear(perform: stop)
@@ -598,26 +598,29 @@ private struct HotkeyRow: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            ScopeIcon(scope: binding.scope).frame(width: 18, height: 22)
+        HStack(spacing: 10) {
+            ScopeIcon(scope: binding.scope).frame(width: 18)
             VStack(alignment: .leading, spacing: 2) {
-                Text(binding.title).lineLimit(1).frame(height: 22)
+                Text(binding.title).lineLimit(1)
                 if let warning {
-                    Label(warning, systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption).foregroundStyle(.orange).lineLimit(2)
+                    Text(warning).font(.caption).foregroundStyle(.orange).lineLimit(2)
                 }
             }
-            Spacer(minLength: 8)
-            Button { model.resetHotkey(binding) } label: { Image(systemName: "arrow.counterclockwise") }
-                .buttonStyle(.borderless)
-                .help("Back to \(binding.defaultShortcut?.display ?? "no key")")
-                .frame(height: 22)
-                .opacity(binding.isDefault ? 0 : 1)
-                .disabled(binding.isDefault)
+            Spacer(minLength: 12)
+            Button { model.resetHotkey(binding) } label: {
+                Image(systemName: "arrow.counterclockwise").font(.system(size: 11, weight: .semibold))
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(.secondary)
+            .help("Back to \(binding.defaultShortcut?.display ?? "no key")")
+            .opacity(binding.isDefault ? 0 : 1)
+            .disabled(binding.isDefault)
             HotkeyRecorder(value: Binding(get: { binding.shortcut?.string ?? "" },
                                           set: { model.setHotkey(binding, $0) }),
                            scope: binding.scope, canClear: true, showsHint: true)
+                .controlSize(.small)
         }
+        .padding(.vertical, 1)
     }
 }
 
