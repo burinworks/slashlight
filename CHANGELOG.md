@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Changed
+- The main search shows each result's icon and name only, with no subtitle or status pill such as "Running". Lists inside an extension still show them.
+- Esc goes back one screen and closes the panel only from the main search. Backspace on an empty bar no longer goes back. In the terminal, Esc at an idle prompt goes back to search; ⌘⌫ still works there too.
+
 ### Security
 - External extensions and script commands run in a macOS sandbox (Seatbelt). They get their own folder, a data folder and their own temp folder. Anything else needs a permission in `manifest.json` (`permissions`) or a `# @slashlight.*` header line:
   - the network

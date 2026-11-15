@@ -31,8 +31,7 @@ Return moves forward and ← goes back. Closing the window ends the tour too; it
 | ↵ / click | Primary action |
 | ⌘↵ / ⌘-click | Secondary action |
 | ⌘K | All actions of the selected item |
-| ⌫ on an empty bar | Back one screen |
-| Esc | Close the panel |
+| Esc | Back one screen; on the main search, close the panel |
 | Tab / ⇧Tab | Cycle filters (by section type, or the screen's own filters) |
 | ⌘1…⌘9 | Run the Nth result |
 | ⌘E | Back to the extension list |
@@ -93,7 +92,7 @@ When a task that ran longer than 3 s finishes while you are elsewhere, you get a
 | Key (in a terminal tab) | Action |
 |---|---|
 | ⌘⌫ or ⌘[ | Back to search; the tab keeps running |
-| Esc | At an idle prompt, closes the panel; while a program runs (vim, less), goes to that program |
+| Esc | At an idle prompt, back to search; while a program runs (vim, less), goes to that program |
 | ⌘T / ⌘W | New tab / close tab |
 | ⌃⇥, ⌃⇧⇥, ⌘1…⌘9 | Switch tabs. From search, ⌃⇥ jumps back to the last tab |
 | ⌘C ⌘V ⌘K ⌘+ ⌘− | Copy, paste, clear, font size |
@@ -113,7 +112,7 @@ When a task that ran longer than 3 s finishes while you are elsewhere, you get a
 | Tab / ⇧Tab | 7 days, 30 days, all time |
 | ↑ ↓ | Scroll |
 | ⌘⇧⌫ twice | Delete all recorded usage |
-| ⌘⌫ | Back |
+| Esc | Back |
 
 What is recorded:
 

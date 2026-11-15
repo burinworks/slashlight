@@ -3,7 +3,7 @@ import SwiftUI
 import SlashlightKit
 
 /// A built-in screen that shows a live AppKit view (a terminal, a text editor) in place of the result list.
-/// It is attached to an ordinary `ListView`, so it rides the normal screen stack (push, pop, ⌫).
+/// It is attached to an ordinary `ListView`, so it rides the normal screen stack (push, pop, Esc).
 /// Host-only: external extensions cannot create these.
 @MainActor
 final class EmbeddedScreen {

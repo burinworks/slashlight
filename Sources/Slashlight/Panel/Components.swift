@@ -79,6 +79,13 @@ struct AccessoryView: View {
 struct ResultRow: View {
     let row: PaletteModel.Row
     let selected: Bool
+    /// The main search: title and icon only, no subtitle or status pills. Shortcut keycaps stay.
+    var plain = false
+
+    private var subtitle: String? { plain ? nil : row.item.subtitle.flatMap { $0.isEmpty ? nil : $0 } }
+    private var accessories: [Accessory] {
+        plain ? row.item.accessories.filter { if case .keycap = $0 { return true } else { return false } } : row.item.accessories
+    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -88,7 +95,7 @@ struct ResultRow: View {
                     .font(.system(size: 14))
                     .foregroundStyle(Theme.text)
                     .lineLimit(1)
-                if let sub = row.item.subtitle, !sub.isEmpty {
+                if let sub = subtitle {
                     Text(sub)
                         .font(.system(size: 12))
                         .foregroundStyle(Theme.secondary)
@@ -96,14 +103,14 @@ struct ResultRow: View {
                 }
             }
             Spacer(minLength: 8)
-            ForEach(Array(row.item.accessories.enumerated()), id: \.offset) { _, a in AccessoryView(accessory: a) }
+            ForEach(Array(accessories.enumerated()), id: \.offset) { _, a in AccessoryView(accessory: a) }
             Image(systemName: "chevron.right")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(Theme.secondary)
                 .opacity(selected ? 1 : 0)
         }
         .padding(.horizontal, 10)
-        .frame(height: row.item.subtitle?.isEmpty == false ? 46 : 40)
+        .frame(height: subtitle == nil ? 40 : 46)
         .background(selected ? Theme.selection : .clear, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .contentShape(Rectangle())
     }
