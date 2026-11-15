@@ -58,7 +58,7 @@ struct PaletteView: View {
                 .padding(.vertical, 3)
                 .background(Theme.tile, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
                 .onTapGesture { model.pop() }
-                .help("esc to go back")
+                .help("\(model.backKey) to go back")
             } else {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 19, weight: .light))
@@ -77,7 +77,7 @@ struct PaletteView: View {
             if model.isLoading {
                 ProgressView().controlSize(.small).scaleEffect(0.7)
             }
-            Keycap(label: "esc").onTapGesture { model.back() }
+            Keycap(label: model.backKey).onTapGesture { model.back() }
         }
         .padding(.horizontal, 18)
         .frame(height: 60)

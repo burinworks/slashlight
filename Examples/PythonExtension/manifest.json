@@ -5,5 +5,8 @@
   "icon": "sf:number",
   "version": "1.0",
   "triggers": ["commands", "command:uuid"],
-  "exec": ["/usr/bin/env", "python3", "extension.py"]
+  "exec": ["/usr/bin/env", "python3", "extension.py"],
+  "hotkeys": [
+    { "id": "paste-new", "title": "Paste a new UUID", "scope": "global", "default": "ctrl+opt+u" }
+  ]
 }

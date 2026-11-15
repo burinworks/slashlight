@@ -24,9 +24,19 @@ Return moves forward and ← goes back. Closing the window ends the tour too; it
 
 ## Keys
 
+Open Slashlight is set in Settings → General. Every other key is in Settings → Hotkeys, grouped by what it does: Slashlight, Open Extensions, Commands & Scripts, Windows, then any extension's own actions. An icon next to each says where it works:
+
+- 🌐 **Global**: anywhere on your Mac while Slashlight runs (window layouts, and any "Open" or command slot you give a key, e.g. ⌥⌘V for Clipboard History).
+- Slashlight's mark (a slash in a rounded square) **In Slashlight**: every screen of the panel (⌘K, ⌘E, ⌘,, ⌃⇥).
+- 🧩 **In extension**: only while that extension is open.
+
+Click a key and press a new one; while recording, esc cancels and ⌫ removes the key. ↺ goes back to the default. Esc itself is always Back and can't be changed. A key used twice where both could fire is flagged in orange, as is a global key another app already took.
+
+Some keys can't be recorded: the shortcuts macOS has turned on in System Settings → Keyboard → Keyboard Shortcuts (⌘Space for Spotlight, ⇧⌘4 for screenshots…), read from macOS itself, and keys every app uses (⌘C, ⌘V, ⌘Q, ⌘W, ⌘Tab…) as global keys. ⌘C ⌘V ⌘X ⌘A ⌘Z stay with the search field inside the panel too. The recorder says why it refused a key. Turn a macOS shortcut off in System Settings to use its key here.
+
 | Key | Action |
 |---|---|
-| ⌥Space | Open / close (change it in Settings → General) |
+| ⌥Space | Open / close |
 | ↑ ↓, ⌃N ⌃P | Move the selection |
 | ↵ / click | Primary action |
 | ⌘↵ / ⌘-click | Secondary action |
@@ -132,9 +142,11 @@ Titles are not recorded for Clipboard History, Calculator, Files and web searche
   { "name": "focus", "type": "shortcut", "run": "Focus Mode" },
   { "name": "ping", "type": "http", "method": "POST", "run": "https://example.com/hook",
     "headers": { "Content-Type": "application/json" }, "body": "{\"text\":\"{query}\"}" },
-  { "name": "mute", "type": "applescript", "run": "set volume output muted true" }
+  { "name": "mute", "type": "applescript", "run": "set volume output muted true", "hotkey": "ctrl+opt+m" }
 ]
 ```
+
+Every command and script gets a global key slot in Settings → Hotkeys. `hotkey` sets its key here (a script uses `# @slashlight.hotkey ctrl+opt+m`), and Settings can change or remove it. **Set Hotkey…** (⌘K on a command, or ⇧⌘H) opens Settings on that command. A command that needs a search term opens the panel on `/name `, ready for it. A command's key shows on its row.
 
 | `type` | `run` is |
 |---|---|
@@ -180,7 +192,7 @@ Everything lives in `~/Library/Application Support/Slashlight/`:
 ```json
 {
   "hotkey": "opt+space",
-  "windowSwitcherHotkey": "opt+tab",
+  "hotkeys": {},
   "windowManagementHotkeys": true,
   "appearance": "system",
   "disabledExtensions": []

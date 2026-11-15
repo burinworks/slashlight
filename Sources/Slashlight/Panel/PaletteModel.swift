@@ -122,7 +122,7 @@ final class PaletteModel: ObservableObject {
         search(selecting: current.selection)
     }
 
-    /// Esc: back one screen, or close the panel from the main search.
+    /// The Back key (Esc unless changed): back one screen, or close the panel from the main search.
     func back() {
         if stack.count > 1 { pop() } else { host.hide() }
     }
@@ -451,6 +451,9 @@ final class PaletteModel: ObservableObject {
         }
     }
 
+    /// Applies what an action returned: a hotkey's, or a row's.
+    func apply(_ outcome: Outcome, extensionID: String?) { handle(outcome, extensionID: extensionID) }
+
     private func handle(_ outcome: Outcome, extensionID: String?) {
         switch outcome {
         case .close: host.hide()
@@ -533,9 +536,13 @@ final class PaletteModel: ObservableObject {
         if let embedded { return embedded.handleKey(event, self) || editingShortcut(key, mods) }
         if editingShortcut(key, mods) { return true }
 
+        let pressed = Shortcut(key, mods)
+        if let hotkey = host.panelHotkey(pressed, extensionID: current.extensionID) {
+            hotkey.run(pressed)
+            return true
+        }
+
         switch (key, mods) {
-        case ("escape", _):
-            back()
         case ("up", _), ("p", [.control]):
             move(isGrid && key == "up" ? -gridColumns : -1)
         case ("down", _), ("n", [.control]):
@@ -552,14 +559,6 @@ final class PaletteModel: ObservableObject {
             if holdModifier != nil || filters.isEmpty { move(1) } else { cycleFilter(1) }
         case ("tab", [.shift]):
             if holdModifier != nil || filters.isEmpty { move(-1) } else { cycleFilter(-1) }
-        case ("k", [.command]):
-            showActions()
-        case ("e", [.command]):
-            goHome()
-        case (",", [.command]):
-            openSettings()
-        case ("tab", [.control]):
-            if let s = TerminalManager.shared.lastShown ?? TerminalManager.shared.sessions.last { showTerminal(s) }
         case ("t", [.command]) where current.extensionID == "terminal" || text.hasPrefix(">"):
             showTerminal(TerminalManager.shared.start(command: nil))
         case (let k, [.command]) where Int(k).map({ (1...9).contains($0) }) == true:
@@ -597,6 +596,9 @@ final class PaletteModel: ObservableObject {
         return false
     }
 
+    /// The Back key as the header and footer show it.
+    var backKey: String { host.hotkeyBindings.first { $0.id == "slashlight/back" }?.shortcut?.display ?? "esc" }
+
     var hints: [Hint] {
         if let embedded { return embedded.hints() }
         var out: [Hint] = []
@@ -607,7 +609,7 @@ final class PaletteModel: ObservableObject {
         }
         out.append(Hint(keys: isGrid ? "←→" : "↑↓", label: "Navigate"))
         if let f = activeFilter ?? filters.first { out.append(Hint(keys: "tab", label: f)) }
-        if stack.count > 1 { out.append(Hint(keys: "esc", label: "Back")) }
+        if stack.count > 1 { out.append(Hint(keys: backKey, label: "Back")) }
         return Array(out.prefix(6))
     }
 }
