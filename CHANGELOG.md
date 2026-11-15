@@ -8,6 +8,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - Settings → Hotkeys: every key in one place, each marked Global, In Slashlight or In extension. Record a new key, reset it or clear it; keys that clash or that another app took are flagged.
 - Every extension with a screen gets an "Open <extension>" global slot, and every command and script that takes no argument a "Run /name" slot, all without a key until you set one.
 - Extensions offer hotkey actions: `hotkeys` in Swift, a `hotkeys` block in `manifest.json` and a `hotkey` request for external ones. The Python example pastes a new UUID on ⌃⌥U.
+- Hotkeys can't take what macOS or every app already uses: the recorder refuses the shortcuts macOS has turned on (read from macOS) and keys like ⌘C, ⌘V, ⌘Q, ⌘Tab as global keys, and says why.
 - Hotkeys can use F1–F12 and the ; ' [ ] and backslash keys.
 
 ### Changed

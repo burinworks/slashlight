@@ -32,6 +32,8 @@ Change any of these in Settings → Hotkeys. It lists three kinds of key:
 
 Click a key to record a new one, the ↺ button to go back to the default, ✕ for no key. To record Esc on its own, press it twice. A key used twice where both could fire is flagged in orange, as is a global key another app already took.
 
+Some keys can't be recorded: the shortcuts macOS has turned on in System Settings → Keyboard → Keyboard Shortcuts (⌘Space for Spotlight, ⇧⌘4 for screenshots…), read from macOS itself, and keys every app uses (⌘C, ⌘V, ⌘Q, ⌘W, ⌘Tab…) as global keys. ⌘C ⌘V ⌘X ⌘A ⌘Z stay with the search field inside the panel too. The recorder says why it refused a key. Turn a macOS shortcut off in System Settings to use its key here.
+
 | Key | Action |
 |---|---|
 | ⌥Space | Open / close |

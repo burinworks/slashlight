@@ -82,6 +82,9 @@ final class ExternalExtension: Extension {
                 guard HotkeyMap.isAllowed(s, scope: scope == .global ? .global : .local) else {
                     throw ProtocolError(errorDescription: "hotkey \"\(hk.id)\": a global key needs cmd, opt or ctrl")
                 }
+                if let reason = ReservedKeys.standardReason(s, scope: scope == .global ? .global : .local) {
+                    throw ProtocolError(errorDescription: "hotkey \"\(hk.id)\": \(reason)")
+                }
             }
         }
         if Set((file.hotkeys ?? []).map(\.id)).count != (file.hotkeys ?? []).count {
