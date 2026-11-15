@@ -10,10 +10,13 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
     private var model: SettingsModel?
     private var pendingTab: SettingsTab?
+    private var pendingFilter: String?
 
-    func show(tab: SettingsTab? = nil) {
+    func show(tab: SettingsTab? = nil, hotkeyFilter: String? = nil) {
         pendingTab = tab
+        pendingFilter = hotkeyFilter
         if let tab { model?.tab = tab }
+        if let hotkeyFilter { model?.hotkeyFilter = hotkeyFilter }
         if window == nil {
             let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 620, height: 520),
                              styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
@@ -22,6 +25,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
             w.delegate = self
             let model = SettingsModel(host: Host.shared)
             if let pending = pendingTab { model.tab = pending }
+            if let pendingFilter { model.hotkeyFilter = pendingFilter }
             self.model = model
             w.contentView = NSHostingView(rootView: SettingsView(model: model))
             w.center()
@@ -54,6 +58,8 @@ final class SettingsModel: ObservableObject {
     @Published var loginItem = LoginItem.isEnabled
     @Published var extensionsVersion = 0
     @Published var tab = SettingsTab.general
+    /// The Hotkeys tab's search, so "Set Hotkey…" on a command can open the tab on that command.
+    @Published var hotkeyFilter = ""
     private var timer: Timer?
 
     init(host: Host) {
@@ -111,6 +117,7 @@ final class SettingsModel: ObservableObject {
 
     /// Saves `value` ("cmd+k", or "" for none) for `binding`. A key equal to the default is stored as no change.
     func setHotkey(_ binding: HotkeyBinding, _ value: String) {
+        guard binding.isEditable else { return }
         update { s in
             if binding.id == "\(HotkeyMap.slashlight)/open" {
                 if !value.isEmpty { s.hotkey = value }
@@ -124,11 +131,9 @@ final class SettingsModel: ObservableObject {
 
     func resetHotkey(_ binding: HotkeyBinding) { setHotkey(binding, binding.defaultShortcut?.string ?? "") }
 
+    /// Leaves Open Slashlight alone: that one lives in General.
     func resetAllHotkeys() {
-        update { s in
-            s.hotkeys = [:]
-            s.hotkey = Settings().hotkey
-        }
+        update { $0.hotkeys = [:] }
     }
 
     func reloadExtensions() {
@@ -273,26 +278,33 @@ struct HotkeyRecorder: View {
     var placeholder: String?
     /// Which keys it accepts: global ones need ⌘, ⌥ or ⌃ (see `HotkeyMap.isAllowed`).
     var scope: HotkeyBinding.Scope = .global
+    /// ⌫ while recording removes the key.
+    var canClear = false
+    /// Shows "esc cancel" next to the button while recording.
+    var showsHint = false
     @State private var recording = false
     @State private var monitor: Any?
     @State private var clickMonitor: Any?
     /// When a click ended recording. The same click then reaches this button, which must not start again.
     @State private var stoppedByClick = Date.distantPast
-    @State private var lastEsc = Date.distantPast
     /// Why the last key pressed was refused (⌘C is Copy…); shown under the button for a moment.
     @State private var refusal: String?
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Button(action: toggle) {
                 Text(recording ? "Press keys…" : placeholder ?? Shortcut(string: value)?.display ?? (value.isEmpty ? "Record" : value))
                     .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(!recording && value.isEmpty && placeholder == nil ? .secondary : .primary)
                     .frame(minWidth: 110)
             }
             .buttonStyle(.bordered)
             .tint(recording ? .accentColor : nil)
             .popover(isPresented: Binding(get: { refusal != nil }, set: { if !$0 { refusal = nil } }), arrowEdge: .bottom) {
                 Label(refusal ?? "", systemImage: "nosign").font(.callout).padding(10)
+            }
+            if showsHint {
+                RecorderHint(canClear: canClear && !value.isEmpty).opacity(recording ? 1 : 0)
             }
         }
         .onDisappear(perform: stop)
@@ -310,21 +322,16 @@ struct HotkeyRecorder: View {
         HotKeyCenter.shared.unregisterAll()
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             let mods = Shortcut.Modifiers(event.modifierFlags)
-            // Esc cancels, except where Esc alone is a valid answer: press it twice quickly for that.
-            if event.keyCode == 53 && mods.isEmpty {
-                if scope != .global && Date().timeIntervalSince(lastEsc) < 0.6 {
-                    value = Shortcut("escape").string
-                    stop()
-                } else if scope != .global {
-                    lastEsc = Date()
-                } else {
-                    stop()
-                }
+            let key = KeyCodes.key(for: event)
+            if key == "escape" && mods.isEmpty { stop(); return nil }
+            if key == "delete" && mods.isEmpty && canClear {
+                value = ""
+                stop()
                 return nil
             }
-            let shortcut = Shortcut(KeyCodes.key(for: event), mods)
+            let shortcut = Shortcut(key, mods)
             guard HotkeyMap.isAllowed(shortcut, scope: scope) else {
-                refuse(scope == .global ? "Add ⌘, ⌥ or ⌃" : "Add ⌘, ⌥ or ⌃, or use Esc, Tab or F1–F12")
+                refuse(scope == .global ? "Add ⌘, ⌥ or ⌃" : "Add ⌘, ⌥ or ⌃, or use Tab or F1–F12")
                 return nil
             }
             if let reason = ReservedKeys.reason(shortcut, scope: scope) {
@@ -361,48 +368,68 @@ struct HotkeyRecorder: View {
     }
 }
 
+/// "esc cancel  ⌫ remove", in the panel's footer style.
+private struct RecorderHint: View {
+    let canClear: Bool
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Keycap(label: "esc")
+            Text("cancel").font(.caption).foregroundStyle(.secondary)
+            if canClear {
+                Keycap(label: "⌫").padding(.leading, 4)
+                Text("remove").font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .fixedSize()
+        .frame(width: 150, alignment: .leading)
+    }
+}
+
 // MARK: Hotkeys
 
 private struct HotkeysSettings: View {
     @ObservedObject var model: SettingsModel
-    @State private var filter = ""
 
-    private var groups: [(owner: String, title: String, rows: [HotkeyBinding])] {
-        let all = model.hotkeys
-        var out: [(owner: String, title: String, rows: [HotkeyBinding])] = []
-        for b in all where matches(b) {
-            if let i = out.firstIndex(where: { $0.owner == b.owner }) { out[i].rows.append(b) }
-            else { out.append((b.owner, b.ownerTitle, [b])) }
+    private func groups(_ all: [HotkeyBinding]) -> [(group: HotkeyBinding.Group, rows: [HotkeyBinding])] {
+        var out: [(group: HotkeyBinding.Group, rows: [HotkeyBinding])] = []
+        for b in all where b.isListed && matches(b) {
+            if let i = out.firstIndex(where: { $0.group == b.group }) { out[i].rows.append(b) }
+            else { out.append((b.group, [b])) }
         }
         return out
     }
 
     private func matches(_ b: HotkeyBinding) -> Bool {
-        filter.isEmpty || Fuzzy.score(filter, [b.title, b.ownerTitle, b.shortcut?.display ?? ""]) != nil
+        let f = model.hotkeyFilter
+        return f.isEmpty || Fuzzy.score(f, [b.title, b.ownerTitle, b.group.title, b.shortcut?.display ?? ""]) != nil
     }
 
     var body: some View {
         let all = model.hotkeys
         Form {
             Section {
-                TextField("Find a hotkey", text: $filter, prompt: Text("Find a hotkey"))
+                TextField("Find a hotkey", text: $model.hotkeyFilter, prompt: Text("Find a hotkey"))
                     .labelsHidden()
             } footer: {
-                Text("Global keys work anywhere on your Mac. Keys marked In Slashlight work in every screen of the panel; "
-                     + "In extension keys only while that extension is open. Click a key to record a new one. "
-                     + "For Esc alone, press it twice.")
-                    .font(.caption).foregroundStyle(.secondary)
+                HStack(spacing: 14) {
+                    ScopeLegend(scope: .global, text: "anywhere on your Mac")
+                    ScopeLegend(scope: .system, text: "anywhere in Slashlight")
+                    ScopeLegend(scope: .local, text: "only in that extension")
+                }
+                .font(.caption).foregroundStyle(.secondary)
             }
-            ForEach(groups, id: \.owner) { group in
+            ForEach(groups(all), id: \.group) { group in
                 Section {
-                    if group.owner == "window-management" {
+                    if group.group == .windows {
                         Toggle("Use Window Layout's global keys", isOn: model.binding(\.windowManagementHotkeys))
                     }
                     ForEach(group.rows) { b in HotkeyRow(binding: b, all: all, model: model) }
                 } header: {
-                    HStack(spacing: 6) {
-                        if let ext = model.host.ext(group.owner) { IconView(icon: ext.manifest.icon, size: 16) }
-                        Text(group.title)
+                    Text(group.group.title)
+                } footer: {
+                    if group.group == .slashlight {
+                        Text("Open Slashlight is set in General.").font(.caption).foregroundStyle(.secondary)
                     }
                 }
             }
@@ -417,47 +444,84 @@ private struct HotkeysSettings: View {
     }
 }
 
+/// The icon that says where a key works: a globe, Slashlight's own mark, or a puzzle piece.
+struct ScopeIcon: View {
+    let scope: HotkeyBinding.Scope
+    var size: CGFloat = 13
+
+    var body: some View {
+        Group {
+            switch scope {
+            case .global: Image(systemName: "globe").font(.system(size: size))
+            case .system: SlashlightGlyph(size: size + 1)
+            case .local: Image(systemName: "puzzlepiece.extension").font(.system(size: size))
+            }
+        }
+        .foregroundStyle(.secondary)
+        .help(scope.help)
+    }
+}
+
+private struct ScopeLegend: View {
+    let scope: HotkeyBinding.Scope
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ScopeIcon(scope: scope, size: 11)
+            Text(text)
+        }
+    }
+}
+
 private struct HotkeyRow: View {
     let binding: HotkeyBinding
     let all: [HotkeyBinding]
     @ObservedObject var model: SettingsModel
 
     private var warning: String? {
+        guard binding.isEditable else { return nil }
         if let s = binding.shortcut, let reason = ReservedKeys.reason(s, scope: binding.scope) { return reason }
         let clashes = HotkeyMap.conflicts(of: binding, in: all)
         if !clashes.isEmpty {
-            return "Also used by " + clashes.map { $0.owner == binding.owner ? $0.title : "\($0.ownerTitle): \($0.title)" }
-                .joined(separator: ", ")
+            return "Also used by " + clashes.map(\.title).joined(separator: ", ")
         }
         if model.host.failedHotkeys.contains(binding.id) { return "macOS or another app already uses this key" }
         return nil
     }
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
+            if let icon = binding.icon { IconView(icon: icon, size: 18).frame(width: 20) }
             VStack(alignment: .leading, spacing: 2) {
-                Text(binding.title)
-                Text(binding.scope.label).font(.caption).foregroundStyle(.secondary).help(binding.scope.help)
+                HStack(spacing: 6) {
+                    Text(binding.title).lineLimit(1)
+                    ScopeIcon(scope: binding.scope)
+                }
                 if let warning {
                     Label(warning, systemImage: "exclamationmark.triangle.fill")
                         .font(.caption).foregroundStyle(.orange).lineLimit(2)
                 }
             }
             Spacer(minLength: 8)
-            HotkeyRecorder(value: Binding(get: { binding.shortcut?.string ?? "" },
-                                          set: { model.setHotkey(binding, $0) }),
-                           scope: binding.scope)
-            Button { model.resetHotkey(binding) } label: { Image(systemName: "arrow.counterclockwise") }
-                .buttonStyle(.borderless)
-                .help("Back to \(binding.defaultShortcut?.display ?? "no key")")
-                .opacity(binding.isDefault ? 0 : 1)
-                .disabled(binding.isDefault)
-            Button { model.setHotkey(binding, "") } label: { Image(systemName: "xmark.circle.fill") }
-                .buttonStyle(.borderless)
-                .foregroundStyle(.secondary)
-                .help("No key")
-                .opacity(binding.canClear && binding.shortcut != nil ? 1 : 0)
-                .disabled(!binding.canClear || binding.shortcut == nil)
+            if binding.isEditable {
+                Button { model.resetHotkey(binding) } label: { Image(systemName: "arrow.counterclockwise") }
+                    .buttonStyle(.borderless)
+                    .help("Back to \(binding.defaultShortcut?.display ?? "no key")")
+                    .opacity(binding.isDefault ? 0 : 1)
+                    .disabled(binding.isDefault)
+                HotkeyRecorder(value: Binding(get: { binding.shortcut?.string ?? "" },
+                                              set: { model.setHotkey(binding, $0) }),
+                               scope: binding.scope, canClear: true, showsHint: true)
+            } else {
+                HStack(spacing: 8) {
+                    Keycap(label: binding.shortcut?.display ?? "")
+                        .frame(minWidth: 126)
+                    Text("can't be changed").font(.caption).foregroundStyle(.secondary)
+                        .frame(width: 150, alignment: .leading)
+                }
+                .help("Esc always goes back")
+            }
         }
     }
 }

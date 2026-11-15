@@ -12,19 +12,37 @@ struct HotkeyBinding: Identifiable {
         /// Anywhere in the panel, in every extension.
         case system
 
-        var label: String {
+        var help: String {
             switch self {
-            case .global: return "Global"
-            case .local: return "In extension"
-            case .system: return "In Slashlight"
+            case .global: return "Global: works anywhere on your Mac while Slashlight runs"
+            case .local: return "In this extension: works only while it is open in the panel"
+            case .system: return "In Slashlight: works on every screen of the panel"
+            }
+        }
+    }
+
+    /// Where Settings lists the key: by what it does, not by who offers it.
+    enum Group: Hashable {
+        case slashlight, openExtensions, commands, windows
+        case other(String)
+
+        var title: String {
+            switch self {
+            case .slashlight: return "Slashlight"
+            case .openExtensions: return "Open Extensions"
+            case .commands: return "Commands & Scripts"
+            case .windows: return "Windows"
+            case .other(let title): return title
             }
         }
 
-        var help: String {
+        var order: Int {
             switch self {
-            case .global: return "Works anywhere on your Mac while Slashlight runs"
-            case .local: return "Works only while this extension is open in the panel"
-            case .system: return "Works anywhere in the panel, in every extension"
+            case .slashlight: return 0
+            case .openExtensions: return 1
+            case .commands: return 2
+            case .windows: return 3
+            case .other: return 4
             }
         }
     }
@@ -35,11 +53,15 @@ struct HotkeyBinding: Identifiable {
     let action: String
     let title: String
     let scope: Scope
+    let group: Group
+    let icon: Icon?
     let defaultShortcut: Shortcut?
     /// The key in effect: the user's choice, else the default. Nil when there is none.
     let shortcut: Shortcut?
-    /// Open Slashlight can't be cleared: without it the panel is reachable only from the menu bar.
-    var canClear = true
+    /// Back is always Esc.
+    var isEditable = true
+    /// Open Slashlight is set in Settings → General, not in the Hotkeys list.
+    var isListed = true
     let run: @MainActor (Shortcut) -> Void
 
     var id: String { "\(owner)/\(action)" }
@@ -59,7 +81,7 @@ enum SystemHotkey: String, CaseIterable {
 
     var title: String {
         switch self {
-        case .back: return "Back (closes the panel on the main search)"
+        case .back: return "Back, or close the panel"
         case .actions: return "Show actions"
         case .home: return "Back to the main search"
         case .settings: return "Open Settings"
@@ -74,6 +96,16 @@ enum SystemHotkey: String, CaseIterable {
         case .home: return Shortcut("e", .command)
         case .settings: return Shortcut(",", .command)
         case .terminal: return Shortcut("tab", .control)
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .back: return "arrow.uturn.backward"
+        case .actions: return "command"
+        case .home: return "house"
+        case .settings: return "gearshape"
+        case .terminal: return "terminal"
         }
     }
 
@@ -100,18 +132,30 @@ enum HotkeyMap {
         return saved.isEmpty ? nil : Shortcut(string: saved)
     }
 
-    /// Every key, in the order Settings shows them: Slashlight first, then extensions by title.
+    private static func group(owner: String, action: String, title: String) -> HotkeyBinding.Group {
+        if action == "open" { return .openExtensions }
+        switch owner {
+        case "commands": return .commands
+        case "window-management", "window-switcher": return .windows
+        default: return .other(title)
+        }
+    }
+
+    /// Every key, grouped and in the order Settings shows them.
     static func bindings(host: Host, settings: Settings) -> [HotkeyBinding] {
         var out: [HotkeyBinding] = []
-        let open = Shortcut(string: settings.hotkey)
         out.append(HotkeyBinding(owner: slashlight, ownerTitle: "Slashlight", action: "open", title: "Open Slashlight",
-                                 scope: .global, defaultShortcut: Shortcut("space", .option), shortcut: open, canClear: false,
+                                 scope: .global, group: .slashlight, icon: nil, defaultShortcut: Shortcut("space", .option),
+                                 shortcut: Shortcut(string: settings.hotkey), isListed: false,
                                  run: { [weak host] _ in host?.toggle() }))
         for key in SystemHotkey.allCases {
             let id = "\(slashlight)/\(key.rawValue)"
+            let fixed = key == .back
             out.append(HotkeyBinding(owner: slashlight, ownerTitle: "Slashlight", action: key.rawValue, title: key.title,
-                                     scope: .system, defaultShortcut: key.defaultShortcut,
-                                     shortcut: shortcut(id, default: key.defaultShortcut, in: settings),
+                                     scope: .system, group: .slashlight, icon: .symbol(key.symbol),
+                                     defaultShortcut: key.defaultShortcut,
+                                     shortcut: fixed ? key.defaultShortcut : shortcut(id, default: key.defaultShortcut, in: settings),
+                                     isEditable: !fixed,
                                      run: { [weak host] _ in if let host { key.run(host.model) } }))
         }
         let sorted = host.extensions.sorted { $0.manifest.title.localizedCaseInsensitiveCompare($1.manifest.title) == .orderedAscending }
@@ -119,18 +163,23 @@ enum HotkeyMap {
             let owner = ext.manifest.id, title = ext.manifest.title
             if ext.rootView() != nil {
                 out.append(HotkeyBinding(owner: owner, ownerTitle: title, action: "open", title: "Open \(title)", scope: .global,
+                                         group: .openExtensions, icon: ext.manifest.icon,
                                          defaultShortcut: nil, shortcut: shortcut("\(owner)/open", default: nil, in: settings),
                                          run: { [weak host] _ in host?.show(extensionID: owner) }))
             }
             for action in ext.hotkeys where action.id != "open" {
                 let scope: HotkeyBinding.Scope = action.scope == .global ? .global : .local
                 out.append(HotkeyBinding(owner: owner, ownerTitle: title, action: action.id, title: action.title, scope: scope,
-                                         defaultShortcut: action.defaultShortcut,
+                                         group: group(owner: owner, action: action.id, title: title),
+                                         icon: action.icon ?? ext.manifest.icon, defaultShortcut: action.defaultShortcut,
                                          shortcut: shortcut("\(owner)/\(action.id)", default: action.defaultShortcut, in: settings),
                                          run: { [weak host] pressed in host?.runHotkey(action, pressed: pressed, extensionID: owner) }))
             }
         }
-        return out
+        // Stable: within a group, the order above.
+        return out.enumerated().sorted { a, b in
+            a.element.group.order != b.element.group.order ? a.element.group.order < b.element.group.order : a.offset < b.offset
+        }.map(\.element)
     }
 
     /// Other keys set to the same combination that can be live at the same time.
@@ -140,11 +189,11 @@ enum HotkeyMap {
     }
 
     /// A global key must not take over typing in other apps, so it needs ⌘, ⌥ or ⌃. Keys used inside the
-    /// panel may also be Esc, Tab, or a function key on its own.
+    /// panel may also be Tab or a function key on its own. Esc is always Back.
     static func isAllowed(_ s: Shortcut, scope: HotkeyBinding.Scope) -> Bool {
         if !s.modifiers.isDisjoint(with: [.command, .option, .control]) { return true }
         guard scope != .global else { return false }
-        return s.key == "escape" || s.key == "tab" || s.key.hasPrefix("f") && s.key.count > 1
+        return s.key == "tab" || s.key.hasPrefix("f") && s.key.count > 1
     }
 }
 
@@ -195,6 +244,7 @@ enum ReservedKeys {
 
     /// The same, leaving out this Mac's own settings: what an extension's manifest is checked against.
     static func standardReason(_ s: Shortcut, scope: HotkeyBinding.Scope) -> String? {
+        if s == Shortcut("escape") { return "esc always goes back" }
         if scope == .global, let name = standard[s] { return "\(s.display) is \(name) in every app" }
         if scope != .global, editing.contains(s), let name = standard[s] { return "\(s.display) is \(name) in the search field" }
         return nil

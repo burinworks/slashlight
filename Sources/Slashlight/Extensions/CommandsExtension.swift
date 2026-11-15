@@ -18,6 +18,8 @@ final class CommandsExtension: Extension {
         var method: String?
         var body: String?
         var headers: [String: String]?
+        /// "ctrl+opt+l": the key that runs it from anywhere, until changed in Settings → Hotkeys.
+        var hotkey: String?
     }
 
     private var commands: [Command] = []
@@ -41,16 +43,48 @@ final class CommandsExtension: Extension {
 
     override func deactivate() async { await scripts.deactivate() }
 
-    /// A key slot for every command and script that runs without an argument; none has a key until the user sets one.
+    /// A global key slot for every command and script: `hotkey` in commands.json (or `@slashlight.hotkey` in a
+    /// script) is its default, Settings → Hotkeys can change it. One that needs a search term opens the panel on it.
     override var hotkeys: [HotkeyAction] {
         reloadIfChanged()
-        let own = commands.filter { !Self.takesArgument($0) }.map { c in
-            HotkeyAction(id: "command:\(c.name)", title: "Run /\(c.name)", scope: .global) { [weak self] _ in
+        let own = commands.map { c in
+            HotkeyAction(id: Self.hotkeyID(command: c.name), title: Self.hotkeyTitle(c.name, c.title), scope: .global,
+                         default: c.hotkey.flatMap(Shortcut.init(string:)), icon: .symbol(Self.symbol(c))) { [weak self] _ in
+                if Self.takesArgument(c) {
+                    Self.ask(for: c.name)
+                    return .stay
+                }
                 guard let self, let action = self.item(c, argument: "").primary else { return .stay }
                 return try await action.run()
             }
         }
         return own + scripts.hotkeys
+    }
+
+    static func hotkeyID(command name: String) -> String { "command:\(name)" }
+    static func hotkeyTitle(_ name: String, _ title: String?) -> String { title.map { "/\(name) · \($0)" } ?? "/\(name)" }
+
+    /// Opens the panel with "/name " typed, ready for the search term.
+    static func ask(for name: String) {
+        Host.shared.show()
+        Host.shared.model.text = "/\(name) "
+    }
+
+    /// The key a command or script has now, shown on its row.
+    static func key(_ hotkeyID: String) -> Shortcut? {
+        Host.shared.hotkeyBindings.first { $0.id == "commands/\(hotkeyID)" }?.shortcut
+    }
+
+    /// Opens Settings → Hotkeys on this one command.
+    static func setHotkey(_ name: String) -> Action {
+        Action("Set Hotkey…", icon: .symbol("keyboard"), shortcut: Shortcut("h", [.command, .shift])) {
+            SettingsWindowController.shared.show(tab: .hotkeys, hotkeyFilter: "/\(name)")
+            return .close
+        }
+    }
+
+    private static func symbol(_ c: Command) -> String {
+        c.icon ?? ["shell": "terminal", "url": "link", "shortcut": "square.stack.3d.up", "http": "network", "applescript": "applescript"][c.type] ?? "bolt"
     }
 
     override func recentItem(id: String, title: String) async -> Item? {
@@ -86,18 +120,20 @@ final class CommandsExtension: Extension {
     }
 
     private func item(_ c: Command, argument: String) -> Item {
-        let symbol = c.icon ?? ["shell": "terminal", "url": "link", "shortcut": "square.stack.3d.up", "http": "network", "applescript": "applescript"][c.type] ?? "bolt"
+        let symbol = Self.symbol(c)
         let takesArgument = Self.takesArgument(c)
         let hint = takesArgument && argument.isEmpty ? "type /\(c.name) and a search term" : nil
         return Item(id: c.name, title: argument.isEmpty ? "/\(c.name)" : "/\(c.name) \(argument)",
                     subtitle: [c.title, hint ?? c.type].compactMap { $0 }.joined(separator: " · "),
                     icon: .symbol(symbol),
-                    accessories: takesArgument ? [.pill("{query}", .gray)] : [],
+                    accessories: (takesArgument ? [.pill("{query}", .gray)] : [])
+                        + (Self.key(Self.hotkeyID(command: c.name)).map { [.keycap($0)] } ?? []),
                     primary: Action("Run Command", icon: .symbol("play")) { try await Self.execute(Self.filling(c, with: argument)) },
                     secondary: Action("Copy Definition", icon: .symbol("doc.on.doc")) { [weak self] in
                         self?.context.copy(c.run)
                         return .hud("Copied")
-                    })
+                    },
+                    more: [Self.setHotkey(c.name)])
     }
 
     static func takesArgument(_ c: Command) -> Bool { c.run.contains("{query}") }
