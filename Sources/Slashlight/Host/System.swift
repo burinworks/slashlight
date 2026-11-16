@@ -5,6 +5,11 @@ import SlashlightKit
 
 enum Paths {
     static let support: URL = {
+        if let home = DevSuite.home {
+            let url = home.appendingPathComponent(BuildInfo.name, isDirectory: true)
+            try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+            return url
+        }
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         // Each channel keeps its own settings, history and extensions: "Slashlight", "Slashlight Test", "Slashlight Dev".
         let url = base.appendingPathComponent(BuildInfo.name, isDirectory: true)
@@ -237,7 +242,7 @@ struct Settings: Codable, Equatable {
         if let data = try? Data(contentsOf: Paths.settings), let s = try? JSONDecoder().decode(Settings.self, from: data) {
             return s
         }
-        let s = Settings()
+        let s = DevSuite.isActive ? DevSuite.initialSettings() : Settings()
         s.save()
         return s
     }

@@ -39,6 +39,8 @@ final class ClipboardExtension: Extension {
     override func activate(context: ExtensionContext) async {
         Self.shared = self
         apply(Host.shared.settings)
+        // The dev suite never reads the user's clipboard.
+        if DevSuite.isActive { return }
         timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.poll() }
         }

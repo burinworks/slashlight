@@ -44,7 +44,7 @@ final class Host {
         HotKeyCenter.shared.unregisterAll()
         hotkeyBindings = HotkeyMap.bindings(host: self, settings: settings)
         failedHotkeys = []
-        for b in hotkeyBindings where b.scope == .global {
+        for b in hotkeyBindings where b.scope == .global && !DevSuite.isActive {
             guard let s = b.shortcut else { continue }
             if b.owner == "window-management" && !settings.windowManagementHotkeys { continue }
             // Never take ⌘C and the like from every app; macOS's own keys would never arrive anyway.
