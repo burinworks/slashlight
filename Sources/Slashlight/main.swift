@@ -155,6 +155,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.addItem(withTitle: "Check for Updates…", action: #selector(Updater.checkForUpdates), keyEquivalent: "").target = Updater.shared
         }
         menu.addItem(.separator())
+        menu.addItem(withTitle: "Send Feedback…", action: #selector(feedback), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "Report a Bug…", action: #selector(reportBug), keyEquivalent: "").target = self
+        menu.addItem(.separator())
         if BuildInfo.isPreview {
             menu.addItem(withTitle: "Uninstall \(BuildInfo.name)…", action: #selector(uninstall), keyEquivalent: "").target = self
         }
@@ -216,6 +219,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func uninstall() { Install.confirmUninstall() }
+
+    @objc private func feedback() { NSWorkspace.shared.open(ProjectLinks.feedback) }
+
+    @objc private func reportBug() { NSWorkspace.shared.open(ProjectLinks.issues) }
 
     @objc private func open() { Host.shared.show() }
 

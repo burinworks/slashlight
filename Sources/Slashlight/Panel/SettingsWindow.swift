@@ -721,20 +721,42 @@ private struct PermissionsSettings: View {
 
 // MARK: About
 
+/// Where Slashlight lives online, and the one address for feedback.
+enum ProjectLinks {
+    static let repo = "https://github.com/burinworks/slashlight"
+    static let author = "https://github.com/cann1neof"
+    static let feedbackEmail = "alex@burinworks.com"
+    static let issues = URL(string: repo + "/issues/new/choose")!
+    static let discussions = URL(string: repo + "/discussions")!
+    static let security = URL(string: repo + "/security/advisories/new")!
+    static let license = URL(string: repo + "/blob/main/LICENSE")!
+    static let privacy = URL(string: repo + "/blob/main/PRIVACY.md")!
+
+    /// A new email to the maintainer with the version filled in.
+    static var feedback: URL {
+        var c = URLComponents()
+        c.scheme = "mailto"
+        c.path = feedbackEmail
+        c.queryItems = [URLQueryItem(name: "subject", value: "\(BuildInfo.name) feedback (\(BuildInfo.fullVersion))")]
+        return c.url!
+    }
+}
+
 private struct AboutSettings: View {
     /// Beta and stable builds keep the tour and uninstall buttons out of sight: clicking the version a few times
     /// (a different number each time the tab opens) shows them. Local and test builds always show them.
     private static let hidesTools = BuildInfo.channel == .beta || BuildInfo.channel == .stable
     @State private var clicks = 0
     @State private var clicksNeeded = Int.random(in: 5...9)
+    @State private var showsNotices = false
     private var showsTools: Bool { !Self.hidesTools || clicks >= clicksNeeded }
 
     var body: some View {
         VStack(spacing: 10) {
             Spacer()
-            Image(systemName: "sparkle.magnifyingglass")
-                .font(.system(size: 44, weight: .light))
-                .foregroundStyle(.tint)
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: 72, height: 72)
             Text(BuildInfo.name).font(.title2.weight(.semibold))
             if let tag = BuildInfo.tag { BuildTag(text: tag) }
             Text("Version \(BuildInfo.fullVersion)")
@@ -744,8 +766,26 @@ private struct AboutSettings: View {
                     guard !showsTools else { return }
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { clicks += 1 }
                 })
-            Text("Open-source, keyboard-first launcher for macOS.")
-                .foregroundStyle(.secondary)
+            HStack(spacing: 4) {
+                Text("Open-source, keyboard-first launcher for macOS. Made by")
+                Link("Alexander Ikonnikov", destination: URL(string: ProjectLinks.author)!)
+                    .foregroundStyle(.tint)
+            }
+            .foregroundStyle(.secondary)
+            HStack(spacing: 14) {
+                Link("GitHub", destination: URL(string: ProjectLinks.repo)!)
+                Link("Report a Bug", destination: ProjectLinks.issues)
+                Link("Ideas & Questions", destination: ProjectLinks.discussions)
+                Link("Send Feedback", destination: ProjectLinks.feedback)
+                    .help(ProjectLinks.feedbackEmail)
+                Link("Security Issue", destination: ProjectLinks.security)
+            }
+            .padding(.top, 4)
+            HStack(spacing: 14) {
+                Link("Privacy", destination: ProjectLinks.privacy)
+                Link("License", destination: ProjectLinks.license)
+                Button("Acknowledgements") { showsNotices = true }.buttonStyle(.link)
+            }
             if showsTools {
                 VStack(spacing: 10) {
                     HStack {
@@ -761,11 +801,45 @@ private struct AboutSettings: View {
             // Always here: Slashlight has no Dock icon in beta and stable, so ⌘Q in the panel would quit the app
             // behind it instead.
             Button("Quit \(BuildInfo.name)") { NSApp.terminate(nil) }
-                .padding(.top, showsTools ? 4 : 6)
+                .padding(.top, 6)
                 .help("Stops Slashlight until you open it again (or log in, if it launches at login)")
             Spacer()
+            Text("© 2026 Alexander Ikonnikov · MIT License · Provided as is, without warranty of any kind.")
+                .font(.caption).foregroundStyle(.tertiary)
+                .padding(.bottom, 12)
         }
         .frame(maxWidth: .infinity)
+        .sheet(isPresented: $showsNotices) { AcknowledgementsView { showsNotices = false } }
+    }
+}
+
+/// The third-party notices that ship inside the app (Resources/ThirdPartyNotices.txt).
+private struct AcknowledgementsView: View {
+    let close: () -> Void
+
+    private var text: String {
+        Bundle.main.url(forResource: "ThirdPartyNotices", withExtension: "txt")
+            .flatMap { try? String(contentsOf: $0, encoding: .utf8) }
+            ?? "The notices ship inside Slashlight.app; this copy was not built with scripts/build-app.sh."
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                Text(text)
+                    .font(.system(size: 11, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+            }
+            Divider()
+            HStack {
+                Spacer()
+                Button("Done", action: close).keyboardShortcut(.defaultAction)
+            }
+            .padding(12)
+        }
+        .frame(width: 560, height: 460)
     }
 }
 
