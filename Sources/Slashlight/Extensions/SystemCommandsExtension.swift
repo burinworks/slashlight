@@ -48,6 +48,12 @@ final class SystemCommandsExtension: Extension {
     // MARK: Commands
 
     private static let commands: [Command] = [
+        // Typing "settings" lists Slashlight's own next to System Settings.
+        Command(name: "slashlight-settings", title: "\(BuildInfo.name) Settings", subtitle: "Hotkeys, appearance, extensions, permissions",
+                symbol: "gearshape", keywords: ["preferences"]) {
+            SettingsWindowController.shared.show()
+            return .close
+        },
         Command(name: "lock", title: "Lock Screen", subtitle: "Show the login window", symbol: "lock", keywords: ["lock"]) {
             // ⌃⌘Q is the system Lock Screen shortcut; posting it needs only Accessibility.
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { pressKey(12, [.maskCommand, .maskControl]) }
