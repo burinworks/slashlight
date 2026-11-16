@@ -5,7 +5,7 @@ import SlashlightKit
 /// ↵ searches Google, ⌘↵ DuckDuckGo.
 final class WebSearchExtension: Extension {
     override var manifest: Manifest {
-        Manifest(id: "web-search", title: "Search the Web", subtitle: "Google or DuckDuckGo for whatever you typed", icon: .symbol("globe"))
+        Manifest(id: "web-search", title: "Search the Web", subtitle: "Google or DuckDuckGo for whatever you typed", icon: .symbol("globe"), recents: .hidden)
     }
 
     override var triggers: [Trigger] { [.defaultSearch] }

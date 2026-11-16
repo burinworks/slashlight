@@ -31,11 +31,17 @@ final class WindowSwitcherExtension: Extension {
     }
 
     override var triggers: [Trigger] { [.command("switch")] }
+
     override var permissions: [Permission] { [.screenRecording, .accessibility] }
 
-    override var globalHotkeys: [GlobalHotkey] {
-        let s = Shortcut(string: Settings.load().windowSwitcherHotkey) ?? Shortcut("tab", .option)
-        return [GlobalHotkey(s, title: "Switch Window") { [weak self] in self?.hotkeyPressed(s) }]
+    override var hotkeys: [HotkeyAction] {
+        [HotkeyAction(id: "switch", title: "Switch Window", scope: .global, default: Shortcut("tab", .option)) { [weak self] s in
+            self?.hotkeyPressed(s)
+            return .stay
+        },
+         .itemAction("minimize-window", title: "Minimize Window", default: Shortcut("m", [.command])),
+         .itemAction("close-window", title: "Close Window", default: Shortcut("w", [.command])),
+         .itemAction("quit-app", title: "Quit App", default: Shortcut("q", [.command, .option]))]
     }
 
     override func activate(context: ExtensionContext) async {
@@ -70,6 +76,8 @@ final class WindowSwitcherExtension: Extension {
         captureThumbnails(windows.map(\.id))
         return [Section("Windows", windows.map(item))]
     }
+
+    override func panelWillOpen() { scannedAt = .distantPast }
 
     private func rescanIfStale() {
         guard !scanning, Date().timeIntervalSince(scannedAt) > 1 else { return }

@@ -2,7 +2,7 @@ import AppKit
 import SlashlightKit
 
 /// Raycast Script Commands, unchanged: every executable in `~/Library/Application Support/Slashlight/script-commands/`
-/// with `@raycast.*` metadata comments becomes a `/command` named after its file.
+/// with `@raycast.*` metadata comments becomes a `/command` named after its file. Listed by `CommandsExtension`.
 /// Arguments follow the name (`/hello-world Alex`), split on whitespace; the last argument takes the rest of the text.
 final class ScriptCommandsExtension: Extension {
     /// `@raycast.argument1 { "type": "text", "placeholder": "Name", "optional": true }`
@@ -29,6 +29,12 @@ final class ScriptCommandsExtension: Extension {
         /// Inline mode: how long a result stays fresh (`@raycast.refreshTime`, never under 10 s).
         let refreshTime: TimeInterval
         let isExecutable: Bool
+        /// From `@slashlight.*` lines; a script without them can't use the network or read your files.
+        /// Nil with `permissionError` when a line names something that can't be granted.
+        let permissions: ExtensionPermissions?
+        let permissionError: String?
+        /// `# @slashlight.hotkey ctrl+opt+j`: its key until changed in Settings → Hotkeys.
+        var hotkey: Shortcut?
     }
 
     private var scripts: [Script] = []
@@ -38,12 +44,10 @@ final class ScriptCommandsExtension: Extension {
     private var inlineRunning: Set<String> = []
 
     override var manifest: Manifest {
-        Manifest(id: "script-commands", title: "Script Commands",
-                 subtitle: "Raycast-compatible scripts; the ones from github.com/raycast/script-commands work as-is", icon: .symbol("scroll"))
+        Manifest(id: "script-commands", title: "Script Commands", icon: .symbol("scroll"))
     }
 
-    override var triggers: [Trigger] { [.commands, .command("scripts")] }
-
+    /// Not registered on its own: the Commands extension lists these scripts next to commands.json.
     private var folder: URL { context.supportDirectory }
 
     override func activate(context: ExtensionContext) async {
@@ -51,59 +55,74 @@ final class ScriptCommandsExtension: Extension {
         rescanIfChanged()
     }
 
-    override func rootView() -> ListView? {
-        ListView(title: manifest.title, icon: manifest.icon, placeholder: "Search script commands…") { [unowned self] q in
-            try await self.search(q)
+    /// One global slot per script, listed under Commands, which hosts this extension. A script that needs an
+    /// argument opens the panel on "/name ".
+    override var hotkeys: [HotkeyAction] {
+        rescanIfChanged()
+        return scripts.map { s in
+            HotkeyAction(id: "script:\(s.name)", title: CommandsExtension.hotkeyTitle(s.name, s.title), scope: .global,
+                         default: s.hotkey, icon: s.icon) { [weak self] _ in
+                if s.arguments.contains(where: { $0.optional != true }) {
+                    CommandsExtension.ask(for: s.name)
+                    return .stay
+                }
+                guard let self, let action = self.item(s, arguments: []).primary else { return .stay }
+                return try await action.run()
+            }
         }
     }
 
-    override func search(_ query: Query) async throws -> [Section] {
+    /// Scripts matching the typed text, best first. "hello-world Alex": the first word picks the script, the rest are its arguments.
+    func scored(_ query: String) -> [(score: Int, item: Item)] {
         rescanIfChanged()
-        // "hello-world Alex": the first word picks the script, the rest are its arguments.
-        let text = query.text.trimmingCharacters(in: .whitespaces)
+        let text = query.trimmingCharacters(in: .whitespaces)
         let parts = text.split(separator: " ", maxSplits: 1).map(String.init)
         let rest = parts.count > 1 ? parts[1] : ""
-        let matches = scripts
-            .compactMap { s -> (Int, Script, [String])? in
-                if !rest.isEmpty && !s.arguments.isEmpty {
-                    return Fuzzy.score(parts[0], s.name).map { ($0, s, Self.split(rest, into: s.arguments.count)) }
-                }
-                return Fuzzy.score(text, [s.name, s.title, s.packageName ?? ""]).map { ($0, s, []) }
+        return scripts.compactMap { s in
+            if !rest.isEmpty && !s.arguments.isEmpty {
+                return Fuzzy.score(parts[0], s.name).map { ($0, item(s, arguments: Self.split(rest, into: s.arguments.count))) }
             }
-            .sorted { $0.0 > $1.0 }
-            .map { item($0.1, arguments: $0.2) }
-        var sections = [Section("Script Commands", matches)]
-        if query.mode == .scoped {
-            sections.append(Section("Manage", [
-                Item(id: "folder", title: "Open Script Commands Folder", subtitle: folder.path.replacingOccurrences(of: NSHomeDirectory(), with: "~"),
-                     icon: .symbol("folder"),
-                     primary: Action("Open in Finder") { [folder] in NSWorkspace.shared.open(folder); return .close },
-                     secondary: Action("Copy Path") { [weak self, folder] in self?.context.copy(folder.path); return .hud("Copied") }),
-                Item(id: "browse", title: "Browse Raycast Script Commands", subtitle: "github.com/raycast/script-commands — drop scripts into the folder",
-                     icon: .symbol("safari"),
-                     primary: Action("Open in Browser") {
-                         NSWorkspace.shared.open(URL(string: "https://github.com/raycast/script-commands")!)
-                         return .close
-                     }),
-            ]))
+            return Fuzzy.score(text, [s.name, s.title, s.packageName ?? ""]).map { ($0, item(s, arguments: [])) }
         }
-        return sections
+    }
+
+    func item(id: String) -> Item? {
+        rescanIfChanged()
+        return scripts.first { $0.url.path == id }.map { item($0, arguments: []) }
+    }
+
+    var manageItems: [Item] {
+        [
+            Item(id: "folder", title: "Open Script Commands Folder", subtitle: folder.path.replacingOccurrences(of: NSHomeDirectory(), with: "~"),
+                 icon: .symbol("folder"),
+                 primary: Action("Open in Finder") { [folder] in NSWorkspace.shared.open(folder); return .close },
+                 secondary: Action("Copy Path") { [weak self, folder] in self?.context.copy(folder.path); return .hud("Copied") }),
+            Item(id: "browse", title: "Browse Raycast Script Commands", subtitle: "github.com/raycast/script-commands: drop scripts into the folder",
+                 icon: .symbol("safari"),
+                 primary: Action("Open in Browser") {
+                     NSWorkspace.shared.open(URL(string: "https://github.com/raycast/script-commands")!)
+                     return .close
+                 }),
+        ]
     }
 
     private func item(_ s: Script, arguments args: [String]) -> Item {
         let missing = s.arguments.enumerated()
             .filter { i, a in a.optional != true && (i >= args.count || args[i].isEmpty) }
             .map { i, a in a.placeholder ?? "argument \(i + 1)" }
-        var subtitle = [s.packageName, s.description].compactMap { $0 }.joined(separator: " · ")
+        var subtitle = [s.title, s.packageName, s.description].compactMap { $0 }.joined(separator: " · ")
         if s.mode == "inline" {
             refreshInlineIfStale(s, missing: missing)
             if let out = inline[s.name] { subtitle = out.line }
         }
-        if !missing.isEmpty { subtitle = "Type /\(s.name) " + missing.map { "‹\($0)›" }.joined(separator: " ") }
+        if !missing.isEmpty { subtitle = "\(s.title) · then type " + missing.map { "‹\($0)›" }.joined(separator: " ") }
         if !s.isExecutable { subtitle = "Not executable: choose Make Executable (chmod +x)" }
+        if let error = s.permissionError { subtitle = "Won't run: \(error)" }
 
         let primary: Action
-        if !s.isExecutable {
+        if s.permissionError != nil {
+            primary = Action("Open Script", icon: .symbol("exclamationmark.triangle")) { NSWorkspace.shared.open(s.url); return .close }
+        } else if !s.isExecutable {
             primary = Action("Make Executable", icon: .symbol("lock.open")) { [weak self] in
                 try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: s.url.path)
                 self?.scannedStamp = nil
@@ -117,8 +136,10 @@ final class ScriptCommandsExtension: Extension {
             primary = Action("Run Script", icon: .symbol("play")) { [unowned self] in await self.run(s, args) }
         }
 
-        return Item(id: s.url.path, title: args.isEmpty ? s.title : "\(s.title)  \(args.joined(separator: " "))", subtitle: subtitle,
-                    icon: s.icon, accessories: [.text("/\(s.name)")] + (s.isExecutable ? [] : [.pill("chmod +x", .orange)]),
+        // Named like every other command: "/hello-world Alex", with the script's own title underneath.
+        return Item(id: s.url.path, title: (["/\(s.name)"] + args).joined(separator: " "), subtitle: subtitle,
+                    icon: s.icon, accessories: (s.isExecutable ? [] : [.pill("chmod +x", .orange)])
+                        + (CommandsExtension.key("script:\(s.name)").map { [.keycap($0)] } ?? []),
                     primary: primary,
                     secondary: Action("Open Script", icon: .symbol("doc.text")) { NSWorkspace.shared.open(s.url); return .close },
                     more: [
@@ -130,6 +151,7 @@ final class ScriptCommandsExtension: Extension {
                             self?.context.copy(s.url.path)
                             return .hud("Copied")
                         },
+                        CommandsExtension.setHotkey(s.name),
                     ])
     }
 
@@ -174,11 +196,13 @@ final class ScriptCommandsExtension: Extension {
     /// fullOutput mode: streams stdout and stderr into the detail area, like the Terminal extension.
     private func stream(_ s: Script, _ args: [String]) -> ListView {
         let detail = DetailModel(text: "", isRunning: true)
-        let process = Self.process(s, args)
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = pipe
-        pipe.fileHandleForReading.readabilityHandler = { handle in
+        let process: ExtensionProcess
+        do { process = try Self.process(s, args) } catch {
+            detail.text = error.localizedDescription
+            detail.isRunning = false
+            return ListView(title: s.title, icon: s.icon, placeholder: "", detail: detail) { _ in [] }
+        }
+        process.stdout?.readabilityHandler = { handle in
             let data = handle.availableData
             guard !data.isEmpty else { return }
             let chunk = Self.stripANSI(String(decoding: data, as: UTF8.self))
@@ -189,19 +213,15 @@ final class ScriptCommandsExtension: Extension {
                 }
             }
         }
-        process.terminationHandler = { [weak self] p in
+        process.onExit { [weak self] status in
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
-                    pipe.fileHandleForReading.readabilityHandler = nil
+                    process.stdout?.readabilityHandler = nil
                     detail.isRunning = false
-                    if p.terminationStatus != 0 { detail.text += "\n[exit \(p.terminationStatus)]" }
+                    if status != 0 { detail.text += "\n[exit \(status)]" }
                     self?.context.refresh()
                 }
             }
-        }
-        do { try process.run() } catch {
-            detail.text = error.localizedDescription
-            detail.isRunning = false
         }
 
         return ListView(title: s.title, icon: s.icon, placeholder: "Output actions…", detail: detail) { [weak self] q in
@@ -239,37 +259,33 @@ final class ScriptCommandsExtension: Extension {
         }
     }
 
-    private static func process(_ s: Script, _ args: [String]) -> Process {
-        let p = Process()
-        p.executableURL = s.url
-        p.arguments = args
-        p.currentDirectoryURL = s.directory
-        p.standardInput = FileHandle.nullDevice
-        // Apps launched from Finder get a minimal PATH; scripts expect Homebrew tools to resolve.
-        var env = ProcessInfo.processInfo.environment
-        env["PATH"] = (env["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin") + ":/opt/homebrew/bin:/usr/local/bin"
-        p.environment = env
-        return p
+    /// Output and errors share one pipe. The script gets a clean environment and none of Slashlight's permissions.
+    nonisolated private static func process(_ s: Script, _ args: [String]) throws -> ExtensionProcess {
+        guard let permissions = s.permissions else {
+            throw ExtensionProcess.LaunchError(errorDescription: s.permissionError ?? "Can't read this script's permissions")
+        }
+        let id = "scripts/\(s.name)"
+        let folders = Sandbox.folders(extensionID: id)
+        let sandbox = Sandbox(permissions: permissions, scriptFolder: s.url.deletingLastPathComponent(), dataFolder: folders.data, tempFolder: folders.temp)
+        return try ExtensionProcess(executable: s.url, arguments: args, directory: s.directory,
+                                    extensionID: id, sandbox: sandbox, pipeStdin: false)
     }
 
     /// Runs to completion (60 s at most) and returns the combined output.
     private static func capture(_ s: Script, _ args: [String]) async -> (status: Int32, output: String) {
-        let p = process(s, args)
-        let pipe = Pipe()
-        p.standardOutput = pipe
-        p.standardError = pipe
-        return await withCheckedContinuation { cont in
+        await withCheckedContinuation { cont in
             DispatchQueue.global(qos: .userInitiated).async {
-                do { try p.run() } catch {
+                let p: ExtensionProcess
+                do { p = try process(s, args) } catch {
                     cont.resume(returning: (-1, error.localizedDescription))
                     return
                 }
-                let timer = DispatchWorkItem { if p.isRunning { p.terminate() } }
+                let timer = DispatchWorkItem { p.terminate() }
                 DispatchQueue.global().asyncAfter(deadline: .now() + 60, execute: timer)
-                let data = pipe.fileHandleForReading.readDataToEndOfFile()
-                p.waitUntilExit()
+                let data = p.stdout?.readDataToEndOfFile() ?? Data()
+                let status = p.waitUntilExit()
                 timer.cancel()
-                cont.resume(returning: (p.terminationStatus, String(decoding: data, as: UTF8.self)))
+                cont.resume(returning: (status, String(decoding: data, as: UTF8.self)))
             }
         }
     }
@@ -346,12 +362,20 @@ final class ScriptCommandsExtension: Extension {
             let expanded = (path as NSString).expandingTildeInPath
             directory = expanded.hasPrefix("/") ? URL(fileURLWithPath: expanded) : dir.appendingPathComponent(expanded)
         }
+        var permissions: ExtensionPermissions?
+        var permissionError: String?
+        let headers = ExtensionPermissions.scriptHeaders(source)
+        do { permissions = try ExtensionPermissions(scriptHeaders: headers) } catch {
+            permissionError = error.localizedDescription
+        }
         return Script(url: url, name: slug(url.deletingPathExtension().lastPathComponent), title: title,
                       mode: meta["mode"] ?? "fullOutput", packageName: meta["packageName"], description: meta["description"],
                       icon: icon(meta["icon"], relativeTo: dir), arguments: arguments,
                       needsConfirmation: meta["needsConfirmation"] == "true", directory: directory,
                       refreshTime: max(10, meta["refreshTime"].flatMap(duration) ?? 10),
-                      isExecutable: FileManager.default.isExecutableFile(atPath: url.path))
+                      isExecutable: FileManager.default.isExecutableFile(atPath: url.path),
+                      permissions: permissions, permissionError: permissionError,
+                      hotkey: headers["hotkey"].flatMap(Shortcut.init(string:)))
     }
 
     /// `# @raycast.title Hello` / `// @raycast.title Hello` → ["title": "Hello"]

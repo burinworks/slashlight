@@ -79,16 +79,23 @@ struct AccessoryView: View {
 struct ResultRow: View {
     let row: PaletteModel.Row
     let selected: Bool
+    /// The main search: title and icon only, no subtitle or status pills. Shortcut keycaps stay.
+    var plain = false
+
+    private var subtitle: String? { plain ? nil : row.item.subtitle.flatMap { $0.isEmpty ? nil : $0 } }
+    private var accessories: [Accessory] {
+        plain ? row.item.accessories.filter { if case .keycap = $0 { return true } else { return false } } : row.item.accessories
+    }
 
     var body: some View {
         HStack(spacing: 12) {
-            IconView(icon: row.item.icon)
+            IconView(icon: row.item.icon, size: 28)
             VStack(alignment: .leading, spacing: 1) {
                 Text(row.item.title)
                     .font(.system(size: 14))
                     .foregroundStyle(Theme.text)
                     .lineLimit(1)
-                if let sub = row.item.subtitle, !sub.isEmpty {
+                if let sub = subtitle {
                     Text(sub)
                         .font(.system(size: 12))
                         .foregroundStyle(Theme.secondary)
@@ -96,14 +103,14 @@ struct ResultRow: View {
                 }
             }
             Spacer(minLength: 8)
-            ForEach(Array(row.item.accessories.enumerated()), id: \.offset) { _, a in AccessoryView(accessory: a) }
+            ForEach(Array(accessories.enumerated()), id: \.offset) { _, a in AccessoryView(accessory: a) }
             Image(systemName: "chevron.right")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(Theme.secondary)
                 .opacity(selected ? 1 : 0)
         }
         .padding(.horizontal, 10)
-        .frame(height: row.item.subtitle?.isEmpty == false ? 50 : 44)
+        .frame(height: subtitle == nil ? 40 : 46)
         .background(selected ? Theme.selection : .clear, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .contentShape(Rectangle())
     }
@@ -178,5 +185,26 @@ struct SearchField: NSViewRepresentable {
             guard let field = note.object as? NSTextField else { return }
             text.wrappedValue = field.stringValue
         }
+    }
+}
+
+/// Slashlight's mark drawn flat: a rounded square with the slash cut through it. Follows the text colour.
+struct SlashlightGlyph: View {
+    var size: CGFloat = 14
+
+    var body: some View {
+        Canvas { ctx, box in
+            let r = box.width
+            let square = Path(roundedRect: CGRect(x: 0, y: 0, width: r, height: r), cornerRadius: r * 0.26, style: .continuous)
+            ctx.fill(square, with: .foreground)
+            var slash = Path()
+            slash.move(to: CGPoint(x: r * 0.62, y: r * 0.22))
+            slash.addLine(to: CGPoint(x: r * 0.38, y: r * 0.78))
+            ctx.blendMode = .destinationOut
+            ctx.stroke(slash, with: .color(.black), style: StrokeStyle(lineWidth: r * 0.13, lineCap: .round))
+        }
+        .frame(width: size, height: size)
+        .compositingGroup()
+        .accessibilityLabel("Slashlight")
     }
 }

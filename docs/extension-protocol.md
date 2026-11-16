@@ -15,34 +15,55 @@ The Swift types are in `Sources/SlashlightKit/WireProtocol.swift`; `SlashlightSD
   "subtitle": "Example out-of-process extension",
   "icon": "sf:hand.wave",
   "triggers": ["commands", "command:hello"],
+  "recents": "extension",
   "exec": ["./hello-extension"]
 }
 ```
 
-`exec` paths are relative to the folder. Triggers:
+`exec` paths are relative to the folder. `recents` sets what the home screen's Recent section shows after the extension is used: `"actions"` (the items the user ran), `"extension"` (the extension itself, the default) or `"none"`.
+
+Triggers:
 
 | Trigger | Meaning |
 |---|---|
 | `default` | Contributes to plain-text search |
 | `commands` | Contributes to `/` mode |
-| `command:<name>` | Reachable as `/<name>`; opening it shows a scoped search |
+| `command:<name>` | Another name the extension is found by when typed; opening it shows a scoped search. Extensions are not opened with `/<name>` |
 | `prefix:<p>` | Owns the bar when the text starts with `p` |
+
+### Hotkeys
+
+An extension can offer actions the user runs with a key. Each shows in Settings → Hotkeys, where the user can record another key or clear it:
+
+```json
+"hotkeys": [
+  { "id": "paste-new", "title": "Paste a new UUID", "scope": "global", "default": "ctrl+opt+u" },
+  { "id": "pin", "title": "Pin", "scope": "local", "default": "cmd+p" }
+]
+```
+
+- `scope` `global` works anywhere on the Mac while Slashlight runs; its key needs `cmd`, `opt` or `ctrl`. `local` works only while one of the extension's screens is open in the panel, and may also be `tab` or `f1`…`f12` alone. `escape` is always Back.
+- `default` is optional: without it the action has no key until the user sets one. A manifest whose global default is a key every app uses (⌘C, ⌘Q, ⌘Tab…), or whose local default is ⌘C ⌘V ⌘X ⌘A ⌘Z, doesn't load. A default that macOS itself uses on the user's Mac is not registered and shows a warning in Settings.
+- `id` uses lowercase letters, digits, `-`, `_` and `.`; `open` is taken by the "Open <title>" slot every extension with a screen gets.
+- Slashlight's own panel keys (Back, ⌘K…) come before a `local` key that clashes with them; Settings flags the clash.
 
 ## Host → extension
 
 ```json
-{"type":"search","id":2,"query":"alex","mode":"command","filter":null,"supportDirectory":"/Users/…/Slashlight/hello"}
+{"type":"search","id":2,"query":"alex","mode":"command","filter":null,"supportDirectory":"/Users/…/Slashlight/ExtensionData/hello"}
 {"type":"run","id":3,"itemId":"greet","actionId":"say-hello"}
 {"type":"search","id":5,"view":"v1","query":"","mode":"scoped","filter":"Water"}
 {"type":"run","id":6,"view":"v1","itemId":"wave-6","actionId":"choose"}
+{"type":"hotkey","id":7,"actionId":"paste-new","query":"ctrl+opt+u"}
 {"type":"dispose","id":0,"view":"v1"}
 {"type":"shutdown","id":4}
 ```
 
 `mode` is `default` | `command` | `prefix` | `scoped`. `filter` is the active Tab filter in a scoped screen.
 `view` is set when the request belongs to a screen the extension pushed (see below); root requests omit it, as in v1.
+`hotkey` means the user pressed one of the manifest's hotkeys: `actionId` names it, `query` holds the key pressed. Answer with an `outcome`, as for `run`. For a `global` hotkey, `push` opens the panel on that screen, `hud` and `paste` work as usual, and `close`, `stay` and `pop` do nothing.
 `dispose` (no reply) tells the extension the panel dropped that screen, so it can free it.
-Every request carries `supportDirectory`, a folder the extension may use for storage.
+Every request carries `supportDirectory` (`ExtensionData/<id>`, also in `$SLASHLIGHT_DATA_DIR`), a folder the extension may use for storage. The extension runs in a sandbox: anything beyond its own folders, such as the network or your files, needs a `permissions` block in `manifest.json` ([extension-permissions.md](extension-permissions.md)).
 A request that gets no reply within 5 s fails; a newer search makes older results irrelevant (the host drops them).
 
 ## Extension → host
@@ -99,8 +120,19 @@ Unsolicited messages (no `id`):
 ```json
 {"type":"refresh"}                         // data changed: re-run the current search
 {"type":"hud","message":"Synced"}
+{"type":"copy","text":"s3cr3t"}           // put text on the clipboard (the host writes it)
 {"type":"outcome","outcome":{"type":"close"}}
 ```
+
+## The process
+
+Slashlight starts your extension:
+
+- **as its own process for macOS privacy purposes.** It does not get the Accessibility, Screen Recording or Automation access the user gave Slashlight. If it needs one, macOS asks the user on its behalf.
+- **with a short environment:** `PATH` (system folders plus Homebrew), `HOME`, `TMPDIR`, `LANG`, `USER`, `LOGNAME`, `SHELL`, `LC_ALL`, `LC_CTYPE` and `SLASHLIGHT_EXTENSION_ID`. Read settings from your own storage, not from environment variables.
+- **in its own folder**, as the leader of a new process group. Quitting the extension also stops the programs it started.
+
+Use `copy` (or `context.copy` in the SDK) to put text on the clipboard. Reading the clipboard is reserved for Slashlight's built-in Clipboard History; see [Extension permissions](extension-permissions.md).
 
 ## Versions
 
@@ -109,4 +141,4 @@ unless they push. Ignore unknown fields and message types.
 
 ## Not yet supported
 
-Global hotkeys and permission declarations for external extensions.
+Hotkeys inside a pushed screen's own context: a `local` hotkey reaches the extension without `view`.

@@ -6,7 +6,7 @@ import Sparkle
 ///
 /// One appcast serves both channels: stable items have no channel, beta items carry `<sparkle:channel>beta`.
 @MainActor
-final class Updater: NSObject, SPUUpdaterDelegate, SPUStandardUserDriverDelegate {
+final class Updater: NSObject, SPUUpdaterDelegate, @preconcurrency SPUStandardUserDriverDelegate {
     static let shared = Updater()
 
     private var controller: SPUStandardUpdaterController?
@@ -45,6 +45,11 @@ final class Updater: NSObject, SPUUpdaterDelegate, SPUStandardUserDriverDelegate
 
     func allowedChannels(for updater: SPUUpdater) -> Set<String> {
         beta ? ["beta"] : []
+    }
+
+    func updater(_ updater: SPUUpdater, willInstallUpdate item: SUAppcastItem) {
+        // The updated copy is a new folder on disk; this keeps it from being taken for a fresh installation.
+        Host.shared.update { $0.updateInstalling = true }
     }
 
     // MARK: SPUStandardUserDriverDelegate

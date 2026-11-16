@@ -43,6 +43,9 @@ for line in sys.stdin:
         if outcome == "hud":
             subprocess.run(["pbcopy"], input=request["itemId"].encode())
         reply({"type": "outcome", "id": rid, "outcome": {"type": outcome, "value": value}})
+    elif kind == "hotkey" and request.get("actionId") == "paste-new":
+        # The manifest's global hotkey: paste a fresh UUID wherever you are typing.
+        reply({"type": "outcome", "id": rid, "outcome": {"type": "paste", "value": str(uuid.uuid4())}})
     elif kind == "shutdown":
         break
     # Unknown types (dispose, future additions) are ignored.

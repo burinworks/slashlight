@@ -1,7 +1,8 @@
 import AppKit
 import SlashlightKit
 
-/// User-defined `/commands` from `~/Library/Application Support/Slashlight/commands/commands.json`.
+/// Every `/command` in one place: the user's own from `~/Library/Application Support/Slashlight/commands/commands.json`
+/// and Raycast script commands from `…/Slashlight/script-commands/`.
 /// A `{query}` placeholder in `run` turns a command into a quicklink: `/gh slashlight` fills it with "slashlight"
 /// (URL-encoded for url and http, shell-quoted for shell, as typed otherwise).
 final class CommandsExtension: Extension {
@@ -17,22 +18,84 @@ final class CommandsExtension: Extension {
         var method: String?
         var body: String?
         var headers: [String: String]?
+        /// "ctrl+opt+l": the key that runs it from anywhere, until changed in Settings → Hotkeys.
+        var hotkey: String?
     }
 
     private var commands: [Command] = []
     private var loadedAt: Date?
+    private let scripts = ScriptCommandsExtension()
 
     override var manifest: Manifest {
-        Manifest(id: "commands", title: "Commands", subtitle: "Your own /commands: scripts, URLs, Shortcuts, HTTP", icon: .symbol("command"))
+        Manifest(id: "commands", title: "Commands", subtitle: "Your /commands: shell, URLs, Shortcuts, HTTP, Raycast scripts",
+                 icon: .symbol("command"), recents: .actions)
     }
 
-    override var triggers: [Trigger] { [.commands, .command("commands")] }
+    override var triggers: [Trigger] { [.commands, .command("scripts")] }
 
     private var file: URL { context.supportDirectory.appendingPathComponent("commands.json") }
 
     override func activate(context: ExtensionContext) async {
         if !FileManager.default.fileExists(atPath: file.path) { writeExamples() }
         load()
+        await scripts.start(context: FolderContext(base: context, folder: "script-commands"))
+    }
+
+    override func deactivate() async { await scripts.deactivate() }
+
+    /// A global key slot for every command and script: `hotkey` in commands.json (or `@slashlight.hotkey` in a
+    /// script) is its default, Settings → Hotkeys can change it. One that needs a search term opens the panel on it.
+    override var hotkeys: [HotkeyAction] {
+        reloadIfChanged()
+        let own = commands.map { c in
+            HotkeyAction(id: Self.hotkeyID(command: c.name), title: Self.hotkeyTitle(c.name, c.title), scope: .global,
+                         default: c.hotkey.flatMap(Shortcut.init(string:)), icon: .symbol(Self.symbol(c))) { [weak self] _ in
+                if Self.takesArgument(c) {
+                    Self.ask(for: c.name)
+                    return .stay
+                }
+                guard let self, let action = self.item(c, argument: "").primary else { return .stay }
+                return try await action.run()
+            }
+        }
+        let items: [HotkeyAction] = [
+            .itemAction("set-hotkey…", title: "Set Hotkey…", default: Shortcut("h", [.command, .shift])),
+            .itemAction("show-in-finder", title: "Show script in Finder", default: Shortcut("f", [.command, .shift])),
+            .itemAction("copy-path", title: "Copy script path", default: Shortcut("c", [.command, .shift])),
+        ]
+        return items + own + scripts.hotkeys
+    }
+
+    static func hotkeyID(command name: String) -> String { "command:\(name)" }
+    static func hotkeyTitle(_ name: String, _ title: String?) -> String { title.map { "/\(name) · \($0)" } ?? "/\(name)" }
+
+    /// Opens the panel with "/name " typed, ready for the search term.
+    static func ask(for name: String) {
+        Host.shared.show()
+        Host.shared.model.text = "/\(name) "
+    }
+
+    /// The key a command or script has now, shown on its row.
+    static func key(_ hotkeyID: String) -> Shortcut? {
+        Host.shared.hotkeyBindings.first { $0.id == "commands/\(hotkeyID)" }?.shortcut
+    }
+
+    /// Opens Settings → Hotkeys on this one command.
+    static func setHotkey(_ name: String) -> Action {
+        Action("Set Hotkey…", icon: .symbol("keyboard"), shortcut: Shortcut("h", [.command, .shift])) {
+            SettingsWindowController.shared.show(tab: .hotkeys, hotkeyFilter: "/\(name)")
+            return .close
+        }
+    }
+
+    private static func symbol(_ c: Command) -> String {
+        c.icon ?? ["shell": "terminal", "url": "link", "shortcut": "square.stack.3d.up", "http": "network", "applescript": "applescript"][c.type] ?? "bolt"
+    }
+
+    override func recentItem(id: String, title: String) async -> Item? {
+        reloadIfChanged()
+        if let c = commands.first(where: { $0.name == id }) { return item(c, argument: "") }
+        return scripts.item(id: id)
     }
 
     override func search(_ query: Query) async throws -> [Section] {
@@ -41,13 +104,14 @@ final class CommandsExtension: Extension {
         let text = query.text.trimmingCharacters(in: .whitespaces)
         let parts = text.split(separator: " ", maxSplits: 1).map(String.init)
         let argument = parts.count > 1 ? parts[1].trimmingCharacters(in: .whitespaces) : ""
-        let matches = commands
-            .compactMap { c -> (Int, Command, String)? in
-                if !argument.isEmpty && Self.takesArgument(c) { return Fuzzy.score(parts[0], c.name).map { ($0, c, argument) } }
-                return Fuzzy.score(text, c.name).map { ($0, c, "") }
-            }
-            .sorted { $0.0 > $1.0 }
-            .map { item($0.1, argument: $0.2) }
+        let own = commands.compactMap { c -> (score: Int, item: Item)? in
+            if !argument.isEmpty && Self.takesArgument(c) { return Fuzzy.score(parts[0], c.name).map { ($0, item(c, argument: argument)) } }
+            return Fuzzy.score(text, c.name).map { ($0, item(c, argument: "")) }
+        }
+        // Sorted by score; the order is stable, so ties keep commands.json first, then scripts.
+        let matches = (own + scripts.scored(query.text)).enumerated()
+            .sorted { $0.element.score != $1.element.score ? $0.element.score > $1.element.score : $0.offset < $1.offset }
+            .map(\.element.item)
         var sections = [Section("Commands", matches)]
         if query.mode == .scoped || Fuzzy.score(query.text, "edit commands") != nil && !query.isEmpty {
             sections.append(Section("Manage", [
@@ -55,24 +119,26 @@ final class CommandsExtension: Extension {
                      icon: .symbol("pencil"),
                      primary: Action("Open in Editor") { [file] in NSWorkspace.shared.open(file); return .close },
                      secondary: Action("Show in Finder") { [file] in NSWorkspace.shared.activateFileViewerSelecting([file]); return .close }),
-            ]))
+            ] + (query.mode == .scoped ? scripts.manageItems : [])))
         }
         return sections
     }
 
     private func item(_ c: Command, argument: String) -> Item {
-        let symbol = c.icon ?? ["shell": "terminal", "url": "link", "shortcut": "square.stack.3d.up", "http": "network", "applescript": "applescript"][c.type] ?? "bolt"
+        let symbol = Self.symbol(c)
         let takesArgument = Self.takesArgument(c)
         let hint = takesArgument && argument.isEmpty ? "type /\(c.name) and a search term" : nil
         return Item(id: c.name, title: argument.isEmpty ? "/\(c.name)" : "/\(c.name) \(argument)",
                     subtitle: [c.title, hint ?? c.type].compactMap { $0 }.joined(separator: " · "),
                     icon: .symbol(symbol),
-                    accessories: takesArgument ? [.pill("{query}", .gray)] : [],
+                    accessories: (takesArgument ? [.pill("{query}", .gray)] : [])
+                        + (Self.key(Self.hotkeyID(command: c.name)).map { [.keycap($0)] } ?? []),
                     primary: Action("Run Command", icon: .symbol("play")) { try await Self.execute(Self.filling(c, with: argument)) },
                     secondary: Action("Copy Definition", icon: .symbol("doc.on.doc")) { [weak self] in
                         self?.context.copy(c.run)
                         return .hud("Copied")
-                    })
+                    },
+                    more: [Self.setHotkey(c.name)])
     }
 
     static func takesArgument(_ c: Command) -> Bool { c.run.contains("{query}") }
@@ -154,6 +220,32 @@ final class CommandsExtension: Extension {
         enc.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         try? enc.encode(examples).write(to: file)
     }
+}
+
+/// The host's services with another support folder, so the merged script commands keep reading `script-commands/`.
+@MainActor
+private final class FolderContext: ExtensionContext {
+    let base: ExtensionContext
+    let folder: String
+
+    init(base: ExtensionContext, folder: String) {
+        self.base = base
+        self.folder = folder
+    }
+
+    var supportDirectory: URL {
+        let url = Paths.support.appendingPathComponent(folder, isDirectory: true)
+        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        return url
+    }
+
+    func storage(_ kind: StorageKind) -> KeyValueStorage { base.storage(kind) }
+    var frontmostApplication: NSRunningApplication? { base.frontmostApplication }
+    func copy(_ text: String) { base.copy(text) }
+    func showHUD(_ message: String) { base.showHUD(message) }
+    func refresh() { base.refresh() }
+    func present(extensionID: String) { base.present(extensionID: extensionID) }
+    func close() { base.close() }
 }
 
 extension Shell {

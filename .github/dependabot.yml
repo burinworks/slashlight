@@ -5,8 +5,12 @@ updates:
     target-branch: test # new work lands on test first
     schedule:
       interval: weekly
+    cooldown: # let a new release settle for a week before adopting it
+      default-days: 7
   - package-ecosystem: swift
     directory: /
     target-branch: test # new work lands on test first
     schedule:
       interval: weekly
+    cooldown: # let a new release settle for a week before adopting it
+      default-days: 7

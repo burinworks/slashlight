@@ -10,18 +10,22 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
     private var model: SettingsModel?
     private var pendingTab: SettingsTab?
+    private var pendingFilter: String?
 
-    func show(tab: SettingsTab? = nil) {
+    func show(tab: SettingsTab? = nil, hotkeyFilter: String? = nil) {
         pendingTab = tab
+        pendingFilter = hotkeyFilter
         if let tab { model?.tab = tab }
+        if let hotkeyFilter { model?.hotkeyFilter = hotkeyFilter }
         if window == nil {
             let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 620, height: 520),
                              styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
-            w.title = "Slashlight Settings"
+            w.title = "\(BuildInfo.name) Settings"
             w.isReleasedWhenClosed = false
             w.delegate = self
             let model = SettingsModel(host: Host.shared)
             if let pending = pendingTab { model.tab = pending }
+            if let pendingFilter { model.hotkeyFilter = pendingFilter }
             self.model = model
             w.contentView = NSHostingView(rootView: SettingsView(model: model))
             w.center()
@@ -54,6 +58,10 @@ final class SettingsModel: ObservableObject {
     @Published var loginItem = LoginItem.isEnabled
     @Published var extensionsVersion = 0
     @Published var tab = SettingsTab.general
+    /// The Hotkeys tab's search, so "Set Hotkey…" on a command can open the tab on that command.
+    @Published var hotkeyFilter = ""
+    /// For the ⌘Space choice: whether Spotlight still has it.
+    @Published var spotlightOwnsCommandSpace = SpotlightShortcut.ownsCommandSpace
     private var timer: Timer?
 
     init(host: Host) {
@@ -72,6 +80,12 @@ final class SettingsModel: ObservableObject {
         var p: [Permission: Bool] = [:]
         for perm in [Permission.accessibility, .screenRecording] { p[perm] = Permissions.isGranted(perm) }
         if p != permissions { permissions = p }
+        let spotlight = SpotlightShortcut.ownsCommandSpace
+        if spotlight != spotlightOwnsCommandSpace {
+            spotlightOwnsCommandSpace = spotlight
+            // ⌘Space was skipped while Spotlight had it; take it now (or let it go).
+            host.registerHotkeys()
+        }
     }
 
     func update(_ change: @escaping (inout Settings) -> Void) {
@@ -104,6 +118,32 @@ final class SettingsModel: ObservableObject {
         loginItem = LoginItem.isEnabled
     }
 
+    // MARK: Hotkeys
+
+    /// Every key, from the current settings.
+    var hotkeys: [HotkeyBinding] { HotkeyMap.bindings(host: host, settings: settings) }
+
+    /// Saves `value` ("cmd+k", or "" for none) for `binding`. A key equal to the default is stored as no change.
+    func setHotkey(_ binding: HotkeyBinding, _ value: String) {
+        guard binding.isEditable else { return }
+        update { s in
+            if binding.id == "\(HotkeyMap.slashlight)/open" {
+                if !value.isEmpty { s.hotkey = value }
+            } else if value == (binding.defaultShortcut?.string ?? "") {
+                s.hotkeys.removeValue(forKey: binding.id)
+            } else {
+                s.hotkeys[binding.id] = value
+            }
+        }
+    }
+
+    func resetHotkey(_ binding: HotkeyBinding) { setHotkey(binding, binding.defaultShortcut?.string ?? "") }
+
+    /// Leaves Open Slashlight alone: that one lives in General.
+    func resetAllHotkeys() {
+        update { $0.hotkeys = [:] }
+    }
+
     func reloadExtensions() {
         Task {
             await host.reload()
@@ -113,11 +153,12 @@ final class SettingsModel: ObservableObject {
 }
 
 enum SettingsTab: String, CaseIterable {
-    case general = "General", extensions = "Extensions", permissions = "Permissions", about = "About"
+    case general = "General", hotkeys = "Hotkeys", extensions = "Extensions", permissions = "Permissions", about = "About"
 
     var symbol: String {
         switch self {
         case .general: return "gearshape"
+        case .hotkeys: return "keyboard"
         case .extensions: return "puzzlepiece.extension"
         case .permissions: return "lock.shield"
         case .about: return "info.circle"
@@ -151,6 +192,7 @@ struct SettingsView: View {
             Group {
                 switch model.tab {
                 case .general: GeneralSettings(model: model)
+                case .hotkeys: HotkeysSettings(model: model)
                 case .extensions: ExtensionsSettings(model: model)
                 case .permissions: PermissionsSettings(model: model)
                 case .about: AboutSettings()
@@ -169,12 +211,19 @@ private struct GeneralSettings: View {
 
     var body: some View {
         Form {
-            Section("Hotkeys") {
-                LabeledContent("Open Slashlight") { HotkeyRecorder(value: model.binding(\.hotkey)) }
-                LabeledContent("Switch window") { HotkeyRecorder(value: model.binding(\.windowSwitcherHotkey)) }
-                Toggle(isOn: model.binding(\.windowManagementHotkeys)) {
-                    Text("Window layout hotkeys")
-                    Text("⌃⌥ + arrows, ↵, C, ⌫, D F G E T, U I J K").font(.caption).foregroundStyle(.secondary)
+            Section {
+                OpenHotkeyPicker(model: model)
+            } header: {
+                Text("Open Slashlight")
+            } footer: {
+                if model.settings.hotkey == "cmd+space" && model.spotlightOwnsCommandSpace {
+                    HStack(spacing: 8) {
+                        Label("Spotlight still uses ⌘Space. Turn it off in Keyboard Shortcuts → Spotlight.",
+                              systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption).foregroundStyle(.orange)
+                        Spacer()
+                        Button("Open Keyboard Shortcuts", action: SpotlightShortcut.openKeyboardShortcuts).controlSize(.small)
+                    }
                 }
             }
             Section("Appearance") {
@@ -184,6 +233,35 @@ private struct GeneralSettings: View {
                     Text("Dark").tag("dark")
                 }
                 .pickerStyle(.segmented)
+                LabeledContent("Background") {
+                    HStack {
+                        Text("See-through").font(.caption).foregroundStyle(.secondary)
+                        Slider(value: model.binding(\.panelOpacity), in: 0.5...1)
+                        Text("Solid").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                Toggle("Blur what's behind the panel", isOn: model.binding(\.panelBlur))
+                PanelPreview().frame(maxWidth: .infinity)
+            }
+            Section {
+                Toggle(isOn: model.binding(\.clipboardKeepHistory)) {
+                    Text("Keep history after quitting")
+                    Text("Encrypted on this Mac with a key in your Keychain. Copies from password managers are never saved.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Picker("Forget entries after", selection: model.binding(\.clipboardForgetAfterDays)) {
+                    Text("1 day").tag(1)
+                    Text("7 days").tag(7)
+                    Text("30 days").tag(30)
+                    Text("Never").tag(0)
+                }
+                LabeledContent("History") {
+                    Button("Clear History", role: .destructive) { ClipboardExtension.shared?.clearAll() }
+                }
+            } header: {
+                Text("Clipboard History")
+            } footer: {
+                Text("Keeps up to 300 entries: text with its formatting, images and files.").font(.caption).foregroundStyle(.secondary)
             }
             Section("Startup") {
                 Toggle(isOn: Binding(get: { model.loginItem }, set: { _ in model.toggleLoginItem() })) {
@@ -210,48 +288,354 @@ private struct GeneralSettings: View {
     }
 }
 
-/// Click, then press a key combination with at least one of ⌘ ⌥ ⌃. Esc cancels. Also used by the welcome tour.
+/// Click, then press a key combination with at least one of ⌘ ⌥ ⌃. Esc or a click anywhere else cancels,
+/// so picking a suggested hotkey in the welcome tour ends recording. Also used by the welcome tour.
 struct HotkeyRecorder: View {
     @Binding var value: String
     var placeholder: String?
+    /// Which keys it accepts: global ones need ⌘, ⌥ or ⌃ (see `HotkeyMap.isAllowed`).
+    var scope: HotkeyBinding.Scope = .global
+    /// ⌫ while recording removes the key.
+    var canClear = false
+    /// Shows "esc cancel" next to the button while recording.
+    var showsHint = false
     @State private var recording = false
     @State private var monitor: Any?
+    @State private var clickMonitor: Any?
+    /// When a click ended recording. The same click then reaches this button, which must not start again.
+    @State private var stoppedByClick = Date.distantPast
+    /// Why the last key pressed was refused (⌘C is Copy…); shown under the button for a moment.
+    @State private var refusal: String?
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 10) {
+            // Always laid out, only shown while recording, so the button never moves.
+            if showsHint {
+                RecorderHint(canClear: canClear && !value.isEmpty).opacity(recording ? 1 : 0)
+            }
             Button(action: toggle) {
-                Text(recording ? "Press keys…" : placeholder ?? Shortcut(string: value)?.display ?? value)
+                Text(recording ? "Press keys…" : placeholder ?? Shortcut(string: value)?.display ?? (value.isEmpty ? "Record" : value))
                     .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .frame(minWidth: 110)
+                    .foregroundStyle(!recording && value.isEmpty && placeholder == nil ? .secondary : .primary)
+                    .frame(minWidth: 92)
             }
             .buttonStyle(.bordered)
             .tint(recording ? .accentColor : nil)
+            .popover(isPresented: Binding(get: { refusal != nil }, set: { if !$0 { refusal = nil } }), arrowEdge: .bottom) {
+                Label(refusal ?? "", systemImage: "nosign").font(.callout).padding(10)
+            }
         }
         .onDisappear(perform: stop)
+        // Another control set the hotkey (a suggested one was picked).
+        .onChange(of: value) { _, _ in stop() }
     }
 
-    private func toggle() { recording ? stop() : start() }
+    private func toggle() {
+        if recording { stop() } else if Date().timeIntervalSince(stoppedByClick) > 0.5 { start() }
+    }
 
     private func start() {
         recording = true
         // Carbon hotkeys swallow their keys before the app sees them, so pause them while recording.
         HotKeyCenter.shared.unregisterAll()
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            if event.keyCode == 53 { stop(); return nil } // esc
             let mods = Shortcut.Modifiers(event.modifierFlags)
-            guard !mods.isDisjoint(with: [.command, .option, .control]) else { NSSound.beep(); return nil }
-            value = Shortcut(KeyCodes.key(for: event), mods).string
+            let key = KeyCodes.key(for: event)
+            if key == "escape" && mods.isEmpty { stop(); return nil }
+            if key == "delete" && mods.isEmpty && canClear {
+                value = ""
+                stop()
+                return nil
+            }
+            let shortcut = Shortcut(key, mods)
+            guard HotkeyMap.isAllowed(shortcut, scope: scope) else {
+                refuse(scope == .global ? "Add ⌘, ⌥ or ⌃" : "Add ⌘, ⌥ or ⌃, or use Tab or F1–F12")
+                return nil
+            }
+            if let reason = ReservedKeys.reason(shortcut, scope: scope) {
+                refuse(reason)
+                return nil
+            }
+            value = shortcut.string
             stop()
             return nil
         }
+        clickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { event in
+            stoppedByClick = Date()
+            stop()
+            return event
+        }
+    }
+
+    /// Keeps recording, so the next key can be tried straight away.
+    private func refuse(_ reason: String) {
+        NSSound.beep()
+        refusal = reason
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { if refusal == reason { refusal = nil } }
     }
 
     private func stop() {
+        refusal = nil
         guard recording else { return }
         recording = false
         if let monitor { NSEvent.removeMonitor(monitor) }
+        if let clickMonitor { NSEvent.removeMonitor(clickMonitor) }
         monitor = nil
+        clickMonitor = nil
         Host.shared.registerHotkeys()
+    }
+}
+
+/// "esc cancel · ⌫ remove" under the recorder: one short line, so rows grow only a little.
+private struct RecorderHint: View {
+    let canClear: Bool
+
+    private func key(_ k: String) -> some View {
+        Text(k)
+            .font(.system(size: 9.5, weight: .medium))
+            .padding(.horizontal, 3)
+            .background(RoundedRectangle(cornerRadius: 3, style: .continuous).stroke(.secondary.opacity(0.5), lineWidth: 0.75))
+    }
+
+    var body: some View {
+        HStack(spacing: 3) {
+            key("esc")
+            Text("cancel")
+            if canClear {
+                key("⌫").padding(.leading, 5)
+                Text("remove")
+            }
+        }
+        .font(.system(size: 10))
+        .foregroundStyle(.secondary)
+        .frame(height: 13)
+        .fixedSize()
+    }
+}
+
+// MARK: Open Slashlight
+
+/// The welcome tour's hotkey choice, at Settings' scale: three common keys and one to record.
+private struct OpenHotkeyPicker: View {
+    @ObservedObject var model: SettingsModel
+
+    static let presets: [(value: String, name: String)] = [
+        ("cmd+space", "Command Space"), ("opt+space", "Option Space"), ("ctrl+space", "Control Space"),
+    ]
+
+    private var value: String { model.settings.hotkey }
+    private var isCustom: Bool { !Self.presets.contains { $0.value == value } }
+    private func set(_ v: String) { model.update { $0.hotkey = v } }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ForEach(Self.presets, id: \.value) { p in
+                ChoiceCard(selected: value == p.value, action: { set(p.value) }) {
+                    HStack(spacing: 4) {
+                        ForEach(HotkeyLabels.keys(p.value), id: \.self) { BigKey(label: $0, height: 24) }
+                    }
+                    .frame(height: 30)
+                    CardCaption(name: p.name)
+                }
+            }
+            ChoiceCard(selected: isCustom, action: nil) {
+                HotkeyRecorder(value: Binding(get: { value }, set: { set($0) }), placeholder: isCustom ? nil : "Record")
+                    .controlSize(.small)
+                    .frame(height: 30)
+                CardCaption(name: "Custom")
+            }
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+private struct CardCaption: View {
+    let name: String
+
+    var body: some View {
+        Text(name).font(.system(size: 12, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.85)
+    }
+}
+
+/// A selectable tile in the system's colours: accent border and check when chosen.
+private struct ChoiceCard<Content: View>: View {
+    let selected: Bool
+    /// Nil when the content handles clicks itself (the recorder).
+    let action: (() -> Void)?
+    @ViewBuilder let content: Content
+    @State private var hover = false
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+        let card = VStack(spacing: 8) { content }
+            .frame(maxWidth: .infinity, minHeight: 72)
+            .padding(.horizontal, 6)
+            .background(shape.fill(Color.primary.opacity(hover || selected ? 0.07 : 0.04)))
+            .overlay(shape.strokeBorder(selected ? Color.accentColor : Color.primary.opacity(0.1), lineWidth: selected ? 2 : 1))
+            .overlay(alignment: .topTrailing) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white, Color.accentColor)
+                    .padding(5)
+                    .opacity(selected ? 1 : 0)
+            }
+            .contentShape(shape)
+            .onHover { hover = $0 }
+            .animation(.easeOut(duration: 0.15), value: selected)
+            .animation(.easeOut(duration: 0.12), value: hover)
+        if let action {
+            Button(action: action) { card }.buttonStyle(.plain)
+        } else {
+            card
+        }
+    }
+}
+
+// MARK: Hotkeys
+
+private struct HotkeysSettings: View {
+    @ObservedObject var model: SettingsModel
+
+    private func groups(_ all: [HotkeyBinding]) -> [(group: HotkeyBinding.Group, rows: [HotkeyBinding])] {
+        var out: [(group: HotkeyBinding.Group, rows: [HotkeyBinding])] = []
+        for b in all where b.isListed && matches(b) {
+            if let i = out.firstIndex(where: { $0.group == b.group }) { out[i].rows.append(b) }
+            else { out.append((b.group, [b])) }
+        }
+        return out
+    }
+
+    private func matches(_ b: HotkeyBinding) -> Bool {
+        let f = model.hotkeyFilter
+        return f.isEmpty || Fuzzy.score(f, [b.title, b.ownerTitle, b.group.title, b.shortcut?.display ?? ""]) != nil
+    }
+
+    var body: some View {
+        let all = model.hotkeys
+        VStack(spacing: 0) {
+            Form {
+                Section {
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                        TextField("Find a hotkey", text: $model.hotkeyFilter, prompt: Text("Find a hotkey"))
+                            .labelsHidden()
+                            .textFieldStyle(.plain)
+                    }
+                }
+                ForEach(groups(all), id: \.group) { group in
+                    Section(group.group.title) {
+                        if group.group == .windows {
+                            Toggle("Use Window Layout's global keys", isOn: model.binding(\.windowManagementHotkeys))
+                        }
+                        ForEach(group.rows) { b in HotkeyRow(binding: b, all: all, model: model) }
+                    }
+                }
+                Section {
+                    LabeledContent("All hotkeys") {
+                        Button("Reset to Defaults", role: .destructive, action: model.resetAllHotkeys)
+                    }
+                }
+            }
+            .formStyle(.grouped)
+            Divider()
+            HStack(spacing: 18) {
+                ScopeLegend(scope: .global, text: "anywhere on your Mac")
+                ScopeLegend(scope: .system, text: "anywhere in Slashlight")
+                ScopeLegend(scope: .local, text: "only in that extension")
+            }
+            .font(.caption).foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 34)
+        }
+        .id(model.extensionsVersion)
+    }
+}
+
+/// The icon that says where a key works: a globe, Slashlight's own mark, or a puzzle piece.
+struct ScopeIcon: View {
+    let scope: HotkeyBinding.Scope
+    var size: CGFloat = 13
+
+    var body: some View {
+        Group {
+            switch scope {
+            case .global: Image(systemName: "globe").font(.system(size: size))
+            case .system: SlashlightGlyph(size: size + 1)
+            case .local: Image(systemName: "puzzlepiece.extension").font(.system(size: size))
+            }
+        }
+        .foregroundStyle(.secondary)
+        .help(scope.help)
+    }
+}
+
+private struct ScopeLegend: View {
+    let scope: HotkeyBinding.Scope
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ScopeIcon(scope: scope, size: 11)
+            Text(text)
+        }
+    }
+}
+
+private struct HotkeyRow: View {
+    let binding: HotkeyBinding
+    let all: [HotkeyBinding]
+    @ObservedObject var model: SettingsModel
+
+    /// Editable keys this one clashes with: "Use it here" clears them.
+    private var clashes: [HotkeyBinding] {
+        guard binding.isEditable else { return [] }
+        return HotkeyMap.conflicts(of: binding, in: all).filter(\.isEditable)
+    }
+
+    private var warning: String? {
+        guard binding.isEditable else { return nil }
+        if let s = binding.shortcut, let reason = ReservedKeys.reason(s, scope: binding.scope) { return reason }
+        let clashes = HotkeyMap.conflicts(of: binding, in: all)
+        if !clashes.isEmpty {
+            return "Also used by " + clashes.map { $0.group == binding.group ? $0.title : "\($0.title) (\($0.group.title))" }
+                .joined(separator: ", ")
+        }
+        if model.host.failedHotkeys.contains(binding.id) { return "macOS or another app already uses this key" }
+        return nil
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ScopeIcon(scope: binding.scope).frame(width: 18)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(binding.title).lineLimit(1)
+                if let warning {
+                    HStack(spacing: 6) {
+                        Text(warning).font(.caption).foregroundStyle(.orange).lineLimit(2)
+                        if !clashes.isEmpty {
+                            Button("Use it here") { for other in clashes { model.setHotkey(other, "") } }
+                                .buttonStyle(.link)
+                                .font(.caption)
+                                .help("Removes the key from " + clashes.map(\.title).joined(separator: ", "))
+                        }
+                    }
+                }
+            }
+            Spacer(minLength: 12)
+            Button { model.resetHotkey(binding) } label: {
+                Image(systemName: "arrow.counterclockwise").font(.system(size: 11, weight: .semibold))
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(.secondary)
+            .help("Back to \(binding.defaultShortcut?.display ?? "no key")")
+            .opacity(binding.isDefault ? 0 : 1)
+            .disabled(binding.isDefault)
+            HotkeyRecorder(value: Binding(get: { binding.shortcut?.string ?? "" },
+                                          set: { model.setHotkey(binding, $0) }),
+                           scope: binding.scope, canClear: true, showsHint: true)
+                .controlSize(.small)
+        }
+        .padding(.vertical, 1)
     }
 }
 
@@ -319,11 +703,15 @@ private struct PermissionsSettings: View {
                             Text(Permissions.reason(p)).font(.caption).foregroundStyle(.secondary)
                         }
                         Spacer()
+                        if !granted {
+                            Button("Reset") { Permissions.reset(p) }
+                                .help(Permissions.staleHint)
+                        }
                         Button(granted ? "Open System Settings" : "Grant Access") { Permissions.request(p) }
                     }
                 }
             } footer: {
-                Text("The app is ad-hoc signed, so macOS may ask again after each rebuild. If a granted permission does not take effect, remove Slashlight from the list in System Settings and add it again.")
+                Text("Status updates within a second of granting. \(Permissions.staleHint)")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -333,22 +721,197 @@ private struct PermissionsSettings: View {
 
 // MARK: About
 
+/// Where Slashlight lives online, and the one address for feedback.
+enum ProjectLinks {
+    static let repo = "https://github.com/burinworks/slashlight"
+    static let author = "https://github.com/cann1neof"
+    static let feedbackEmail = "alex@burinworks.com"
+    static let issues = URL(string: repo + "/issues/new/choose")!
+    static let discussions = URL(string: repo + "/discussions")!
+    static let security = URL(string: repo + "/security/advisories/new")!
+    static let license = URL(string: repo + "/blob/main/LICENSE")!
+    static let privacy = URL(string: repo + "/blob/main/PRIVACY.md")!
+
+    /// A new email to the maintainer with the version filled in.
+    static var feedback: URL {
+        var c = URLComponents()
+        c.scheme = "mailto"
+        c.path = feedbackEmail
+        c.queryItems = [URLQueryItem(name: "subject", value: "\(BuildInfo.name) feedback (\(BuildInfo.fullVersion))")]
+        return c.url!
+    }
+}
+
 private struct AboutSettings: View {
+    /// Beta and stable builds keep the tour and uninstall buttons out of sight: clicking the version a few times
+    /// (a different number each time the tab opens) shows them. Local and test builds always show them.
+    private static let hidesTools = BuildInfo.channel == .beta || BuildInfo.channel == .stable
+    @State private var clicks = 0
+    @State private var clicksNeeded = Int.random(in: 5...9)
+    @State private var showsNotices = false
+    private var showsTools: Bool { !Self.hidesTools || clicks >= clicksNeeded }
+
     var body: some View {
         VStack(spacing: 10) {
             Spacer()
-            Image(systemName: "sparkle.magnifyingglass")
-                .font(.system(size: 44, weight: .light))
-                .foregroundStyle(.tint)
-            Text("Slashlight").font(.title2.weight(.semibold))
-            Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev")")
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: 72, height: 72)
+            Text(BuildInfo.name).font(.title2.weight(.semibold))
+            if let tag = BuildInfo.tag { BuildTag(text: tag) }
+            Text("Version \(BuildInfo.fullVersion)")
                 .foregroundStyle(.secondary)
-            Text("Open-source, keyboard-first launcher for macOS.")
-                .foregroundStyle(.secondary)
-            Button("Show Welcome Tour") { OnboardingWindowController.shared.show() }
+                .textSelection(.enabled)
+                .simultaneousGesture(TapGesture().onEnded {
+                    guard !showsTools else { return }
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { clicks += 1 }
+                })
+            HStack(spacing: 4) {
+                Text("Open-source, keyboard-first launcher for macOS. Made by")
+                Link("Alexander Ikonnikov", destination: URL(string: ProjectLinks.author)!)
+                    .foregroundStyle(.tint)
+            }
+            .foregroundStyle(.secondary)
+            HStack(spacing: 14) {
+                Link("GitHub", destination: URL(string: ProjectLinks.repo)!)
+                Link("Report a Bug", destination: ProjectLinks.issues)
+                Link("Ideas & Questions", destination: ProjectLinks.discussions)
+                Link("Send Feedback", destination: ProjectLinks.feedback)
+                    .help(ProjectLinks.feedbackEmail)
+                Link("Security Issue", destination: ProjectLinks.security)
+            }
+            .padding(.top, 4)
+            HStack(spacing: 14) {
+                Link("Privacy", destination: ProjectLinks.privacy)
+                Link("License", destination: ProjectLinks.license)
+                Button("Acknowledgements") { showsNotices = true }.buttonStyle(.link)
+            }
+            if showsTools {
+                VStack(spacing: 10) {
+                    HStack {
+                        Button("Show Welcome Tour") { OnboardingWindowController.shared.show() }
+                        Button("Reset Welcome Tour") { Install.resetOnboarding() }
+                            .help("Shows the tour now and on every launch until you finish it")
+                    }
+                    Button("Uninstall \(BuildInfo.name)…", role: .destructive) { Install.confirmUninstall() }
+                }
                 .padding(.top, 6)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+            // Always here: Slashlight has no Dock icon in beta and stable, so ⌘Q in the panel would quit the app
+            // behind it instead.
+            Button("Quit \(BuildInfo.name)") { NSApp.terminate(nil) }
+                .padding(.top, 6)
+                .help("Stops Slashlight until you open it again (or log in, if it launches at login)")
             Spacer()
+            Text("© 2026 Alexander Ikonnikov · MIT License · Provided as is, without warranty of any kind.")
+                .font(.caption).foregroundStyle(.tertiary)
+                .padding(.bottom, 12)
         }
         .frame(maxWidth: .infinity)
+        .sheet(isPresented: $showsNotices) { AcknowledgementsView { showsNotices = false } }
+    }
+}
+
+/// The third-party notices that ship inside the app (Resources/ThirdPartyNotices.txt).
+private struct AcknowledgementsView: View {
+    let close: () -> Void
+
+    private var text: String {
+        Bundle.main.url(forResource: "ThirdPartyNotices", withExtension: "txt")
+            .flatMap { try? String(contentsOf: $0, encoding: .utf8) }
+            ?? "The notices ship inside Slashlight.app; this copy was not built with scripts/build-app.sh."
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                Text(text)
+                    .font(.system(size: 11, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+            }
+            Divider()
+            HStack {
+                Spacer()
+                Button("Done", action: close).keyboardShortcut(.defaultAction)
+            }
+            .padding(12)
+        }
+        .frame(width: 560, height: 460)
+    }
+}
+
+/// The real panel, drawn with its own parts at a smaller scale over a busy wallpaper, so the opacity and blur
+/// settings show what they will do.
+private struct PanelPreview: View {
+    @ObservedObject var style = PanelStyle.shared
+    private let scale: CGFloat = 0.62
+
+    private static let rows: [PaletteModel.Row] = [
+        ("safari", "Safari", Icon.file("/Applications/Safari.app")),
+        ("notes", "Notes", Icon.file("/System/Applications/Notes.app")),
+        ("clipboard", "Clipboard History", Icon.symbol("doc.on.clipboard")),
+    ].enumerated().map { i, r in
+        PaletteModel.Row(id: r.0, index: i, item: Item(id: r.0, title: r.1, icon: r.2, primary: Action("Open") { .close }), extensionID: nil)
+    }
+
+    private var panel: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                Image(systemName: "magnifyingglass").font(.system(size: 19, weight: .light)).foregroundStyle(Theme.text)
+                Text("Search…").font(.system(size: 20)).foregroundStyle(Theme.secondary)
+                Spacer()
+                Keycap(label: "esc")
+            }
+            .padding(.horizontal, 18)
+            .frame(height: 60)
+            Rectangle().fill(Theme.divider).frame(height: 1)
+            VStack(alignment: .leading, spacing: 0) {
+                Text("RECENT")
+                    .font(.system(size: 11, weight: .medium)).tracking(1.4).foregroundStyle(Theme.secondary)
+                    .padding(.leading, 10).padding(.top, 8).padding(.bottom, 4)
+                ForEach(Self.rows) { row in ResultRow(row: row, selected: row.index == 0, plain: true) }
+            }
+            .padding(8)
+            HStack(spacing: 14) {
+                ForEach([("↵", "Open"), ("⌘K", "Actions"), ("↑↓", "Navigate")], id: \.0) { k, label in
+                    HStack(spacing: 6) {
+                        Keycap(label: k)
+                        Text(label).font(.system(size: 12)).foregroundStyle(Theme.secondary)
+                    }
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .frame(height: 40)
+            .background(Theme.footer.opacity(style.opacity))
+            .overlay(alignment: .top) { Rectangle().fill(Theme.divider).frame(height: 1) }
+        }
+        .frame(width: Theme.width)
+        .background(PanelBackground(style: style, blending: .withinWindow))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous).stroke(Theme.border, lineWidth: 0.5))
+        .shadow(color: .black.opacity(0.25), radius: 24, y: 10)
+    }
+
+    var body: some View {
+        ZStack {
+            LinearGradient(colors: [.orange, .pink, .purple, .blue], startPoint: .topLeading, endPoint: .bottomTrailing)
+            // Something with edges behind the panel, so blur and see-through are visible.
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(0..<6) { i in
+                    RoundedRectangle(cornerRadius: 3).fill(.white.opacity(0.75)).frame(width: CGFloat(140 + (i * 53) % 220), height: 9)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.leading, 40)
+            panel
+                .scaleEffect(scale)
+                .frame(width: Theme.width * scale, height: 286 * scale)
+        }
+        .frame(height: 210)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }

@@ -22,6 +22,13 @@ final class EmojiExtension: Extension {
 
     override var triggers: [Trigger] { [.commands, .command("emoji")] }
 
+    /// Shortcuts of this extension's item actions, listed in Settings → Hotkeys so they can be changed.
+    override var hotkeys: [HotkeyAction] {
+        [
+         .itemAction("copy-name", title: "Copy Name", default: Shortcut("c", [.command, .shift])),
+        ]
+    }
+
     override func activate(context: ExtensionContext) async {
         recent = context.storage(.persistent).value([String].self, forKey: "recent") ?? []
     }
@@ -141,7 +148,7 @@ final class EmojiExtension: Extension {
     private static let symbols: [(String, String)] = [
         ("⌘", "command key"), ("⌥", "option key"), ("⌃", "control key"), ("⇧", "shift key"), ("⇪", "caps lock key"),
         ("↵", "return key"), ("⏎", "return symbol"), ("⌫", "delete key backspace"), ("⌦", "forward delete key"), ("⎋", "escape key"),
-        ("⇥", "tab key"), ("\u{F8FF}", "apple logo"), ("→", "right arrow"), ("←", "left arrow"), ("↑", "up arrow"), ("↓", "down arrow"),
+        ("⇥", "tab key"), ("→", "right arrow"), ("←", "left arrow"), ("↑", "up arrow"), ("↓", "down arrow"),
         ("↔", "left right arrow"), ("⇒", "double right arrow implies"), ("⇐", "double left arrow"), ("⇔", "double left right arrow iff"),
         ("•", "bullet"), ("·", "middle dot"), ("…", "ellipsis"), ("—", "em dash"), ("–", "en dash"),
         ("©", "copyright sign"), ("®", "registered sign"), ("™", "trade mark sign"), ("°", "degree sign"), ("±", "plus minus sign"),

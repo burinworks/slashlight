@@ -18,21 +18,30 @@ Return moves forward and ← goes back. Closing the window ends the tour too; it
 | Input | What happens |
 |---|---|
 | `claude` | Apps, files, a calculator answer, and any extension or command whose name matches (`switch window`, `left half`) |
-| `/` | Command mode: your `/commands`, every extension (`/clipboard`, `/snippets`…), window layouts (`/left-half`) |
+| `/` | Command mode: your commands and script commands, the ones you used last first; then window layouts and other commands as you type (`/left-half`). Extensions open by name: type `clip` for Clipboard History |
 | `> npm run dev` | Opens a terminal tab inside Slashlight and runs the command there |
 | empty bar | Your 5 most recently used extensions, then every extension A–Z |
 
 ## Keys
 
+Open Slashlight is set in Settings → General. Every other key is in Settings → Hotkeys, grouped by what it does: Slashlight, Open Extensions, Commands & Scripts, Windows, then any extension's own actions. An icon next to each says where it works:
+
+- 🌐 **Global**: anywhere on your Mac while Slashlight runs (window layouts, and any "Open" or command slot you give a key, e.g. ⌥⌘V for Clipboard History).
+- Slashlight's mark (a slash in a rounded square) **In Slashlight**: every screen of the panel (⌘K, ⌘E, ⌘,, ⌃⇥).
+- 🧩 **In extension**: only while that extension is open.
+
+Every key Slashlight uses is listed, including the terminal tab keys and the shortcuts of item actions such as Copy Path; only arrows, ↵, Tab, Esc and ⌘1…⌘9 are fixed. When a key clashes, **Use it here** takes it from the others. Click a key and press a new one; while recording, esc cancels and ⌫ removes the key. ↺ goes back to the default. Esc itself is always Back and can't be changed. A key used twice where both could fire is flagged in orange, as is a global key another app already took.
+
+Some keys can't be recorded: the shortcuts macOS has turned on in System Settings → Keyboard → Keyboard Shortcuts (⌘Space for Spotlight, ⇧⌘4 for screenshots…), read from macOS itself, and keys every app uses (⌘C, ⌘V, ⌘Q, ⌘W, ⌘Tab…) as global keys. ⌘C ⌘V ⌘X ⌘A ⌘Z stay with the search field inside the panel too. The recorder says why it refused a key. Turn a macOS shortcut off in System Settings to use its key here.
+
 | Key | Action |
 |---|---|
-| ⌥Space | Open / close (change it in Settings → General) |
+| ⌥Space | Open / close |
 | ↑ ↓, ⌃N ⌃P | Move the selection |
 | ↵ / click | Primary action |
 | ⌘↵ / ⌘-click | Secondary action |
 | ⌘K | All actions of the selected item |
-| ⌫ on an empty bar | Back one screen |
-| Esc | Close the panel |
+| Esc | Back one screen; on the main search, close the panel |
 | Tab / ⇧Tab | Cycle filters (by section type, or the screen's own filters) |
 | ⌘1…⌘9 | Run the Nth result |
 | ⌘E | Back to the extension list |
@@ -46,28 +55,37 @@ Return moves forward and ← goes back. Closing the window ends the tour too; it
 
 | Extension | ↵ | ⌘↵ |
 |---|---|---|
-| **All Apps** (`/apps`): Tab switches between recently opened, recently added and A–Z | Open | Show in Finder |
-| **Files** (`/files`): Spotlight index of your home folder | Open | Show in Finder |
-| **Commands** (`/commands`): your `commands.json` | Run | Copy definition |
-| **Clipboard History** (`/clipboard`): kept in memory, gone after quit | Copy and move to top | Paste |
-| **Snippets** (`/snippets`): stored on disk; multi-line editor where ⌘↵ saves | Copy | Paste |
-| **Window Layout** (`/windows`) | Apply to the focused window | — |
-| **Switch Window** (`/switch`, ⌥Tab): every Space and display | Switch | Show all of the app's windows |
-| **Terminal** (`>` or `/terminal`) | Run in a new tab | Open in Terminal.app |
-| **Calculator**: answers as you type | Copy result | Paste result |
-| **System** (`/system`, `/lock`, `/sleep`…) | Run | — |
-| **Emoji & Symbols** (`/emoji`) | Copy | Paste |
-| **Script Commands** (`/scripts`): Raycast script commands from `script-commands/` | Run | — |
-| **Usage Insights** (`/insights`, `/stats`): a dashboard of your own usage | Open | — |
+| **All Apps**: Tab switches between recently opened, recently added and A–Z | Open | Show in Finder |
+| **Files**: Spotlight index of your home folder | Open | Show in Finder |
+| **Commands**: your `commands.json` and Raycast script commands from `script-commands/` | Run | Copy definition / Open script |
+| **Clipboard History**: text with its formatting, images and files; Tab switches All / Text / Images / Files / Links | Copy and move to top | Paste |
+| **Snippets**: stored on disk; multi-line editor where ⌘↵ saves | Copy | Paste |
+| **Window Layout** | Apply to the focused window | — |
+| **Switch Window** (⌥Tab): every Space and display | Switch | Show all of the app's windows |
+| **Terminal** (`>`) | Run in a new tab | Open in Terminal.app |
+| **Calculator**: answers as you type, inline only | Copy result | Paste result |
+| **System** (`lock`, `sleep`…) | Run | — |
+| **Emoji & Symbols** | Copy | Paste |
+| **Usage Insights** (`/stats`): a dashboard of your own usage | Open | — |
 | **Search the Web**: always the last result | Google | DuckDuckGo |
 
+Open an extension by typing its name. The home screen's Recent section shows what you used last: the commands, window layouts, apps and system actions you ran, and the other extensions you opened.
+
 Turn any extension except All Apps on or off in Settings → Extensions.
+
+## Clipboard history
+
+- Keeps text with all of its formatting, images and files, up to 300 entries. Copying an entry back pastes into Google Docs, Pages or Slack exactly as it was copied. ⌘⇧V pastes plain text.
+- **Images** (Tab) shows large previews; ⌘O opens one in Preview.
+- History is saved between launches, encrypted with a key in your login Keychain. Settings → General → Clipboard History turns this off, sets when entries are forgotten (1, 7 or 30 days, or never) and clears it.
+- Copies from password managers (1Password, Bitwarden and others that mark them as concealed) are never recorded.
 
 ## Calculator
 
 - **Math:** `+ - * / ^ %`, parentheses, `sqrt cbrt abs round floor ceil exp sin cos tan asin acos atan log ln log2`, plus `pi`, `e` and `tau`.
 - **Percentages:** `15% of 80`, `200 + 10%`.
 - **Units:** length, mass, temperature, volume, speed, time and data (`5 km in mi`, `100 f to c`, `2 gb to mb`).
+- **Before you finish typing:** `12*(3+` already shows 36; `5 km` shows miles and `20 c` Fahrenheit without a target; `100 usd` shows your own currency.
 - **Currencies:** ISO codes and `$ € £ ¥` (`$100 to eur`). Rates come from open.er-api.com and are cached for 12 hours.
 
 ## Terminal tabs
@@ -84,7 +102,7 @@ When a task that ran longer than 3 s finishes while you are elsewhere, you get a
 | Key (in a terminal tab) | Action |
 |---|---|
 | ⌘⌫ or ⌘[ | Back to search; the tab keeps running |
-| Esc | At an idle prompt, closes the panel; while a program runs (vim, less), goes to that program |
+| Esc | At an idle prompt, back to search; while a program runs (vim, less), goes to that program |
 | ⌘T / ⌘W | New tab / close tab |
 | ⌃⇥, ⌃⇧⇥, ⌘1…⌘9 | Switch tabs. From search, ⌃⇥ jumps back to the last tab |
 | ⌘C ⌘V ⌘K ⌘+ ⌘− | Copy, paste, clear, font size |
@@ -104,7 +122,7 @@ When a task that ran longer than 3 s finishes while you are elsewhere, you get a
 | Tab / ⇧Tab | 7 days, 30 days, all time |
 | ↑ ↓ | Scroll |
 | ⌘⇧⌫ twice | Delete all recorded usage |
-| ⌘⌫ | Back |
+| Esc | Back |
 
 What is recorded:
 
@@ -124,9 +142,11 @@ Titles are not recorded for Clipboard History, Calculator, Files and web searche
   { "name": "focus", "type": "shortcut", "run": "Focus Mode" },
   { "name": "ping", "type": "http", "method": "POST", "run": "https://example.com/hook",
     "headers": { "Content-Type": "application/json" }, "body": "{\"text\":\"{query}\"}" },
-  { "name": "mute", "type": "applescript", "run": "set volume output muted true" }
+  { "name": "mute", "type": "applescript", "run": "set volume output muted true", "hotkey": "ctrl+opt+m" }
 ]
 ```
+
+Every command and script gets a global key slot in Settings → Hotkeys. `hotkey` sets its key here (a script uses `# @slashlight.hotkey ctrl+opt+m`), and Settings can change or remove it. **Set Hotkey…** (⌘K on a command, or ⇧⌘H) opens Settings on that command. A command that needs a search term opens the panel on `/name `, ready for it. A command's key shows on its row.
 
 | `type` | `run` is |
 |---|---|
@@ -140,7 +160,18 @@ Titles are not recorded for Clipboard History, Calculator, Files and web searche
 
 ## Script commands
 
-Put Raycast-style scripts in `~/Library/Application Support/Slashlight/script-commands/`. Slashlight reads the `@raycast.title`, `icon`, `mode` (`fullOutput`, `compact`, `silent`, `inline`), `argument1…3`, `packageName`, `currentDirectoryPath`, `needsConfirmation` and `refreshTime` headers. The scripts from [raycast/script-commands](https://github.com/raycast/script-commands) work unchanged.
+Put Raycast-style scripts in `~/Library/Application Support/Slashlight/script-commands/`. They are listed with your other commands: `/hello-world`. Slashlight reads the `@raycast.title`, `icon`, `mode` (`fullOutput`, `compact`, `silent`, `inline`), `argument1…3`, `packageName`, `currentDirectoryPath`, `needsConfirmation` and `refreshTime` headers. The scripts from [raycast/script-commands](https://github.com/raycast/script-commands) work unchanged, as long as they only need what a script gets by default.
+
+Scripts run in a sandbox. By default a script can run other programs and use its own folder, a data folder (`$SLASHLIGHT_DATA_DIR`) and its own `$TMPDIR`. It **can't** use the network, read or change your files, open apps or websites, read the clipboard or the Keychain, or use Slashlight's Accessibility and Screen Recording access. Add header lines for what it needs:
+
+```bash
+# @slashlight.network any                     # or a host list: api.github.com, *.example.com
+# @slashlight.files.read ~/Documents/Notes    # folders in your home folder, separated by spaces
+# @slashlight.files.write ~/Projects/site     # write includes read
+# @slashlight.open true                       # open apps, files and websites (`open`)
+```
+
+`~/Library`, `~/.ssh`, `~/.aws`, `~/.config/gh`, shell history and other secrets can't be granted; a script asking for them shows "Won't run" and why. Setuid programs such as `ps` and `sudo` don't run in the sandbox; use `pgrep` instead of `ps`. Host lists are accepted but not filtered yet: until the filtering proxy ships, any host list allows all hosts.
 
 ## Configuration files
 
@@ -161,7 +192,7 @@ Everything lives in `~/Library/Application Support/Slashlight/`:
 ```json
 {
   "hotkey": "opt+space",
-  "windowSwitcherHotkey": "opt+tab",
+  "hotkeys": {},
   "windowManagementHotkeys": true,
   "appearance": "system",
   "disabledExtensions": []
@@ -178,14 +209,23 @@ Everything lives in `~/Library/Application Support/Slashlight/`:
 
 If you build from source, run `scripts/dev-signing-identity.sh` once. Otherwise every rebuild is signed differently and macOS forgets these grants.
 
+## Which build is running
+
+Release builds are **Slashlight** and live in the menu bar only; beta releases show a *Beta · build n* tag in the panel's footer. Test builds (**Slashlight Test**) and local builds (**Slashlight Dev**) also stay in the Dock with a TEST or DEV badge and show their tag in the footer. Each keeps its own settings and permissions. Settings → About shows the version, build number and channel.
+
+## Uninstalling
+
+Settings → About → **Uninstall**, or **Uninstall…** in the menu bar icon's menu: moves the app to the Trash, removes its permissions and login item, and, if you leave the box ticked, deletes its settings, clipboard history, snippets, scripts and extensions. Installing it again starts with the welcome tour. **Reset Welcome Tour** in Settings → About brings the tour back without reinstalling.
+
 ## Troubleshooting
 
 - **No window thumbnails, or the switcher only shows the current Space:** grant Screen Recording and Accessibility in Settings → Permissions, then quit and reopen Slashlight.
 - **⌥Space does nothing:** another app may own the shortcut. Record a new one in Settings → General.
+- **A script says "Operation not permitted":** it touched something outside its sandbox. Add the `@slashlight.*` line it needs (see Script commands).
 - **An external extension doesn't show up:** check that `manifest.json` is valid and `exec` is executable (`chmod +x`), then use Settings → Extensions → Reload. Extensions log to stderr, which Slashlight passes through: run `build/Slashlight.app/Contents/MacOS/Slashlight` from a terminal to see it.
 
 ## Known gaps
 
 - Terminal tabs do not survive quitting Slashlight.
-- External extensions cannot declare global hotkeys or permissions yet.
+- External extensions cannot declare global hotkeys yet. Permissions are enforced but not shown to you before the first run yet.
 - Releases are not notarized by Apple, so the first launch needs `xattr -dr com.apple.quarantine /Applications/Slashlight.app`.

@@ -12,6 +12,21 @@ scripts/test.sh                   # tests (works with Xcode or just the Command 
 scripts/build-app.sh              # build/Slashlight.app
 ```
 
+Every channel is its own app, so you can always tell which one is running:
+
+| Channel | Built by | App name | App ID | Dock | Panel tag |
+| --- | --- | --- | --- | --- | --- |
+| local | `scripts/build-app.sh` | Slashlight Dev | `dev.slashlight.app.dev` | yes, badge DEV | Local build · commit |
+| pr / test | CI on pull requests and on `test` | Slashlight Test | `dev.slashlight.app.test` | yes, badge TEST + build | PR #n / Test · build n |
+| beta | Release workflow on `beta` | Slashlight | `dev.slashlight.app` | no | Beta · build n |
+| stable | Release workflow on `main` | Slashlight | `dev.slashlight.app` | no | none |
+
+The executable, the Settings window, the menu items and the disk image carry the same name. Each channel has its own entries in System Settings → Privacy, its own Keychain key and its own folder in `~/Library/Application Support/` (`Slashlight`, `Slashlight Test`, `Slashlight Dev`), so they can run side by side. Set `CHANNEL=test` to build a test app locally.
+
+**Build numbers.** `CFBundleVersion` is the build number from `scripts/build-number.sh`: the length of `test`'s first-parent history, so every pull request merged into `test` adds one. Beta and stable releases keep the number of the test build they were promoted from, and pull request builds show the number of the `test` they are based on. CI fetches the full history for it.
+
+**Reinstalling.** A newly installed copy (a different folder on disk than the one that last ran, other than through an in-app update) shows the welcome tour again. Settings → About → Uninstall, or the menu bar icon's Uninstall item, moves the app to the Trash, resets its permissions and login item, and can delete its data.
+
 Open the folder in Xcode (`xed .`) or any editor with SourceKit-LSP.
 
 ## Where things live
@@ -86,19 +101,47 @@ An urgent fix can go to `main` directly through a `hotfix/…` branch. Afterward
 
 Commits use the imperative mood: "Add emoji recents", not "Added…".
 
+## Checking the app without a person at the keyboard
+
+`scripts/dev-suite.sh` builds the app (signed ad hoc, so codesign never asks for the keychain) and runs it in a fresh throwaway folder: no settings, history, extensions or clipboard of yours, no Keychain, no global hotkeys, menu bar icon, Dock icon, update checks, welcome tour or file search. It prints the panel's results and saves PNGs to `build/dev-suite/`:
+
+```bash
+scripts/dev-suite.sh                     # the standard checks
+scripts/dev-suite.sh query "his"         # one search: rows printed, panel saved
+scripts/dev-suite.sh open clipboard      # an extension's screen
+scripts/dev-suite.sh settings Hotkeys    # a Settings tab
+```
+
+`NO_BUILD=1` reuses the last build, `DARK=1` renders dark mode. Under the hood it sets `SLASHLIGHT_ISOLATED_HOME` (`Sources/Slashlight/Host/DevSuite.swift`) and passes `--dump`, `--snapshot`, `--query`, `--open` or `--settings --tab`.
+
 ## Releasing (maintainers)
 
 Releases come from branches; you don't push tags.
 
-1. On `test`, set `VERSION` to the next version and move the `CHANGELOG.md` entries from Unreleased to it.
-2. Promote `test → beta`. Each push to `beta` publishes the pre-release `vX.Y.Z-beta.N` for beta testers.
-3. Promote `beta → main`. The release workflow waits for your approval in the `stable` environment (Actions → the run → **Review deployments**), then publishes `vX.Y.Z`.
+Versions are **CORE.STABLE.MINOR**, and CI picks them (`scripts/next-version.sh`), so there is nothing to bump by hand:
+
+- every promotion to `beta` adds one to MINOR: `v0.4.1`, `v0.4.2`…
+- every promotion to `main` adds one to STABLE and resets MINOR: `v0.5.0`. A stable release always ends in `.0`, a beta never does.
+- CORE changes only when you edit `VERSION` (say to `1.0.0`): the next stable release is then `v1.0.0`, the next beta `v1.0.1`. `VERSION` is a floor; its last number is ignored.
+
+1. Promote `test → beta` (Actions → **Promote**). The push to `beta` publishes the next beta for beta testers. A promotion with nothing new since the last release publishes nothing.
+2. Promote `beta → main`. The release workflow waits for your approval in the `stable` environment (Actions → the run → **Review deployments**), then publishes the stable release.
+3. Move the `CHANGELOG.md` entries from Unreleased to a section named after the release.
 
 Each release builds a universal app with `scripts/build-app.sh`, packs `Slashlight-<tag>.dmg` with `scripts/make-dmg.sh`, publishes it with `SHA256SUMS.txt` and adds the signed update to the appcast on `gh-pages`. Pushing a `v*` tag by hand still works; a tag with a hyphen is a pre-release.
 
 ### One-time setup
 
 `scripts/setup-release-channels.sh` creates the rulesets, the `beta` and `stable` environments, the `gh-pages` branch with GitHub Pages, and lets Actions open promotion PRs. Run it once as a repository admin.
+
+### Code-signing certificate
+
+macOS remembers Accessibility and Screen Recording grants per signing identity. An ad-hoc signature is different for every build, so each update looked like a new app and the old switch in System Settings stopped working. Releases are therefore signed with one self-signed certificate, `Slashlight`:
+
+1. Run `scripts/release-signing-identity.sh` once. It creates the certificate, sets the `SIGNING_P12` and `SIGNING_P12_PASSWORD` secrets, and saves a backup `.p12` on your Desktop.
+2. Move the backup and its password into a password manager, then delete the file.
+
+CI and releases import it with `scripts/import-signing-identity.sh`. Without the secret they fall back to ad-hoc signing and print a warning. It is not an Apple Developer ID: Gatekeeper still asks on first open.
 
 ### Update signing keys
 

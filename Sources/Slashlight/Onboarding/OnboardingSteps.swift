@@ -225,7 +225,7 @@ private struct SearchDemo: View {
 
     static let scenarios = [
         Scenario(query: "saf", label: "Apps", symbol: "app.dashed"),
-        Scenario(query: "5 km in mi", label: "Calculator", symbol: "function"),
+        Scenario(query: "5 km", label: "Calculator", symbol: "function"),
         Scenario(query: "/", label: "Commands", symbol: "slash.circle"),
         Scenario(query: "> npm run dev", label: "Terminal", symbol: "terminal"),
     ]
@@ -339,11 +339,11 @@ private struct SearchDemo: View {
             }
         case 2:
             VStack(spacing: 2) {
-                section("Extensions")
-                DemoRow(icon: .symbol("doc.on.clipboard"), title: "Clipboard History", subtitle: "/clipboard", selected: true, accessory: "Open")
-                DemoRow(icon: .symbol("text.quote"), title: "Snippets", subtitle: "/snippets")
-                DemoRow(icon: .symbol("face.smiling"), title: "Emoji & Symbols", subtitle: "/emoji")
-                DemoRow(icon: .symbol("rectangle.split.2x1"), title: "Left Half", subtitle: "/left-half")
+                section("Commands")
+                DemoRow(icon: .symbol("terminal"), title: "/my-ip", subtitle: "Show my public IP", selected: true, accessory: "Run")
+                DemoRow(icon: .symbol("link"), title: "/gh", subtitle: "Search GitHub for what you type next")
+                DemoRow(icon: .symbol("applescript"), title: "/toggle-dark-mode", subtitle: "AppleScript")
+                DemoRow(icon: .symbol("hand.wave"), title: "/hello-world", subtitle: "Raycast script")
             }
         default:
             VStack(alignment: .leading, spacing: 8) {
@@ -439,19 +439,18 @@ struct ExtensionsStep: View {
             StepHeader(title: "Everything is an extension",
                        subtitle: "Built-ins and your own work the same way. Three places to find them:")
             HStack(spacing: 14) {
-                PlaceCard(number: 1, title: "Empty bar", caption: "Recently used extensions first, then all of them A–Z.") {
+                PlaceCard(number: 1, title: "Empty bar", caption: "What you used last, then every extension A–Z.") {
                     MiniBar(text: "") {
+                        MiniRow(symbol: "terminal", title: "/my-ip")
                         MiniRow(symbol: "doc.on.clipboard", title: "Clipboard History")
-                        MiniRow(symbol: "terminal", title: "Terminal")
-                        MiniRow(symbol: "face.smiling", title: "Emoji & Symbols")
+                        MiniRow(symbol: "rectangle.split.2x1", title: "Left Half")
                     }
                 }
                 .appear(0.12)
-                PlaceCard(number: 2, title: "Type /", caption: "Command mode: every extension and your own commands.") {
-                    MiniBar(text: "/") {
-                        MiniRow(symbol: "text.quote", title: "/snippets")
-                        MiniRow(symbol: "macwindow.on.rectangle", title: "/switch")
-                        MiniRow(symbol: "power", title: "/system")
+                PlaceCard(number: 2, title: "Type its name", caption: "A few letters open any extension. Type / for your commands.") {
+                    MiniBar(text: "win") {
+                        MiniRow(symbol: "macwindow.on.rectangle", title: "Switch Window")
+                        MiniRow(symbol: "rectangle.split.2x1", title: "Window Layout")
                     }
                 }
                 .appear(0.2)
@@ -587,9 +586,12 @@ struct PermissionsStep: View {
                                granted: model.permissions[.screenRecording] ?? false)
                     .appear(0.22)
             }
-            Label("Both are optional. Skip this step if you like.", systemImage: "info.circle")
+            Label("Both are optional. \(Permissions.staleHint)", systemImage: "info.circle")
                 .font(.system(size: 12))
                 .foregroundStyle(Brand.secondary)
+                .multilineTextAlignment(.center)
+                .frame(width: 560)
+                .fixedSize(horizontal: false, vertical: true)
                 .appear(0.3)
         }
         .padding(.top, 14)
@@ -634,9 +636,16 @@ private struct PermissionCard: View {
                         .foregroundStyle(.green)
                         .transition(.scale(scale: 0.6).combined(with: .opacity))
                 } else {
-                    Button("Grant Access") { Permissions.request(permission) }
-                        .buttonStyle(SoftButtonStyle())
-                        .transition(.scale(scale: 0.8).combined(with: .opacity))
+                    VStack(alignment: .trailing, spacing: 6) {
+                        Button("Grant Access") { Permissions.request(permission) }
+                            .buttonStyle(SoftButtonStyle())
+                        Button("Reset") { Permissions.reset(permission) }
+                            .buttonStyle(.plain)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(Brand.secondary)
+                            .help(Permissions.staleHint)
+                    }
+                    .transition(.scale(scale: 0.8).combined(with: .opacity))
                 }
             }
             .frame(width: 112, alignment: .trailing)

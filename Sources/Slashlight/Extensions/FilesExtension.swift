@@ -9,6 +9,16 @@ final class FilesExtension: Extension {
 
     override var triggers: [Trigger] { [.defaultSearch, .command("files")] }
 
+    /// Shortcuts of this extension's item actions, listed in Settings → Hotkeys so they can be changed.
+    override var hotkeys: [HotkeyAction] {
+        [
+         .itemAction("copy-path", title: "Copy Path", default: Shortcut("c", [.command, .shift])),
+         .itemAction("copy-file", title: "Copy File", default: Shortcut("c", [.command, .option])),
+         .itemAction("open-in-terminal", title: "Open in Terminal", default: Shortcut("t", [.command])),
+         .itemAction("move-to-trash", title: "Move to Trash", default: Shortcut("delete", [.command])),
+        ]
+    }
+
     override func rootView() -> ListView? {
         ListView(title: manifest.title, icon: manifest.icon, placeholder: "Search files…",
                  filters: ["All", "Folders", "Documents", "Images", "Code"]) { [unowned self] q in try await self.search(q) }

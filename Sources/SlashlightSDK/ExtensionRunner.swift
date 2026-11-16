@@ -95,6 +95,18 @@ final class StdioHost: ExtensionContext {
             } catch {
                 send(Wire.Message(type: "error", id: req.id, message: "\(error)"))
             }
+        case "hotkey":
+            guard let action = ext.hotkeys.first(where: { $0.id == req.actionId }) else {
+                send(Wire.Message(type: "error", id: req.id, message: "unknown hotkey \(req.actionId ?? "")"))
+                return
+            }
+            let pressed = req.query.flatMap(Shortcut.init(string:)) ?? action.defaultShortcut ?? Shortcut("return")
+            do {
+                let outcome = try await action.run(pressed)
+                send(Wire.Message(type: "outcome", id: req.id, outcome: encode(outcome)))
+            } catch {
+                send(Wire.Message(type: "error", id: req.id, message: "\(error)"))
+            }
         case "dispose":
             if let viewID = req.view { forget(viewID) }
         case "shutdown":
@@ -198,10 +210,8 @@ final class StdioHost: ExtensionContext {
     var supportDirectory: URL { support }
     var frontmostApplication: NSRunningApplication? { NSWorkspace.shared.frontmostApplication }
 
-    func copy(_ text: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
-    }
+    /// The host writes the pasteboard: extensions are not allowed to open it themselves.
+    func copy(_ text: String) { send(Wire.Message(type: "copy", text: text)) }
 
     func showHUD(_ message: String) { send(Wire.Message(type: "hud", message: message)) }
     func refresh() { send(Wire.Message(type: "refresh")) }

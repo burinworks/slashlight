@@ -17,10 +17,18 @@ final class AppsExtension: Extension {
     private var launches: [String: Date] = [:]
 
     override var manifest: Manifest {
-        Manifest(id: "apps", title: "All Apps", subtitle: "Recently opened or recently added applications", icon: .symbol("square.grid.2x2"))
+        Manifest(id: "apps", title: "All Apps", subtitle: "Recently opened or recently added applications", icon: .symbol("square.grid.2x2"), recents: .actions)
     }
 
     override var triggers: [Trigger] { [.defaultSearch, .command("apps")] }
+
+    /// Shortcuts of this extension's item actions, listed in Settings → Hotkeys so they can be changed.
+    override var hotkeys: [HotkeyAction] {
+        [
+         .itemAction("copy-path", title: "Copy Path", default: Shortcut("c", [.command, .shift])),
+         .itemAction("quit-app", title: "Quit App", default: Shortcut("q", [.command, .option])),
+        ]
+    }
 
     override func activate(context: ExtensionContext) async {
         launches = context.storage(.persistent).value([String: Date].self, forKey: "launches") ?? [:]
@@ -29,6 +37,11 @@ final class AppsExtension: Extension {
             guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication, let url = app.bundleURL else { return }
             MainActor.assumeIsolated { self?.touch(url) }
         }
+    }
+
+    override func panelWillOpen() {
+        // Apps installed or removed since the panel was last open show up straight away.
+        Task { await reindex(); context.refresh() }
     }
 
     override func rootView() -> ListView? {

@@ -10,20 +10,26 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   build-and-test:
     name: Build & test
     runs-on: macos-26
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # the build number counts test's history
 
       - name: Toolchain
         run: |
           sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
           swift --version
 
-      - uses: actions/cache@v6
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .build
           key: spm-${{ runner.os }}-${{ hashFiles('Package.resolved') }}
@@ -35,20 +41,33 @@ jobs:
       - name: Test
         run: scripts/test.sh
 
+      - name: Signing identity
+        env:
+          SIGNING_P12: ${{ secrets.SIGNING_P12 }}
+          SIGNING_P12_PASSWORD: ${{ secrets.SIGNING_P12_PASSWORD }}
+        run: scripts/import-signing-identity.sh
+
       - name: Build app bundle (universal)
-        run: UNIVERSAL=1 VERSION="$(cat VERSION)-ci" BUILD_NUMBER=${{ github.run_number }} scripts/build-app.sh
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          # Pull requests and test are "Slashlight Test"; CI builds of beta and main are labeled with their channel.
+          case "$REF_NAME" in beta) CHANNEL=beta ;; main) CHANNEL=stable ;; test) CHANNEL=test ;; *) CHANNEL=pr ;; esac
+          [[ -n "$PR_NUMBER" ]] && CHANNEL=pr
+          UNIVERSAL=1 VERSION="$(cat VERSION)-ci" CHANNEL="$CHANNEL" scripts/build-app.sh
 
       - name: Smoke test
         run: |
           plutil -lint build/Slashlight.app/Contents/Info.plist
-          lipo -archs build/Slashlight.app/Contents/MacOS/Slashlight
+          lipo -archs "build/Slashlight.app/Contents/MacOS/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' build/Slashlight.app/Contents/Info.plist)"
           codesign --verify --verbose build/Slashlight.app
 
       - name: Disk image
         run: scripts/make-dmg.sh build/Slashlight.dmg
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: Slashlight-${{ github.ref_name == 'test' && 'test-' || '' }}${{ github.sha }}
+          name: Slashlight-${{ github.event.pull_request.number && format('pr{0}-', github.event.pull_request.number) || github.ref_name == 'test' && 'test-' || '' }}${{ github.sha }}
           path: build/Slashlight.dmg
           retention-days: ${{ github.ref_name == 'test' && 30 || 14 }}

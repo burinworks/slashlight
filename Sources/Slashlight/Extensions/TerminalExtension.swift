@@ -14,6 +14,28 @@ final class TerminalExtension: Extension {
 
     override var triggers: [Trigger] { [.prefix(">"), .command("terminal")] }
 
+    /// Keys inside a terminal tab, handled by the tab itself (`TerminalSession.handleKey`), plus the history
+    /// items' action shortcuts. Esc, ⌘1…⌘9 and ⌘C ⌘V ⌘A ⌘K stay as they are.
+    static let tabKeys: [(id: String, title: String, key: Shortcut)] = [
+        ("back", "Back to search", Shortcut("delete", .command)),
+        ("new-tab", "New tab", Shortcut("t", .command)),
+        ("close-tab", "Close tab", Shortcut("w", .command)),
+        ("next-tab", "Next tab", Shortcut("tab", .control)),
+        ("previous-tab", "Previous tab", Shortcut("tab", [.control, .shift])),
+    ]
+
+    override var hotkeys: [HotkeyAction] {
+        Self.tabKeys.map { k in HotkeyAction(id: k.id, title: k.title, scope: .local, default: k.key) { _ in .stay } } + [
+            .itemAction("copy-command", title: "Copy Command", default: Shortcut("c", [.command, .shift])),
+            .itemAction("remove-from-history", title: "Remove from History", default: Shortcut("delete", .command)),
+        ]
+    }
+
+    /// The key for one of `tabKeys` now: the user's choice, else the default.
+    static func key(_ id: String) -> Shortcut? {
+        Host.shared.hotkeyBindings.first { $0.id == "terminal/\(id)" }?.shortcut
+    }
+
     override func activate(context: ExtensionContext) async {
         history = context.storage(.persistent).value([String].self, forKey: "history") ?? []
         TerminalManager.shared.onCommand = { [weak self] in self?.remember($0) }
@@ -260,11 +282,9 @@ final class TerminalSession: NSObject, ObservableObject {
     lazy var screen: ListView = {
         let list = ListView(title: title, icon: .symbol("terminal"), placeholder: "") { _ in [] }
         let screen = EmbeddedScreen(view: view, height: 440, hints: { [weak self] in
-            [PaletteModel.Hint(keys: "esc", label: self?.isBusy == true ? "To terminal" : "Close panel"),
-             PaletteModel.Hint(keys: "⌘⌫", label: "Back to search"),
-             PaletteModel.Hint(keys: "⌘T", label: "New tab"),
-             PaletteModel.Hint(keys: "⌃⇥", label: "Next tab"),
-             PaletteModel.Hint(keys: "⌘W", label: "Close tab")]
+            [PaletteModel.Hint(keys: "esc", label: self?.isBusy == true ? "To terminal" : "Back to search")]
+                + [("back", "Back to search"), ("new-tab", "New tab"), ("next-tab", "Next tab"), ("close-tab", "Close tab")]
+                .compactMap { id, label in TerminalExtension.key(id).map { PaletteModel.Hint(keys: $0.display, label: label) } }
         }) { [weak self] event, model in
             guard let self else { return false }
             return self.handleKey(event, model: model)
@@ -277,22 +297,35 @@ final class TerminalSession: NSObject, ObservableObject {
     private func handleKey(_ event: NSEvent, model: PaletteModel) -> Bool {
         let mods = Shortcut.Modifiers(event.modifierFlags)
         let manager = TerminalManager.shared
-        switch (KeyCodes.key(for: event), mods) {
-        case ("escape", []) where !isBusy:
-            // At an idle prompt Esc closes the panel; while a program runs (vim, less) it belongs to the program.
-            model.host.hide()
-        case ("delete", [.command]), ("[", [.command]):
+        let key = KeyCodes.key(for: event)
+        // The tab keys from Settings → Hotkeys first.
+        switch Host.shared.localHotkey(Shortcut(key, mods), extensionID: "terminal")?.action {
+        case "back":
             model.pop()
-        case ("t", [.command]):
+            return true
+        case "new-tab":
             model.showTerminal(manager.start(command: nil, directory: directory))
-        case ("w", [.command]):
+            return true
+        case "close-tab":
             let next = manager.neighbor(of: self, 1)
             manager.close(self)
             if let next { model.showTerminal(next) } else { model.pop() }
-        case ("tab", [.control]):
+            return true
+        case "next-tab":
             if let next = manager.neighbor(of: self, 1) { model.showTerminal(next) }
-        case ("tab", [.control, .shift]):
+            return true
+        case "previous-tab":
             if let prev = manager.neighbor(of: self, -1) { model.showTerminal(prev) }
+            return true
+        default:
+            break
+        }
+        switch (key, mods) {
+        case ("escape", []) where !isBusy:
+            // At an idle prompt Esc goes back to search; while a program runs (vim, less) it belongs to the program.
+            model.pop()
+        case ("[", [.command]):
+            model.pop()
         case (let k, [.command]) where Int(k).map({ (1...9).contains($0) }) == true:
             if let s = manager.sessions[safe: Int(k)! - 1] { model.showTerminal(s) }
         case ("c", [.command]):

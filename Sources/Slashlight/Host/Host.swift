@@ -26,23 +26,74 @@ final class Host {
         for ext in extensions { await ext.deactivate() }
         settings = Settings.load()
         settings.applyAppearance()
-        allExtensions = BuiltIns.all() + ExternalExtension.discover(in: Paths.extensions)
+        let builtIns = BuiltIns.all()
+        allExtensions = builtIns + ExternalExtension.discover(in: Paths.extensions, reservedIDs: Set(builtIns.map(\.manifest.id)))
         extensions = allExtensions.filter { !settings.disabledExtensions.contains($0.manifest.id) }
         for ext in extensions {
             await ext.start(context: HostContext(id: ext.manifest.id, host: self))
         }
     }
 
+    /// Every key Settings → Hotkeys shows, rebuilt with the global ones. The panel looks up its keys here.
+    private(set) var hotkeyBindings: [HotkeyBinding] = []
+    /// Global keys macOS refused, usually because another app already uses them.
+    private(set) var failedHotkeys: Set<String> = []
+
     func registerHotkeys() {
         settings = Settings.load()
         HotKeyCenter.shared.unregisterAll()
-        if let s = Shortcut(string: settings.hotkey) {
-            HotKeyCenter.shared.register(s) { [weak self] in self?.toggle() }
+        hotkeyBindings = HotkeyMap.bindings(host: self, settings: settings)
+        failedHotkeys = []
+        for b in hotkeyBindings where b.scope == .global && !DevSuite.isActive {
+            guard let s = b.shortcut else { continue }
+            if b.owner == "window-management" && !settings.windowManagementHotkeys { continue }
+            // Never take ⌘C and the like from every app; macOS's own keys would never arrive anyway.
+            if ReservedKeys.reason(s, scope: .global) != nil { failedHotkeys.insert(b.id); continue }
+            if !HotKeyCenter.shared.register(s, handler: { b.run(s) }) { failedHotkeys.insert(b.id) }
         }
-        for ext in extensions {
-            if ext.manifest.id == "window-management" && !settings.windowManagementHotkeys { continue }
-            for hk in ext.globalHotkeys {
-                HotKeyCenter.shared.register(hk.shortcut) { hk.run() }
+    }
+
+    /// The panel's key for `pressed`: Slashlight's own first, then the open extension's.
+    func panelHotkey(_ pressed: Shortcut, extensionID: String?) -> HotkeyBinding? {
+        hotkeyBindings.first { $0.scope == .system && $0.shortcut == pressed }
+            ?? hotkeyBindings.first { $0.scope == .local && $0.itemActionID == nil && $0.owner == extensionID && $0.shortcut == pressed }
+    }
+
+    /// The key an item action runs on: the user's choice from Settings → Hotkeys, else the action's own.
+    func itemActionKey(_ action: Action, extensionID: String?) -> Shortcut? {
+        guard let extensionID, let b = hotkeyBindings.first(where: { $0.owner == extensionID && $0.itemActionID == action.id })
+        else { return action.shortcut }
+        return b.shortcut
+    }
+
+    /// A local key of `extensionID`'s, for screens that handle keys themselves (the terminal, Insights).
+    func localHotkey(_ pressed: Shortcut, extensionID: String) -> HotkeyBinding? {
+        hotkeyBindings.first { $0.scope == .local && $0.itemActionID == nil && $0.owner == extensionID && $0.shortcut == pressed }
+    }
+
+    /// Runs an extension's hotkey action. A local one acts on the panel like any action; a global one opens the
+    /// panel only when it pushes a screen.
+    func runHotkey(_ action: HotkeyAction, pressed: Shortcut, extensionID: String) {
+        Task {
+            do {
+                let outcome = try await action.run(pressed)
+                if action.scope == .local {
+                    model.apply(outcome, extensionID: extensionID)
+                    return
+                }
+                switch outcome {
+                case .close: if isVisible { hide() }
+                case .stay, .pop: break
+                case .push(let view):
+                    show()
+                    model.push(view, extensionID: extensionID)
+                case .hud(let message):
+                    hide()
+                    showHUD(message)
+                case .paste(let text): paste(text)
+                }
+            } catch {
+                showHUD("⚠︎ \(error.localizedDescription)")
             }
         }
     }
@@ -55,6 +106,7 @@ final class Host {
         s.save()
         settings = s
         s.applyAppearance()
+        ClipboardExtension.shared?.apply(s)
         Updater.shared.apply(s)
         if extensionsChanged { Task { await reload() } } else { registerHotkeys() }
     }
@@ -74,6 +126,7 @@ final class Host {
         if !isVisible {
             let front = NSWorkspace.shared.frontmostApplication
             if front?.processIdentifier != ProcessInfo.processInfo.processIdentifier { previousApp = front }
+            for ext in extensions { ext.panelWillOpen() }
             model.reset()
             UsageStore.shared.panelOpened(extensionID: extensionID)
         }
@@ -93,6 +146,11 @@ final class Host {
 
     func paste(_ text: String) {
         copy(text)
+        pasteClipboard()
+    }
+
+    /// Pastes what is on the clipboard now (all of its formats) into the app that was in front.
+    func pasteClipboard() {
         hide()
         if NSRunningApplication.current.isActive { previousApp?.activate() }
         guard Permissions.isGranted(.accessibility) else {

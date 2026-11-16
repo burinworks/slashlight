@@ -13,6 +13,11 @@ final class InsightsExtension: Extension {
 
     override var triggers: [Trigger] { [.commands, .command("insights")] }
 
+    override var hotkeys: [HotkeyAction] {
+        [HotkeyAction(id: "clear", title: "Clear usage data (press twice)", scope: .local,
+                      default: Shortcut("delete", [.command, .shift])) { _ in .stay }]
+    }
+
     override func search(_ query: Query) async throws -> [SlashlightKit.Section] {
         // `/stats` and `/usage` find the dashboard too.
         guard query.mode == .command, ["stats", "usage", "analytics"].contains(where: { $0.hasPrefix(query.text.lowercased()) && query.text.count >= 2 })
@@ -30,18 +35,23 @@ final class InsightsExtension: Extension {
         let screen = EmbeddedScreen(view: host, height: 460, hints: {
             [PaletteModel.Hint(keys: "tab", label: model.period.rawValue),
              PaletteModel.Hint(keys: "↑↓", label: "Scroll"),
-             PaletteModel.Hint(keys: "⌘⌫", label: "Back"),
-             PaletteModel.Hint(keys: "⌘⇧⌫", label: model.confirmClear ? "Press again to clear" : "Clear data")]
+             PaletteModel.Hint(keys: "esc", label: "Back"),
+             Host.shared.hotkeyBindings.first { $0.id == "insights/clear" }?.shortcut.map {
+                 PaletteModel.Hint(keys: $0.display, label: model.confirmClear ? "Press again to clear" : "Clear data")
+             }].compactMap { $0 }
         }) { event, palette in
             let mods = Shortcut.Modifiers(event.modifierFlags)
-            switch (KeyCodes.key(for: event), mods) {
+            let pressed = Shortcut(KeyCodes.key(for: event), mods)
+            let bound = { (id: String) in Host.shared.hotkeyBindings.first { $0.id == id }?.shortcut == pressed }
+            if bound("insights/clear") { model.clear(); palette.objectWillChange.send(); return true }
+            if bound("slashlight/next") { model.scroll(1); return true }
+            if bound("slashlight/previous") { model.scroll(-1); return true }
+            switch (pressed.key, mods) {
             case ("tab", []): model.cyclePeriod(1)
             case ("tab", [.shift]): model.cyclePeriod(-1)
-            case ("down", _), ("n", [.control]): model.scroll(1)
-            case ("up", _), ("p", [.control]): model.scroll(-1)
-            case ("delete", [.command]), ("[", [.command]): palette.pop()
-            case ("delete", [.command, .shift]): model.clear()
-            case ("escape", _): palette.host.hide()
+            case ("down", _): model.scroll(1)
+            case ("up", _): model.scroll(-1)
+            case ("escape", _), ("[", [.command]): palette.pop()
             default: return false
             }
             palette.objectWillChange.send() // refresh the footer hints

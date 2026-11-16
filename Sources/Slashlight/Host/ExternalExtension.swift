@@ -18,13 +18,31 @@ final class ExternalExtension: Extension {
         var version: String?
         var author: String?
         var triggers: [String]
+        /// "actions" | "extension" (default) | "none": what Recent on the home screen shows.
+        var recents: String?
         /// Executable and arguments; relative paths resolve against the extension folder.
         var exec: [String]
+        /// What it needs beyond answering searches. See docs/extension-permissions.md.
+        var permissions: ExtensionPermissions.FileBlock?
+        /// One sentence per permission, written by the author.
+        var why: [String: String]?
+        /// Actions the user can run with a key; see docs/extension-protocol.md.
+        var hotkeys: [FileHotkey]?
+    }
+
+    struct FileHotkey: Codable {
+        var id: String
+        var title: String
+        /// "global" | "local"
+        var scope: String
+        /// "cmd+shift+j"; absent leaves the action without a key until the user sets one.
+        var `default`: String?
     }
 
     private let file: FileManifest
     private let directory: URL
-    private var process: Process?
+    let granted: ExtensionPermissions
+    private var process: ExtensionProcess?
     private var stdin: FileHandle?
     private var buffer = Data()
     private var nextID = 1
@@ -36,30 +54,86 @@ final class ExternalExtension: Extension {
         var errorDescription: String?
     }
 
-    init(file: FileManifest, directory: URL) {
+    /// Checks the manifest: a valid id that isn't a built-in's, permissions that can be granted, and triggers
+    /// that agree with them.
+    init(file: FileManifest, directory: URL, reservedIDs: Set<String> = []) throws {
+        let allowed = Set("abcdefghijklmnopqrstuvwxyz0123456789-_.")
+        guard !file.id.isEmpty, file.id.allSatisfy({ allowed.contains($0) }), !file.id.hasPrefix(".") else {
+            throw ProtocolError(errorDescription: "id \"\(file.id)\": use lowercase letters, digits, - _ and .")
+        }
+        guard !reservedIDs.contains(file.id), file.id != "scripts" else {
+            throw ProtocolError(errorDescription: "id \"\(file.id)\" belongs to a built-in extension")
+        }
+        let permissions = try ExtensionPermissions(file.permissions)
+        if file.triggers.contains("default") && !permissions.defaultSearch {
+            throw ProtocolError(errorDescription: "uses the default trigger without \"defaultSearch\": true in permissions")
+        }
+        for hk in file.hotkeys ?? [] {
+            guard !hk.id.isEmpty, hk.id != "open", hk.id.allSatisfy({ allowed.contains($0) }) else {
+                throw ProtocolError(errorDescription: "hotkey id \"\(hk.id)\": use lowercase letters, digits, - _ and . (not \"open\")")
+            }
+            guard let scope = HotkeyAction.Scope(rawValue: hk.scope) else {
+                throw ProtocolError(errorDescription: "hotkey \"\(hk.id)\": scope must be \"global\" or \"local\"")
+            }
+            if let d = hk.default {
+                guard let s = Shortcut(string: d), KeyCodes.code(for: s.key) != nil else {
+                    throw ProtocolError(errorDescription: "hotkey \"\(hk.id)\": can't read the key \"\(d)\"")
+                }
+                guard HotkeyMap.isAllowed(s, scope: scope == .global ? .global : .local) else {
+                    throw ProtocolError(errorDescription: "hotkey \"\(hk.id)\": a global key needs cmd, opt or ctrl")
+                }
+                if let reason = ReservedKeys.standardReason(s, scope: scope == .global ? .global : .local) {
+                    throw ProtocolError(errorDescription: "hotkey \"\(hk.id)\": \(reason)")
+                }
+            }
+        }
+        if Set((file.hotkeys ?? []).map(\.id)).count != (file.hotkeys ?? []).count {
+            throw ProtocolError(errorDescription: "two hotkeys share an id")
+        }
         self.file = file
         self.directory = directory
+        self.granted = permissions
     }
 
-    static func discover(in root: URL) -> [Extension] {
+    static func discover(in root: URL, reservedIDs: Set<String> = []) -> [Extension] {
         let dirs = (try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? []
         return dirs.compactMap { dir in
             guard let data = try? Data(contentsOf: dir.appendingPathComponent("manifest.json")) else { return nil }
             do {
-                return ExternalExtension(file: try JSONDecoder().decode(FileManifest.self, from: data), directory: dir)
+                return try ExternalExtension(file: try JSONDecoder().decode(FileManifest.self, from: data), directory: dir,
+                                             reservedIDs: reservedIDs)
             } catch {
-                NSLog("Slashlight: bad manifest in \(dir.path): \(error)")
+                NSLog("Slashlight: didn't load \(dir.path): \(error.localizedDescription)")
                 return nil
             }
         }
     }
 
+    /// `ExtensionData/<id>`, not a built-in's folder: an extension never sees Slashlight's own data.
+    private var sandbox: Sandbox {
+        let folders = Sandbox.folders(extensionID: file.id)
+        return Sandbox(permissions: granted, ownFolder: directory, dataFolder: folders.data, tempFolder: folders.temp)
+    }
+
     override var manifest: Manifest {
         Manifest(id: file.id, title: file.title, subtitle: file.subtitle, icon: Wire.decodeIcon(file.icon),
-                 version: file.version ?? "1.0", author: file.author)
+                 version: file.version ?? "1.0", author: file.author,
+                 recents: file.recents.flatMap(RecentsMode.init(rawValue:)) ?? .wholeExtension)
     }
 
     override var triggers: [Trigger] { file.triggers.compactMap(Wire.decodeTrigger) }
+
+    /// Each press sends a `hotkey` request; the extension answers with an outcome, as for `run`.
+    override var hotkeys: [HotkeyAction] {
+        (file.hotkeys ?? []).compactMap { hk in
+            guard let scope = HotkeyAction.Scope(rawValue: hk.scope) else { return nil }
+            return HotkeyAction(id: hk.id, title: hk.title, scope: scope, default: hk.default.flatMap(Shortcut.init(string:))) { [weak self] pressed in
+                guard let self else { return .stay }
+                let reply = try await self.request(Wire.Request(type: "hotkey", id: 0, query: pressed.string, actionId: hk.id))
+                return self.outcome(reply.outcome)
+            }
+        }
+    }
 
     override func deactivate() async {
         if process?.isRunning == true { send(Wire.Request(type: "shutdown", id: 0)) }
@@ -132,7 +206,7 @@ final class ExternalExtension: Extension {
         try launchIfNeeded()
         var req = req
         req.id = nextID
-        req.supportDirectory = context.supportDirectory.path
+        req.supportDirectory = sandbox.dataFolder.path
         nextID += 1
         let id = req.id
         let reply: Wire.Message = try await withCheckedThrowingContinuation { cont in
@@ -157,19 +231,14 @@ final class ExternalExtension: Extension {
     private func launchIfNeeded() throws {
         if process?.isRunning == true { return }
         guard let exe = file.exec.first else { throw ProtocolError(errorDescription: "manifest has empty exec") }
-        let p = Process()
-        p.executableURL = exe.hasPrefix("/") ? URL(fileURLWithPath: exe) : directory.appendingPathComponent(exe)
-        p.arguments = Array(file.exec.dropFirst())
-        p.currentDirectoryURL = directory
-        let inPipe = Pipe(), outPipe = Pipe()
-        p.standardInput = inPipe
-        p.standardOutput = outPipe
-        p.standardError = FileHandle.standardError
-        outPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
+        let p = try ExtensionProcess(executable: exe.hasPrefix("/") ? URL(fileURLWithPath: exe) : directory.appendingPathComponent(exe),
+                                     arguments: Array(file.exec.dropFirst()), directory: directory, extensionID: file.id,
+                                     sandbox: sandbox, pipeStdin: true, stderr: FileHandle.standardError.fileDescriptor)
+        p.stdout?.readabilityHandler = { [weak self] handle in
             let chunk = handle.availableData
             DispatchQueue.main.async { MainActor.assumeIsolated { self?.receive(chunk) } }
         }
-        p.terminationHandler = { [weak self] _ in
+        p.onExit { [weak self] _ in
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
                     guard let self else { return }
@@ -179,9 +248,8 @@ final class ExternalExtension: Extension {
                 }
             }
         }
-        try p.run()
         process = p
-        stdin = inPipe.fileHandleForWriting
+        stdin = p.stdin
         buffer.removeAll()
     }
 
@@ -209,6 +277,7 @@ final class ExternalExtension: Extension {
                 if let text = msg.text { detail.text = msg.append == true ? detail.text + text : text }
                 if let running = msg.running { detail.isRunning = running }
             case "hud": context.showHUD(msg.message ?? "")
+            case "copy": context.copy(msg.text ?? "")
             case "outcome" where msg.outcome?.type == "close": context.close()
             default: break
             }
