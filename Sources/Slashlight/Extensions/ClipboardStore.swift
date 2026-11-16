@@ -184,9 +184,12 @@ final class ClipboardVault: @unchecked Sendable {
         }
     }()
     static let folder = "history"
+    /// The dev suite's key: never stored, so its history can't be read after it quits.
+    private static let isolatedKey = SymmetricKey(size: .bits256)
 
     /// The history key, created on first use.
     static func keychainKey() -> SymmetricKey? {
+        if DevSuite.isActive { return isolatedKey }
         let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
                                     kSecAttrAccount as String: "history-key", kSecReturnData as String: true]
         var result: AnyObject?

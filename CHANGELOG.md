@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+- `scripts/dev-suite.sh`: runs the app on its own in a throwaway folder (no Keychain, hotkeys, clipboard or files of yours) and prints and captures the panel and Settings, so changes can be checked without anyone at the keyboard. `--dump` prints the panel's rows.
+
+### Changed
+- Files rank well below apps and extensions in the main search: "his" no longer makes `history.js` the Top Hit over Clipboard History.
+
+### Fixed
+- Test and local builds show their Dock badge (TEST, DEV) on every launch, not only sometimes.
+
 ### Changed
 - Slashlight Settings shows up when you type "settings" or "preferences" in the search, as a result next to System Settings rather than a `/slashlight-settings` command.
 

@@ -8,7 +8,8 @@ import SlashlightKit
 ///   anywhere; "his" scores far higher in "Clipboard *His*tory" than in "About T*his* Mac"),
 /// - plus what you picked before for this query (`SearchMemory`),
 /// - plus a small preference by kind: an answer (the calculator) always wins, extensions and commands come
-///   slightly before apps, files after them, and the web search is never the Top Hit and always last.
+///   slightly before apps, files well after them (a file's name often starts with any word you type), and the
+///   web search is never the Top Hit and always last.
 enum RootRanking {
     static let topHit = "Top Hit"
 
@@ -18,7 +19,7 @@ enum RootRanking {
         switch extensionID {
         case "calculator": return 3000
         case "web-search": return -100_000
-        case "files": return -150
+        case "files": return -400 // a file wins only once you have picked it before
         case "apps": return 0
         default: return section == "Extensions" ? 120 : 60
         }
