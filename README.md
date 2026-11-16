@@ -24,7 +24,7 @@ Apps, files, windows on every Space, a calculator, snippets, clipboard history a
 - **Everything is an extension.** The built-ins use the same public `Extension` API you do. There is no private fast path.
 - **Crash-proof plugins.** Third-party extensions run as separate processes speaking JSON over stdin/stdout, in any language.
 - **Raycast-friendly.** Raycast [script commands](https://github.com/raycast/script-commands) run unchanged.
-- **Yours.** MIT licensed, no account, no telemetry. Config is plain JSON in `~/Library/Application Support/Slashlight/`.
+- **Yours.** MIT licensed, no account, no telemetry ([what goes over the network](PRIVACY.md)). Config is plain JSON in `~/Library/Application Support/Slashlight/`.
 
 ## Features
 
@@ -147,7 +147,12 @@ Pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md). It cov
 - [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) by Miguel de Icaza powers the terminal tabs.
 - [Sparkle](https://sparkle-project.org) delivers updates.
 - [Raycast](https://www.raycast.com) set the bar for launchers and defined the script-command format Slashlight supports.
+- Currency rates: [Rates By Exchange Rate API](https://www.exchangerate-api.com).
+
+The full license texts of what ships inside the app are in [Resources/ThirdPartyNotices.txt](Resources/ThirdPartyNotices.txt) and in Settings → About → Acknowledgements.
+
+Slashlight is not affiliated with Raycast Technologies Ltd or Apple Inc. Raycast is a trademark of Raycast Technologies Ltd. Apple, macOS and Spotlight are trademarks of Apple Inc.
 
 ## License
 
-[MIT](LICENSE) © 2026 Alexander Ikonnikov
+[MIT](LICENSE) © 2026 Alexander Ikonnikov. Provided as is, without warranty. Feedback: [alex@burinworks.com](mailto:alex@burinworks.com).

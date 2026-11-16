@@ -5,17 +5,30 @@ import SlashlightKit
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem?
 
+    /// The Dock icon appears only once the switch to `.regular` has gone through, and a badge set before that is
+    /// dropped, so set it again until it sticks.
+    private func showBadge() {
+        for delay in [0, 0.5, 2.0] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { NSApp.dockTile.badgeLabel = BuildInfo.badge }
+        }
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Local and test builds stay in the Dock with a badge, so it is always clear which build is running.
-        if BuildInfo.isPreview {
+        if DevSuite.isActive {
+            // Automated checks: no Dock icon, menu bar icon or update checks; see DevSuite.
+            NSApp.setActivationPolicy(.accessory)
+        } else if BuildInfo.isPreview {
             NSApp.setActivationPolicy(.regular)
-            NSApp.dockTile.badgeLabel = BuildInfo.badge
             setUpMainMenu()
+            showBadge()
         } else {
             NSApp.setActivationPolicy(.accessory)
         }
-        setUpStatusItem()
-        Updater.shared.start(with: Host.shared.settings)
+        if !DevSuite.isActive {
+            setUpStatusItem()
+            Updater.shared.start(with: Host.shared.settings)
+        }
         Task {
             await Host.shared.start()
             _ = Host.shared.panel // build the panel up-front so the first open is instant
@@ -25,7 +38,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 }
                 exit(0)
             }
-            if let path = argument("--snapshot") { await snapshot(to: path); return }
+            if argument("--snapshot") != nil || CommandLine.arguments.contains("--dump") {
+                await snapshot(to: argument("--snapshot"))
+                return
+            }
             if CommandLine.arguments.contains("--settings") {
                 SettingsWindowController.shared.show(tab: argument("--tab").flatMap(SettingsTab.init(rawValue:)))
                 if let path = argument("--snapshot-settings") {
@@ -53,8 +69,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 OnboardingWindowController.shared.show(step: step)
                 return
             }
-            Install.noteLaunch()
-            if !Host.shared.settings.onboardingCompleted {
+            if !DevSuite.isActive { Install.noteLaunch() }
+            if !Host.shared.settings.onboardingCompleted && !DevSuite.isActive {
                 OnboardingWindowController.shared.show()
                 return
             }
@@ -70,7 +86,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// Debug aid: `Slashlight --snapshot out.png [--query text] [--open ext-id] [--filter name] [--delay s] [--enter] [--dark]`
     /// renders the panel and quits.
-    private func snapshot(to path: String) async {
+    /// `--snapshot out.png` renders the panel; `--dump` prints its sections and rows (what the dev suite checks).
+    private func snapshot(to path: String?) async {
         if CommandLine.arguments.contains("--dark") { NSApp.appearance = NSAppearance(named: .darkAqua) }
         let host = Host.shared
         host.show(extensionID: argument("--open"))
@@ -90,9 +107,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             for line in session.view.visibleRowsText(0..<30) where !line.trimmingCharacters(in: .whitespaces).isEmpty { print("│ " + line) }
             print("state:", session.activity)
         }
-        guard let view = host.panel.panel.contentView, let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { exit(1) }
-        view.cacheDisplay(in: view.bounds, to: rep)
-        try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
+        if CommandLine.arguments.contains("--dump") {
+            for section in host.model.sections {
+                print("## \(section.title)")
+                for row in section.rows {
+                    let mark = row.index == host.model.selection ? ">" : " "
+                    print("\(mark) \(row.item.title)  [\(row.extensionID ?? "-")]")
+                }
+            }
+            print("footer: " + host.model.hints.map { "\($0.keys) \($0.label)" }.joined(separator: " · "))
+            fflush(stdout)
+        }
+        if let path {
+            guard let view = host.panel.panel.contentView, let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { exit(1) }
+            view.cacheDisplay(in: view.bounds, to: rep)
+            try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
+        }
         exit(0)
     }
 
@@ -124,6 +154,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if Updater.shared.isAvailable {
             menu.addItem(withTitle: "Check for Updates…", action: #selector(Updater.checkForUpdates), keyEquivalent: "").target = Updater.shared
         }
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "Send Feedback…", action: #selector(feedback), keyEquivalent: "").target = self
+        menu.addItem(withTitle: "Report a Bug…", action: #selector(reportBug), keyEquivalent: "").target = self
         menu.addItem(.separator())
         if BuildInfo.isPreview {
             menu.addItem(withTitle: "Uninstall \(BuildInfo.name)…", action: #selector(uninstall), keyEquivalent: "").target = self
@@ -186,6 +219,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func uninstall() { Install.confirmUninstall() }
+
+    @objc private func feedback() { NSWorkspace.shared.open(ProjectLinks.feedback) }
+
+    @objc private func reportBug() { NSWorkspace.shared.open(ProjectLinks.issues) }
 
     @objc private func open() { Host.shared.show() }
 

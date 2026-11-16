@@ -51,6 +51,8 @@ cp "$BIN/Slashlight" "$APP/Contents/MacOS/$EXECUTABLE"
 ditto "$SPARKLE" "$APP/Contents/Frameworks/Sparkle.framework"
 install_name_tool -add_rpath @executable_path/../Frameworks "$APP/Contents/MacOS/$EXECUTABLE"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+# MIT and BSD ask for their notices in every copy, so they travel inside the app (Settings → About → Acknowledgements).
+cp Resources/ThirdPartyNotices.txt LICENSE "$APP/Contents/Resources/"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -63,6 +65,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleExecutable</key><string>${EXECUTABLE}</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
+  <key>NSHumanReadableCopyright</key><string>© 2026 Alexander Ikonnikov. MIT License.</string>
   <key>CFBundleShortVersionString</key><string>${VERSION%%-*}</string>
   <key>CFBundleVersion</key><string>${BUILD_NUMBER}</string>
   <key>SlashlightChannel</key><string>${CHANNEL}</string>

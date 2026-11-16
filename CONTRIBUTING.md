@@ -101,6 +101,19 @@ An urgent fix can go to `main` directly through a `hotfix/…` branch. Afterward
 
 Commits use the imperative mood: "Add emoji recents", not "Added…".
 
+## Checking the app without a person at the keyboard
+
+`scripts/dev-suite.sh` builds the app (signed ad hoc, so codesign never asks for the keychain) and runs it in a fresh throwaway folder: no settings, history, extensions or clipboard of yours, no Keychain, no global hotkeys, menu bar icon, Dock icon, update checks, welcome tour or file search. It prints the panel's results and saves PNGs to `build/dev-suite/`:
+
+```bash
+scripts/dev-suite.sh                     # the standard checks
+scripts/dev-suite.sh query "his"         # one search: rows printed, panel saved
+scripts/dev-suite.sh open clipboard      # an extension's screen
+scripts/dev-suite.sh settings Hotkeys    # a Settings tab
+```
+
+`NO_BUILD=1` reuses the last build, `DARK=1` renders dark mode. Under the hood it sets `SLASHLIGHT_ISOLATED_HOME` (`Sources/Slashlight/Host/DevSuite.swift`) and passes `--dump`, `--snapshot`, `--query`, `--open` or `--settings --tab`.
+
 ## Releasing (maintainers)
 
 Releases come from branches; you don't push tags.

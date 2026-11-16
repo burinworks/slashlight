@@ -4,8 +4,23 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+- Settings → About shows the app's own icon, "Made by Alexander Ikonnikov", © and license with a "provided as is" line, and links: GitHub, Report a Bug, Ideas & Questions, Send Feedback (alex@burinworks.com), Security Issue, Privacy, License and **Acknowledgements**, which shows the third-party notices that now ship inside the app.
+- `PRIVACY.md`: every time Slashlight goes on the network, and what stays on your Mac.
+- Currency results credit "Rates By Exchange Rate API", with a link in ⌘K.
+- The menu bar menu has **Send Feedback…** and **Report a Bug…**.
+- Finder's Get Info shows "© 2026 Alexander Ikonnikov. MIT License."
+- `scripts/dev-suite.sh`: runs the app on its own in a throwaway folder (no Keychain, hotkeys, clipboard or files of yours) and prints and captures the panel and Settings, so changes can be checked without anyone at the keyboard. `--dump` prints the panel's rows.
+
 ### Changed
+- Files rank well below apps and extensions in the main search: "his" no longer makes `history.js` the Top Hit over Clipboard History.
 - Slashlight Settings shows up when you type "settings" or "preferences" in the search, as a result next to System Settings rather than a `/slashlight-settings` command.
+
+### Removed
+- The Apple logo glyph from the emoji picker.
+
+### Fixed
+- Test and local builds show their Dock badge (TEST, DEV) on every launch, not only sometimes.
 
 ## [0.4.3] - 2026-11-16
 

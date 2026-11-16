@@ -12,6 +12,8 @@ final class CalculatorExtension: Extension {
         var display: String
         /// The subtitle: what was understood.
         var expression: String
+        /// A currency conversion: ExchangeRate-API's terms ask for "Rates By Exchange Rate API" wherever the rates show.
+        var usesRates = false
     }
 
     private var rates: [String: Double] = [:]
@@ -44,13 +46,17 @@ final class CalculatorExtension: Extension {
         let text = query.text.trimmingCharacters(in: .whitespaces)
         guard !text.isEmpty, let a = await answer(text) else { return [] }
         return [Section("Calculator", [
-            Item(id: "result", title: a.display, subtitle: a.expression, icon: .symbol("equal.square"),
+            Item(id: "result", title: a.display,
+                 subtitle: a.usesRates ? "\(a.expression) · Rates By Exchange Rate API" : a.expression, icon: .symbol("equal.square"),
                  primary: Action("Copy Result", icon: .symbol("doc.on.doc")) { [weak self] in
                      self?.context.copy(a.value)
                      return .hud("Copied \(a.value)")
                  },
                  secondary: Action("Paste Result", icon: .symbol("arrow.down.doc")) { .paste(a.value) },
-                 more: [
+                 more: (a.usesRates ? [Action("Open exchangerate-api.com", icon: .symbol("link")) {
+                     NSWorkspace.shared.open(URL(string: "https://www.exchangerate-api.com")!)
+                     return .close
+                 }] : []) + [
                     Action("Copy with Unit", icon: .symbol("textformat"), shortcut: Shortcut("c", [.command, .shift])) { [weak self] in
                         self?.context.copy(a.display)
                         return .hud("Copied \(a.display)")
@@ -173,7 +179,8 @@ final class CalculatorExtension: Extension {
         f.groupingSeparator = ","
         let shown = f.string(from: NSNumber(value: result)) ?? plain
         let age = ratesDate.flatMap { Date().timeIntervalSince($0) > 60 ? " · rates from \($0.relative)" : nil } ?? ""
-        return Answer(value: plain, display: "\(shown) \(to)", expression: "\(Self.format(value, grouping: true)) \(from) → \(to)\(age)")
+        return Answer(value: plain, display: "\(shown) \(to)", expression: "\(Self.format(value, grouping: true)) \(from) → \(to)\(age)",
+                      usesRates: true)
     }
 
     // MARK: Currency rates
