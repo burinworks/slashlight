@@ -4,7 +4,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+- Settings → About has a **Quit Slashlight** button that is always shown: with no Dock icon, ⌘Q in the panel quits the app behind it instead.
+
 ### Changed
+- The menu bar icon is Slashlight's own mark (a slash in a rounded square) and its menu says Slashlight is running, with the version, Open (with your hotkey), Settings…, Check for Updates… and Quit. Beta and stable menus leave out the tour and Uninstall, as About does. If you don't see the icon, allow Slashlight under System Settings → Menu Bar.
 - Beta and stable builds hide Show Welcome Tour, Reset Welcome Tour and Uninstall in Settings → About until you click the version a few times. Local and test builds still show them.
 
 ## [0.4.2] - 2026-11-15

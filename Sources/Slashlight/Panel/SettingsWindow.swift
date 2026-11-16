@@ -758,6 +758,11 @@ private struct AboutSettings: View {
                 .padding(.top, 6)
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
+            // Always here: Slashlight has no Dock icon in beta and stable, so ⌘Q in the panel would quit the app
+            // behind it instead.
+            Button("Quit \(BuildInfo.name)") { NSApp.terminate(nil) }
+                .padding(.top, showsTools ? 4 : 6)
+                .help("Stops Slashlight until you open it again (or log in, if it launches at login)")
             Spacer()
         }
         .frame(maxWidth: .infinity)
