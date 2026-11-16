@@ -4,8 +4,12 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Changed
+- Slashlight Settings shows up when you type "settings" or "preferences" in the search, as a result next to System Settings rather than a `/slashlight-settings` command.
+
+## [0.4.3] - 2026-11-16
+
 ### Added
-- Typing "settings" in the search lists **Slashlight Settings** next to System Settings (also `/slashlight-settings`).
 - Settings → About has a **Quit Slashlight** button that is always shown: with no Dock icon, ⌘Q in the panel quits the app behind it instead.
 
 ### Changed

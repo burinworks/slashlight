@@ -216,11 +216,24 @@ final class PaletteModel: ObservableObject {
             }
             .sorted { $0.0 > $1.0 }
             .map { (_, ext) in (ext.manifest.id, Section("Extensions", [entryItem(ext)])) }
+            + Self.slashlightResults(text)
         stream(defaults.filter { !late.contains($0.manifest.id) }.map { Job(ext: $0, query: query) },
                fixed: entries,
                after: (text.count >= 2 ? commandProviders.map { Job(ext: $0, query: commandQuery, nameMatchesOnly: 3) } : [])
                    + defaults.filter { late.contains($0.manifest.id) }.map { Job(ext: $0, query: query) },
                gen: gen, keep: keep)
+    }
+
+    /// Slashlight's own pages in plain search: "settings" or "preferences" lists Slashlight Settings next to
+    /// System Settings. Not a `/` command.
+    static func slashlightResults(_ text: String) -> [(String?, Section)] {
+        guard text.trimmingCharacters(in: .whitespaces).count >= 3,
+              let score = Fuzzy.score(text, ["\(BuildInfo.name) Settings", "Slashlight Settings", "Settings", "Preferences"]), score >= Self.nameMatch
+        else { return [] }
+        return [(nil, Section("Slashlight", [
+            Item(id: "slashlight-settings", title: "\(BuildInfo.name) Settings", icon: .symbol("gearshape"),
+                 primary: Action("Open Settings") { SettingsWindowController.shared.show(); return .close }),
+        ]))]
     }
 
     /// Bare `/`: every command, the most recently used first, then in the order the extensions list them.
