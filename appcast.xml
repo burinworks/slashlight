@@ -6,6 +6,17 @@
         <description>Slashlight updates</description>
         <language>en</language>
         <item>
+            <title>Slashlight v0.4.3</title>
+            <pubDate>Mon, 16 Nov 2026 11:09:38 +0000</pubDate>
+            <sparkle:version>34</sparkle:version>
+            <sparkle:shortVersionString>0.4.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:releaseNotesLink>https://github.com/burinworks/slashlight/releases/tag/v0.4.3</sparkle:releaseNotesLink>
+            <sparkle:fullReleaseNotesLink>https://github.com/burinworks/slashlight/releases/tag/v0.4.3</sparkle:fullReleaseNotesLink>
+            <sparkle:channel>beta</sparkle:channel>
+            <enclosure url="https://github.com/burinworks/slashlight/releases/download/v0.4.3/Slashlight-v0.4.3.dmg" type="application/octet-stream" sparkle:edSignature="O/U/MAo0UTXEttrIT1W6cfcYERJL6m3QYYJ4JY03+2+0IkhiktD5hh4+a+6nlkN1fe+tp8eSmZm99hdEdIMkBQ==" length="8533874"></enclosure>
+        </item>
+        <item>
             <title>Slashlight v0.4.2</title>
             <pubDate>Sun, 15 Nov 2026 21:38:29 +0000</pubDate>
             <sparkle:version>33</sparkle:version>
