@@ -2,7 +2,7 @@ import AppKit
 import SlashlightKit
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -96,26 +96,71 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         exit(0)
     }
 
+    /// The menu bar icon: always there while Slashlight runs, so you can see it's running and reach Settings or
+    /// Quit even though the app has no Dock icon. The tour and Uninstall stay out of beta and stable menus, as in
+    /// Settings → About.
     private func setUpStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        item.button?.image = NSImage(systemSymbolName: "sparkle.magnifyingglass", accessibilityDescription: BuildInfo.name)
+        item.autosaveName = "Slashlight"
+        item.button?.image = Self.menuBarIcon()
+        item.button?.toolTip = "\(BuildInfo.name) is running"
         let menu = NSMenu()
-        if let tag = BuildInfo.tag {
-            menu.addItem(withTitle: "\(BuildInfo.name) \(BuildInfo.version) · \(tag)", action: nil, keyEquivalent: "")
-            menu.addItem(.separator())
-        }
-        menu.addItem(withTitle: "Open \(BuildInfo.name)", action: #selector(open), keyEquivalent: "").target = self
+        let header = NSMenuItem(title: "\(BuildInfo.name) is running", action: nil, keyEquivalent: "")
+        header.isEnabled = false
+        menu.addItem(header)
+        let version = NSMenuItem(title: "Version \(BuildInfo.fullVersion)", action: nil, keyEquivalent: "")
+        version.isEnabled = false
+        menu.addItem(version)
+        menu.addItem(.separator())
+        let open = menu.addItem(withTitle: "Open \(BuildInfo.name)", action: #selector(open), keyEquivalent: "")
+        open.target = self
+        open.tag = Self.openItemTag
+        menu.delegate = self
         menu.addItem(withTitle: "Settings…", action: #selector(settings), keyEquivalent: ",").target = self
         menu.addItem(withTitle: "Open Config Folder", action: #selector(config), keyEquivalent: "").target = self
-        menu.addItem(withTitle: "Show Welcome Tour", action: #selector(tour), keyEquivalent: "").target = self
+        if BuildInfo.isPreview {
+            menu.addItem(withTitle: "Show Welcome Tour", action: #selector(tour), keyEquivalent: "").target = self
+        }
         if Updater.shared.isAvailable {
             menu.addItem(withTitle: "Check for Updates…", action: #selector(Updater.checkForUpdates), keyEquivalent: "").target = Updater.shared
         }
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Uninstall \(BuildInfo.name)…", action: #selector(uninstall), keyEquivalent: "").target = self
+        if BuildInfo.isPreview {
+            menu.addItem(withTitle: "Uninstall \(BuildInfo.name)…", action: #selector(uninstall), keyEquivalent: "").target = self
+        }
         menu.addItem(withTitle: "Quit \(BuildInfo.name)", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         item.menu = menu
         statusItem = item
+    }
+
+    private static let openItemTag = 1
+
+    /// Shows the current Open Slashlight key, which can change in Settings while the app runs.
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        guard let item = menu.item(withTag: Self.openItemTag) else { return }
+        let key = Shortcut(string: Host.shared.settings.hotkey).map { "  (\($0.display))" } ?? ""
+        item.title = "Open \(BuildInfo.name)\(key)"
+    }
+
+    /// Slashlight's mark for the menu bar: a rounded square with the slash cut out, as a template image so it
+    /// follows the menu bar's colour.
+    static func menuBarIcon() -> NSImage {
+        let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { rect in
+            let box = rect.insetBy(dx: 2, dy: 2)
+            NSColor.black.setFill()
+            NSBezierPath(roundedRect: box, xRadius: 3.6, yRadius: 3.6).fill()
+            let slash = NSBezierPath()
+            slash.move(to: NSPoint(x: box.minX + box.width * 0.62, y: box.minY + box.height * 0.80))
+            slash.line(to: NSPoint(x: box.minX + box.width * 0.38, y: box.minY + box.height * 0.20))
+            slash.lineWidth = box.width * 0.15
+            slash.lineCapStyle = .round
+            NSGraphicsContext.current?.compositingOperation = .destinationOut
+            slash.stroke()
+            return true
+        }
+        image.isTemplate = true
+        image.accessibilityDescription = BuildInfo.name
+        return image
     }
 
     /// The menu bar of Dock builds: the app menu only, so the panel's own shortcuts keep working.

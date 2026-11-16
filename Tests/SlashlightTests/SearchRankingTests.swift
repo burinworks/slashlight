@@ -68,6 +68,13 @@ struct SearchRankingTests {
         #expect(topHit(RootRanking.rank(parts, query: "2+2", topHit: true) { _ in 0 }) == "4")
     }
 
+    @Test func typingSettingsFindsSlashlightsOwn() async throws {
+        let results = try await SystemCommandsExtension().search(Query(text: "settings", mode: .default))
+        #expect(results.flatMap(\.items).contains { $0.id == "slashlight-settings" })
+        let short = try await SystemCommandsExtension().search(Query(text: "sett", mode: .default))
+        #expect(short.flatMap(\.items).contains { $0.id == "slashlight-settings" })
+    }
+
     @Test func extensionListsStayTogether() {
         let parts = results(apps: ["Snipping Tool"], extensions: [("snippets", "Snippets"), ("emoji", "Emoji")])
         let ranked = RootRanking.rank(parts, query: "sni", topHit: false) { _ in 0 }
