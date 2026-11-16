@@ -722,6 +722,13 @@ private struct PermissionsSettings: View {
 // MARK: About
 
 private struct AboutSettings: View {
+    /// Beta and stable builds keep the tour and uninstall buttons out of sight: clicking the version a few times
+    /// (a different number each time the tab opens) shows them. Local and test builds always show them.
+    private static let hidesTools = BuildInfo.channel == .beta || BuildInfo.channel == .stable
+    @State private var clicks = 0
+    @State private var clicksNeeded = Int.random(in: 5...9)
+    private var showsTools: Bool { !Self.hidesTools || clicks >= clicksNeeded }
+
     var body: some View {
         VStack(spacing: 10) {
             Spacer()
@@ -733,22 +740,35 @@ private struct AboutSettings: View {
             Text("Version \(BuildInfo.fullVersion)")
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
+                .simultaneousGesture(TapGesture().onEnded {
+                    guard !showsTools else { return }
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { clicks += 1 }
+                })
             Text("Open-source, keyboard-first launcher for macOS.")
                 .foregroundStyle(.secondary)
-            HStack {
-                Button("Show Welcome Tour") { OnboardingWindowController.shared.show() }
-                Button("Reset Welcome Tour") { Install.resetOnboarding() }
-                    .help("Shows the tour now and on every launch until you finish it")
+            if showsTools {
+                VStack(spacing: 10) {
+                    HStack {
+                        Button("Show Welcome Tour") { OnboardingWindowController.shared.show() }
+                        Button("Reset Welcome Tour") { Install.resetOnboarding() }
+                            .help("Shows the tour now and on every launch until you finish it")
+                    }
+                    Button("Uninstall \(BuildInfo.name)…", role: .destructive) { Install.confirmUninstall() }
+                }
+                .padding(.top, 6)
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
-            .padding(.top, 6)
-            Button("Uninstall \(BuildInfo.name)…", role: .destructive) { Install.confirmUninstall() }
+            // Always here: Slashlight has no Dock icon in beta and stable, so ⌘Q in the panel would quit the app
+            // behind it instead.
+            Button("Quit \(BuildInfo.name)") { NSApp.terminate(nil) }
+                .padding(.top, showsTools ? 4 : 6)
+                .help("Stops Slashlight until you open it again (or log in, if it launches at login)")
             Spacer()
         }
         .frame(maxWidth: .infinity)
     }
 }
 
-/// A small panel over a colorful backdrop, so the opacity and blur settings can be judged without opening the panel.
 /// The real panel, drawn with its own parts at a smaller scale over a busy wallpaper, so the opacity and blur
 /// settings show what they will do.
 private struct PanelPreview: View {
