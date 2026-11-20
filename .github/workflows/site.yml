@@ -1,0 +1,53 @@
+name: Site
+
+# Publishes site/ (the project page) to the root of the gh-pages branch, which GitHub Pages serves at
+# https://burinworks.github.io/slashlight/. Copies the files over what is there and deletes nothing, so the
+# Sparkle appcast (appcast.xml, written by the release workflow) stays untouched.
+on:
+  push:
+    branches: [main]
+    paths: ["site/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish the site
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          path: src
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: gh-pages
+          path: pages
+          persist-credentials: true # the push below needs it; only this job's token, only gh-pages
+
+      - name: Copy the site
+        run: |
+          rsync -a --exclude appcast.xml src/site/ pages/
+          touch pages/.nojekyll
+
+      - name: Commit and push
+        working-directory: pages
+        run: |
+          git add -A
+          if git diff --cached --quiet; then
+            echo "The site is already up to date." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "Site: ${GITHUB_SHA::7}"
+          git push origin gh-pages
+          echo "Published https://burinworks.github.io/slashlight/" | tee -a "$GITHUB_STEP_SUMMARY"

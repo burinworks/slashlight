@@ -4,3 +4,6 @@ build/
 *.xcodeproj
 .DS_Store
 .claude/worktrees/
+
+# design kit state (tasteskill)
+.taste-skill/

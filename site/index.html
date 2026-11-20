@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="en" data-type="software" data-radius="soft" data-ground="sky" data-buttons="solid" data-motion>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Slashlight: a free keyboard launcher for macOS</title>
+<meta name="description" content="Open apps, run your own slash commands, convert units and keep clipboard history from one shortcut. Open source under MIT, no account, no tracking.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Slashlight: a free keyboard launcher for macOS">
+<meta property="og:description" content="Apps, slash commands, clipboard history and window layouts from one shortcut. MIT-licensed, no account.">
+<meta property="og:image" content="https://burinworks.github.io/slashlight/share.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="favicon.png" type="image/png">
+<meta name="theme-color" content="#dfdedb">
+<link rel="canonical" href="https://burinworks.github.io/slashlight/">
+<meta name="site-kind" content="software">
+<meta name="page-type" content="software">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=SUSE:wght@400..700&family=JetBrains+Mono:wght@400..500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/system.css">
+<link rel="stylesheet" href="assets/ui/cards.css">
+<link rel="stylesheet" href="assets/motion/motion.css">
+<link rel="stylesheet" href="assets/backgrounds/backgrounds.css">
+<link rel="stylesheet" href="assets/layout/layout.css">
+<link rel="stylesheet" href="assets/icons/icon.css">
+<style>
+:root {
+  --p-bg: #dfdedb; --p-surface: #d3d2ce; --p-ink: #26251e; --p-muted: #5a5850;
+  --p-accent: #2456d6; --p-accent-ink: #ffffff; --p-action: #2456d6; --p-action-ink: #ffffff;
+  --p-inv-bg: #26251e; --p-inv-surface: #313029; --p-inv-ink: #dfdedb; --p-inv-muted: #9e9d99;
+  --p-inv-accent: #dfdedb; --p-inv-accent-ink: #26251e; --p-inv-action: #dfdedb; --p-inv-action-ink: #26251e;
+  --font-display: "SUSE", system-ui, sans-serif;
+  --font-text: "SUSE", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --display-weight: 500;
+  --display-tracking: -0.03em;
+  --display-tracking-xl: -0.04em;
+}
+</style>
+<link rel="stylesheet" href="assets/ui/base.css">
+<script>document.documentElement.classList.add('m-enter');setTimeout(()=>document.documentElement.classList.add('m-enter-done'),700)</script>
+<script src="assets/backgrounds/backgrounds.js"></script>
+<script>document.documentElement.classList.add('mo-js');setTimeout(()=>document.documentElement.classList.add('mo-safe'),2500)</script>
+<link rel="modulepreload" href="assets/moments/moments.js">
+<link rel="modulepreload" href="assets/moments/lib.js">
+<link rel="modulepreload" href="assets/moments/counter-rolls/moment.js">
+<style>
+  /* page CSS: the Slashlight panel drawn in HTML (it is the product's own window) and the logo image */
+  .nav__logo img, .footer__mark img { width: 28px; height: 28px; border-radius: 7px; }
+  .hero-mark { display: inline-block; width: .82em; height: .82em; vertical-align: -.08em; margin-right: .12em; border-radius: .2em; }
+  .sl { --sl-bg: #fbfbfa; --sl-ink: #1c1c1e; --sl-muted: #8a8a8e; --sl-sel: rgba(0,0,0,.07); --sl-line: rgba(0,0,0,.08);
+        background: var(--sl-bg); color: var(--sl-ink); border-radius: 16px; border: 1px solid var(--sl-line);
+        box-shadow: 0 24px 60px -24px rgba(20,20,30,.35); font: 400 15px/1.3 -apple-system, BlinkMacSystemFont, "SF Pro Text", var(--font-text); overflow: hidden; text-align: left; }
+  .sl__search { display: flex; align-items: center; gap: 12px; height: 56px; padding: 0 18px; border-bottom: 1px solid var(--sl-line); }
+  .sl__search svg { width: 18px; height: 18px; flex: none; }
+  .sl__q { font-size: 19px; flex: 1; }
+  .sl__q .caret { display: inline-block; width: 2px; height: 1.05em; background: #2f6fed; vertical-align: -.15em; margin-left: 1px; animation: sl-blink 1s steps(1) infinite; }
+  @keyframes sl-blink { 50% { opacity: 0; } }
+  .sl__key { font: 500 11px/1 var(--font-text); color: var(--sl-muted); border: 1px solid var(--sl-line); border-radius: 5px; padding: 3px 6px; }
+  .sl__list { padding: 6px 8px 8px; }
+  .sl__sec { font-size: 11px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: var(--sl-muted); padding: 10px 10px 4px; }
+  .sl__row { display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 10px; }
+  .sl__row.is-on { background: var(--sl-sel); }
+  .sl__row b { font-weight: 400; }
+  .sl__row small { margin-left: auto; color: var(--sl-muted); font-size: 12px; }
+  .sl__ic { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; flex: none; background: rgba(0,0,0,.05); font-size: 14px; }
+  .sl__ic svg { width: 15px; height: 15px; }
+  .sl__foot { display: flex; gap: 16px; align-items: center; height: 40px; padding: 0 16px; border-top: 1px solid var(--sl-line); background: #f5f5f4; color: var(--sl-muted); font-size: 12px; }
+  .sl__foot span { display: inline-flex; gap: 6px; align-items: center; }
+  .sl__tag { margin-left: auto; color: #2f6fed; }
+  .sl--small { font-size: 14px; }
+  .sl--small .sl__search { height: 48px; }
+  .sl--small .sl__q { font-size: 17px; }
+  .sl__answer { padding: 18px 18px 6px; }
+  .sl__answer strong { display: block; font-size: 30px; font-weight: 500; letter-spacing: -.01em; }
+  .sl__answer span { color: var(--sl-muted); font-size: 13px; }
+  .sl__term { background: #18181b; color: #e4e4e7; font: 400 12.5px/1.7 var(--font-mono); padding: 14px 16px; }
+  .sl__term .ok { color: #86efac; } .sl__term .dim { color: #a1a1aa; }
+  .sl__tabs { display: flex; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--sl-line); font-size: 12px; }
+  .sl__tabs i { font-style: normal; padding: 3px 8px; border-radius: 6px; background: rgba(0,0,0,.05); }
+  .sl__tabs i.is-on { background: #2f6fed; color: #fff; }
+  .sl__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 12px; }
+  .sl__win { height: 64px; border-radius: 8px; border: 1px solid var(--sl-line); background: linear-gradient(#ececea 18%, #fff 18%); display: grid; place-items: center; font-size: 13px; color: #3a3a3c; }
+  .sl__win.is-on { outline: 2px solid #2f6fed; }
+  .code { background: #1d1d1b; color: #e7e6e1; border-radius: var(--r-lg); padding: 24px 28px; font: 400 14px/1.75 var(--font-mono); overflow: hidden; }
+  .code .k { color: #9ec1ff; } .code .s { color: #b7e4a2; } .code .c { color: #8f8e88; }
+  .perm { display: grid; gap: 0; }
+  .perm__row { display: flex; justify-content: space-between; gap: 16px; padding: 14px 0; border-bottom: 1px solid color-mix(in oklab, var(--ink) 14%, transparent); font-size: 16px; }
+  .perm__row span:last-child { color: var(--muted); text-align: right; }
+  .name-type { font: 500 clamp(56px, 7vw, 112px)/1 var(--font-display); letter-spacing: -.04em; margin: 0 0 var(--s-6); }
+  .name-type .slash { color: var(--action); }
+  .hero--centred .hero__lead { color: var(--ink); }
+  .sl__set { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 18px; border-bottom: 1px solid var(--sl-line); }
+  .sl__set:last-child { border-bottom: 0; }
+  .sl__set small { display: block; color: var(--sl-muted); font-size: 12px; margin-top: 2px; }
+  .sl__toggle { width: 38px; height: 22px; border-radius: 11px; background: #34c759; position: relative; flex: none; }
+  .sl__toggle::after { content: ""; position: absolute; right: 2px; top: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+  .sl__toggle.is-off { background: #d1d1d6; } .sl__toggle.is-off::after { right: auto; left: 2px; }
+  .sl__btn { font-size: 13px; padding: 5px 12px; border-radius: 6px; background: #fff; border: 1px solid var(--sl-line); }
+  .sl__keys { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 16px; }
+  .sl__keycard { border: 1px solid var(--sl-line); border-radius: 12px; padding: 16px 12px; text-align: center; background: #fff; font-size: 13px; }
+  .sl__keycard.is-on { outline: 2px solid #2f6fed; }
+  .sl__keycard b { display: block; font: 500 20px/1.2 var(--font-text); margin-bottom: 6px; color: var(--sl-ink); }
+  .tools { display: flex; gap: var(--s-4); align-items: center; margin-top: var(--s-6); }
+  .tools img { width: 40px; height: 40px; }
+  #uses .panel { --p-h: 330px; }
+  #uses .sl--small { font-size: 16px; }
+  #uses .sl--small .sl__row { height: 46px; }
+  #uses .sl__answer strong { font-size: 40px; }
+  #name .panel { --p-h: 540px; }
+  #free .panel, #faq .panel { --p-h: 440px; }
+  .privacy-stats { display: grid; gap: var(--s-5); margin-top: var(--s-4); }
+  .privacy-stats .stat { display: flex; flex-direction: column; gap: var(--s-1); }
+  .privacy-stats .t-stat { margin: 0; }
+  .privacy-stats .t-small { margin: 0; }
+  .code { min-height: 540px; }
+  @media (max-width: 1279px) {
+    .hero__window .sl__row:nth-of-type(3), .hero__window .sl__sec[data-step] { display: none; }
+    .code { font-size: 12px; padding: 20px; }
+    .code-more { display: none; }
+  }
+  @media (max-width: 1023px) {
+    #uses .sl__row small { display: none; }
+  }
+  @media (max-width: 360px) {
+    #faq .faq__item:nth-child(3) { display: none; }
+    #free .grid > .start-7, #extensions .grid > .start-7, #faq .grid > .start-7 { display: none; }
+    .closing__links .grid > * { grid-column: 1 / -1; }
+    #faq .panel { --p-h: 200px; }
+    .code { font-size: 11px; padding: 14px; }
+    .code .c { display: none; }
+  }
+  @media (min-width: 640px) and (max-width: 1023px) { #free .grid > .start-7, #faq .grid > .start-7 { display: none; } }
+  @media (min-width: 640px) and (max-width: 1023px) {
+    #free .rows li { padding-block: var(--s-6); }
+    #faq .faq { row-gap: var(--s-7); }
+  }
+  @media (max-width: 639px) {
+    #uses .panel { --p-h: 200px; }
+    #name .panel { --p-h: 250px; }
+    #name .sl__row:nth-of-type(n+5) { display: none; }
+    .name-type { font-size: 56px; margin-bottom: var(--s-4); }
+    .sl__keys { gap: 6px; padding: 10px; }
+    .sl__keycard { padding: 10px 6px; font-size: 12px; }
+    .sl__keycard b { font-size: 16px; margin-bottom: 2px; }
+    .code { min-height: 0; }
+    .code-more { display: none; }
+    .code pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .nav__actions > .nav__link { display: none; }
+    #free .panel { --p-h: 200px; }
+    #faq .panel { --p-h: 240px; }
+    #free .rows p { display: none; }
+    #faq .faq__item:nth-child(n+4) { display: none; }
+    .privacy-stats { gap: var(--s-4); }
+    .sl { font-size: 13px; } .sl__row { height: 34px; } .sl__search { height: 46px; } .sl__q { font-size: 16px; }
+    .code { font-size: 12px; padding: 16px; }
+  }
+</style>
+</head>
+<body>
+<!-- type: software (a macOS launcher, MIT-licensed)
+     deal: hero centred, palette stone-blueprint, type suse, nav nav-centre, close close-type, footer footer-columns,
+           rhythm dark-band (#privacy), buttons solid, mark: the app's own icon (the client's logo), ground sky, effect painterly-landscape (hero window)
+     moments: counter-rolls in #privacy -->
+<header class="nav nav--centre">
+  <div class="wrap nav__bar">
+    <a class="skip-link" href="#top">Skip to content</a>
+    <a class="nav__logo" href="#top"><img src="assets/img/slashlight-icon.png" alt="" width="28" height="28">Slashlight</a>
+    <nav class="nav__links" aria-label="Main">
+      <div class="nav__item"><a class="nav__link" href="#uses">Features</a></div>
+      <div class="nav__item"><a class="nav__link" href="#privacy">Privacy</a></div>
+      <div class="nav__item"><a class="nav__link" href="#extensions">Extensions</a></div>
+      <div class="nav__item"><a class="nav__link" href="#faq">Questions</a></div>
+    </nav>
+    <div class="nav__actions">
+      <a class="nav__link" href="https://github.com/burinworks/slashlight">GitHub</a>
+      <a class="btn btn--primary" href="https://github.com/burinworks/slashlight/releases/latest">Download Slashlight</a>
+    </div>
+    <button class="nav__toggle" type="button" aria-expanded="false" aria-label="Menu">
+      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2 5h14M2 13h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero hero--centred" data-enter aria-labelledby="hero-h">
+    <div class="wrap"><div class="hero-text">
+      <div class="hero__c">
+        <a class="pill" href="https://github.com/burinworks/slashlight/blob/main/LICENSE"><span>Free and MIT-licensed</span><span class="muted">for macOS 14 and later</span></a>
+        <h1 id="hero-h"><img class="hero-mark" src="assets/img/slashlight-icon.png" alt="">A free keyboard launcher for macOS</h1>
+        <p class="hero__lead">Press ⌥Space and type. Slashlight opens apps, runs your own slash commands, converts units and keeps your clipboard history, with no account and no tracking.</p>
+        <div class="btn-row"><a class="btn btn--primary" href="https://github.com/burinworks/slashlight/releases/latest">Download Slashlight</a><a class="btn btn--secondary" href="https://github.com/burinworks/slashlight">Read the source code</a></div>
+      </div>
+      <div class="hero__window" data-fx="painterly-landscape" data-fx-seed="11" role="img" aria-label="The Slashlight panel with “his” typed: Clipboard History is the top hit, About This Mac and Keychain Access follow">
+        <div class="ly-piece sl" aria-hidden="true">
+          <div class="sl__search"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8.5" cy="8.5" r="6"/><path d="m13 13 5 5" stroke-linecap="round"/></svg><span class="sl__q">his<span class="caret"></span></span><span class="sl__key">esc</span></div>
+          <div class="sl__list" data-ly-steps="900">
+            <div class="sl__sec">Top hit</div>
+            <div class="sl__row is-on"><span class="sl__ic">📋</span><b>Clipboard History</b><small>Extension</small></div>
+            <div class="sl__sec" data-step>Applications</div>
+            <div class="sl__row" data-step><span class="sl__ic">🖥️</span><b>About This Mac</b></div>
+            <div class="sl__row" data-step><span class="sl__ic">🔑</span><b>Keychain Access</b></div>
+          </div>
+          <div class="sl__foot"><span><span class="sl__key">↵</span>Open</span><span><span class="sl__key">⌘K</span>Actions</span><span><span class="sl__key">↑↓</span>Navigate</span></div>
+        </div>
+      </div>
+    </div></div>
+  </section>
+
+  <section class="section" id="name" aria-labelledby="name-h">
+    <div class="wrap">
+      <div class="grid grid--top fill">
+        <div class="span-5 stack-5">
+          <h2 id="name-h">Why it is called Slashlight. <span class="muted">A slash, then Spotlight.</span></h2>
+          <p class="name-type" aria-hidden="true"><span class="slash">/</span>light</p>
+          <p class="measure">Type a slash and every command you wrote opens by name: a shell script, a Shortcut, a URL with your search in it, an HTTP call or AppleScript. Type anything else and it searches your Mac like Spotlight does.</p>
+        </div>
+        <div class="span-6 start-7">
+          <div class="panel" role="img" aria-label="Command mode: a slash typed, your own commands listed, the one used last first">
+            <div class="stage stage--fade-b"><div class="at-rise fit" style="--fit-max:520px;--ax:max(24px, 50% - 260px);--ay:40px;--ay-sm:16px">
+              <div class="sl sl--small" aria-hidden="true">
+                <div class="sl__search"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8.5" cy="8.5" r="6"/><path d="m13 13 5 5" stroke-linecap="round"/></svg><span class="sl__q">/<span class="caret"></span></span><span class="sl__key">esc</span></div>
+                <div class="sl__list">
+                  <div class="sl__sec">Commands</div>
+                  <div class="sl__row is-on"><span class="sl__ic">🌐</span><b>/my-ip</b><small>Show my public IP</small></div>
+                  <div class="sl__row"><span class="sl__ic">🌙</span><b>/toggle-dark-mode</b><small>AppleScript</small></div>
+                  <div class="sl__row"><span class="sl__ic">🔎</span><b>/gh slashlight</b><small>Search GitHub</small></div>
+                  <div class="sl__row"><span class="sl__ic">💡</span><b>/turn-light-on</b><small>Shortcut</small></div>
+                  <div class="sl__row"><span class="sl__ic">⚙️</span><b>/deploy</b><small>Shell script</small></div>
+                  <div class="sl__row"><span class="sl__ic">📨</span><b>/ping</b><small>HTTP POST</small></div>
+                </div>
+              </div>
+            </div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section g2" id="uses" aria-labelledby="uses-h">
+    <div class="wrap">
+      <div class="group">
+        <div class="section-head">
+          <h2 id="uses-h">Four jobs Slashlight does from one shortcut. <span class="muted">Each takes a few keys.</span></h2>
+        </div>
+        <div class="grid">
+          <article class="card card--row card--open span-6">
+            <h3>Converts 100 usd to eur as you type</h3>
+            <p>Type 5 km in mi or 100 usd to eur. ↵ copies the answer, ⌘↵ pastes it where you were typing.</p>
+            <div class="panel" role="img" aria-label="5 km in mi answered as 3.11 miles">
+              <div class="stage stage--fade-b"><div class="at-rise fit" style="--fit-max:480px;--ax:max(24px, 50% - 240px);--ay:32px;--ay-sm:16px">
+                <div class="sl sl--small" aria-hidden="true">
+                  <div class="sl__search"><span class="sl__q">5 km in mi</span></div>
+                  <div class="sl__answer"><strong>3.11 mi</strong><span>5 km → mi</span></div>
+                  <div class="sl__foot"><span><span class="sl__key">↵</span>Copy</span><span><span class="sl__key">⌘↵</span>Paste</span></div>
+                </div>
+              </div></div>
+            </div>
+          </article>
+          <article class="card card--row card--open span-6">
+            <h3>Clipboard history finds last week’s copy</h3>
+            <p>Clipboard history keeps text, images and files for 30 days, encrypted on your Mac.</p>
+            <div class="panel" role="img" aria-label="Clipboard history listing a link, a PDF and a screenshot">
+              <div class="stage stage--fade-b"><div class="at-rise fit" style="--fit-max:480px;--ax:max(24px, 50% - 240px);--ay:32px;--ay-sm:16px">
+                <div class="sl sl--small" aria-hidden="true">
+                  <div class="sl__search"><span class="sl__q">invoice</span></div>
+                  <div class="sl__list">
+                    <div class="sl__row is-on"><span class="sl__ic">📄</span><b>Invoice November.pdf</b><small>Tuesday</small></div>
+                    <div class="sl__row"><span class="sl__ic">🔗</span><b>billing.example/invoices/1142</b><small>Monday</small></div>
+                    <div class="sl__row"><span class="sl__ic">🖼️</span><b>Screenshot of the invoice</b><small>Monday</small></div>
+                  </div>
+                </div>
+              </div></div>
+            </div>
+          </article>
+        </div>
+      </div>
+      <div class="grid">
+        <article class="card card--row card--open span-6">
+          <h3>Window layouts on ⌃⌥ and 4 arrow keys</h3>
+          <p>Halves, thirds and quarters on ⌃⌥ and an arrow. ⌥Tab shows every window on every Space.</p>
+          <div class="panel" role="img" aria-label="The window switcher showing four windows, one selected">
+            <div class="stage stage--fade-b"><div class="at-rise fit" style="--fit-max:480px;--ax:max(24px, 50% - 240px);--ay:32px;--ay-sm:16px">
+              <div class="sl sl--small" aria-hidden="true">
+                <div class="sl__search"><span class="sl__q">Switch Window</span><span class="sl__key">⌥⇥</span></div>
+                <div class="sl__grid"><div class="sl__win is-on">Safari</div><div class="sl__win">Terminal</div><div class="sl__win">Notes</div><div class="sl__win">Mail</div></div>
+              </div>
+            </div></div>
+          </div>
+        </article>
+        <article class="card card--row card--open span-6">
+          <h3>Terminal tabs inside Slashlight</h3>
+          <p>Type a &gt; and a command. It runs in a real terminal tab that keeps going after the panel closes.</p>
+          <div class="panel" role="img" aria-label="A terminal tab running npm run dev inside the panel">
+            <div class="stage stage--fade-b"><div class="at-rise fit" style="--fit-max:480px;--ax:max(24px, 50% - 240px);--ay:32px;--ay-sm:16px">
+              <div class="sl sl--small" aria-hidden="true">
+                <div class="sl__tabs"><i class="is-on">npm run dev</i><i>git log</i></div>
+                <div class="sl__term">&gt; npm run dev<br><span class="dim">vite v6.2 ready in 312 ms</span><br><span class="ok">➜ Local: http://localhost:5173/</span></div>
+              </div>
+            </div></div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section ground-inverse" id="privacy" style="--hm: 2" aria-labelledby="privacy-h">
+    <div class="wrap">
+      <div class="grid grid--top fill">
+        <div class="span-5 stack-5">
+          <h2 id="privacy-h">Slashlight’s privacy, written down. <span class="muted">Two network calls, both listed.</span></h2>
+          <p>No account and no analytics. Slashlight goes online to look for updates once a day and to fetch exchange rates when you convert a currency.</p>
+          <div class="privacy-stats" data-moment="counter-rolls">
+            <div class="stat"><p class="t-stat">0</p><p class="t-small muted">accounts to create</p></div>
+            <div class="stat"><p class="t-stat">2</p><p class="t-small muted">network calls in a default setup</p></div>
+            <div class="stat"><p class="t-stat">30</p><p class="t-small muted">days of clipboard history, then deleted</p></div>
+          </div>
+        </div>
+        <div class="span-6 start-7 stack-4">
+          <h3>Extension permissions in Slashlight</h3>
+          <div class="perm">
+            <div class="perm__row"><span>Network</span><span>Only the hosts it lists</span></div>
+            <div class="perm__row"><span>Your folders</span><span>Only the ones you grant</span></div>
+            <div class="perm__row"><span>Clipboard and Keychain</span><span>Never</span></div>
+            <div class="perm__row"><span>~/.ssh and other secrets</span><span>Never</span></div>
+            <div class="perm__row"><span>Password-manager copies</span><span>Never saved</span></div>
+          </div>
+          <a class="link" href="https://github.com/burinworks/slashlight/blob/main/PRIVACY.md">Read the privacy policy</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="free" aria-labelledby="free-h">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 id="free-h">Slashlight is free, with no paid tier. <span class="muted">Everything is in the one download.</span></h2>
+        <p>There is no Pro plan, no seat price and no account. The MIT license lets you read, change and share the code.</p>
+      </div>
+      <div class="grid grid--top fill">
+      <ul class="rows span-6">
+        <li><span class="rows__name">Every built-in extension</span><p>Clipboard history, snippets, emoji, window layouts, the switcher, terminal tabs, Usage Insights</p><span class="rows__value">$0</span></li>
+        <li><span class="rows__name">Extensions and commands you add</span><p>Any language, as many as you like</p><span class="rows__value">$0</span></li>
+        <li><span class="rows__name">Updates</span><p>Signed builds that install themselves, with an optional beta channel</p><span class="rows__value">$0</span></li>
+        <li><span class="rows__name">Account</span><p>None to create, nothing to sign in to</p><span class="rows__value">None</span></li>
+      </ul>
+      <div class="span-6 start-7">
+        <div class="panel" role="img" aria-label="Slashlight Settings, General: Check for Updates, automatic updates on, the beta program off">
+          <div class="stage"><div class="at-rise fit" style="--fit-max:480px;--ax:max(24px, 50% - 240px);--ay:40px;--ay-sm:16px">
+            <div class="sl" aria-hidden="true">
+              <div class="sl__set"><span>Updates<small>Version 0.3.0</small></span><span class="sl__btn">Check for Updates…</span></div>
+              <div class="sl__set"><span>Automatically install updates<small>Installs when you quit</small></span><span class="sl__toggle"></span></div>
+              <div class="sl__set"><span>Join the beta program<small>Signed betas, a week or two early</small></span><span class="sl__toggle is-off"></span></div>
+            </div>
+          </div></div>
+        </div>
+      </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="extensions" aria-labelledby="ext-h">
+    <div class="wrap">
+      <div class="grid grid--top fill">
+        <div class="span-5 stack-5">
+          <h2 id="ext-h">Slashlight extensions in any language. <span class="muted">Your scripts run as they are.</span></h2>
+          <p class="measure">An extension is a folder with a manifest and a program that reads JSON on stdin and answers on stdout. Each runs in a macOS sandbox with only the folders and hosts it declares. Raycast script commands work unchanged.</p>
+          <div class="tools">
+            <img class="ic ic-40" src="assets/icons/swift.svg" alt="Swift" width="40" height="40"><img class="ic ic-40" src="assets/icons/python.svg" alt="Python" width="40" height="40"><img class="ic ic-40" src="assets/icons/nodejs.svg" alt="Node.js" width="35" height="40">
+          </div>
+          <a class="link" href="https://github.com/burinworks/slashlight/blob/main/docs/writing-extensions.md">Read the extension guide</a>
+        </div>
+        <div class="span-6 start-7">
+          <div class="code" role="img" aria-label="A manifest.json for a UUID extension written in Python, with a global hotkey and no permissions">
+<pre style="margin:0"><span class="c">// Extensions/uuid/manifest.json</span>
+{
+  <span class="k">"id"</span>: <span class="s">"uuid"</span>,
+  <span class="k">"title"</span>: <span class="s">"UUID Generator"</span>,
+  <span class="k">"triggers"</span>: [<span class="s">"commands"</span>, <span class="s">"command:uuid"</span>],
+  <span class="k">"exec"</span>: [<span class="s">"/usr/bin/env"</span>, <span class="s">"python3"</span>, <span class="s">"extension.py"</span>],
+  <span class="k">"permissions"</span>: {},<span class="code-more">
+  <span class="k">"hotkeys"</span>: [{
+    <span class="k">"id"</span>: <span class="s">"paste-new"</span>,
+    <span class="k">"title"</span>: <span class="s">"Paste a new UUID"</span>,
+    <span class="k">"scope"</span>: <span class="s">"global"</span>,
+    <span class="k">"default"</span>: <span class="s">"ctrl+opt+u"</span>
+  }]</span>
+}
+<span class="code-more">
+<span class="c"># extension.py: answer each request on stdout</span>
+<span class="k">for</span> line <span class="k">in</span> sys.stdin:
+    request = json.loads(line)
+    <span class="k">if</span> request[<span class="s">"type"</span>] == <span class="s">"hotkey"</span>:
+        reply({<span class="s">"type"</span>: <span class="s">"outcome"</span>, <span class="s">"outcome"</span>: {
+            <span class="s">"type"</span>: <span class="s">"paste"</span>, <span class="s">"value"</span>: str(uuid.uuid4())}})</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="faq" aria-labelledby="faq-h">
+    <div class="wrap">
+      <div class="section-head"><h2 id="faq-h">Questions before you install Slashlight</h2></div>
+      <div class="grid grid--top fill">
+      <div class="faq span-6">
+        <div class="faq__item"><h3>Why does macOS warn about Slashlight at first?</h3><p>Slashlight is not notarized by Apple, which needs a paid developer account. Run <code>xattr -dr com.apple.quarantine /Applications/Slashlight.app</code> once; updates after that open normally.</p></div>
+        <div class="faq__item"><h3>Can Slashlight take over ⌘Space?</h3><p>Yes. The welcome tour offers ⌘Space and opens the setting that frees it from Spotlight.</p></div>
+        <div class="faq__item"><h3>Which permissions does Slashlight need?</h3><p>Accessibility for window layouts and pasting, Screen Recording for window thumbnails. Both are optional and asked when you first need them.</p></div>
+        <div class="faq__item"><h3>Is Slashlight on Windows or Linux?</h3><p>No. Slashlight is built with AppKit and SwiftUI and runs on macOS 14 and later only.</p></div>
+        <div class="faq__item"><h3>Where does Slashlight keep my data?</h3><p>In ~/Library/Application Support/Slashlight as plain JSON. Clipboard history is encrypted with a key in your Keychain.</p></div>
+      </div>
+      <div class="span-6 start-7">
+        <div class="panel" role="img" aria-label="The welcome tour's hotkey choice: Command Space, Option Space selected, Control Space or a recorded key">
+          <div class="stage"><div class="at-rise fit" style="--fit-max:480px;--ax:max(24px, 50% - 240px);--ay:40px;--ay-sm:16px">
+            <div class="sl" aria-hidden="true">
+              <div class="sl__set"><span>Open Slashlight</span></div>
+              <div class="sl__keys">
+                <div class="sl__keycard"><b>⌘ Space</b>Command Space</div>
+                <div class="sl__keycard is-on"><b>⌥ Space</b>Option Space</div>
+                <div class="sl__keycard"><b>⌃ Space</b>Control Space</div>
+                <div class="sl__keycard"><b>Record</b>Custom</div>
+              </div>
+            </div>
+          </div></div>
+        </div>
+      </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer closing" id="contact" aria-labelledby="close-h">
+  <div class="wrap">
+    <div class="closing__cta close--type">
+      <div class="section-head">
+        <h2 id="close-h">Download Slashlight</h2>
+        <p>Free, for macOS 14 and later. Updates install themselves.</p>
+      </div>
+      <a class="btn btn--primary btn--xl btn--wide" href="https://github.com/burinworks/slashlight/releases/latest">Download Slashlight<svg class="m-arrow" viewBox="0 0 12 12" aria-hidden="true"><path class="m-arrow__stem" d="M1 6h8"/><path class="m-arrow__head" d="M4.5 2.5 8 6l-3.5 3.5"/></svg></a>
+    </div>
+    <div class="closing__links">
+      <div class="grid">
+        <div class="span-3 stack-4">
+          <a class="nav__logo" href="#top"><img src="assets/img/slashlight-icon.png" alt="" width="28" height="28">Slashlight</a>
+          <p class="footer__lede">An open-source keyboard launcher for macOS, made by <a class="link" href="https://github.com/cann1neof">Alexander Ikonnikov</a>.</p>
+        </div>
+        <div class="span-3 footer__col"><h3>Product</h3><ul><li><a href="#uses">Features</a></li><li><a href="#privacy">Privacy</a></li><li><a href="#extensions">Extensions</a></li><li><a href="#faq">Questions</a></li></ul></div>
+        <div class="span-3 footer__col"><h3>Project</h3><ul><li><a href="https://github.com/burinworks/slashlight">Source code</a></li><li><a href="https://github.com/burinworks/slashlight/releases">All releases</a></li><li><a href="https://github.com/burinworks/slashlight/issues/new/choose">Report a bug</a></li><li><a href="mailto:alex@burinworks.com?subject=Slashlight%20feedback">Email feedback</a></li></ul></div>
+        <div class="span-3 footer__col"><h3>Legal</h3><ul><li><a href="https://github.com/burinworks/slashlight/blob/main/LICENSE">MIT License</a></li><li><a href="https://github.com/burinworks/slashlight/blob/main/PRIVACY.md">Privacy policy</a></li><li><a href="https://github.com/burinworks/slashlight/blob/main/Resources/ThirdPartyNotices.txt">Third-party notices</a></li><li><a href="https://github.com/burinworks/slashlight/security/advisories/new">Report a security issue</a></li></ul></div>
+      </div>
+      <div class="footer__legal">
+        <span>&copy; 2026 Alexander Ikonnikov. Provided as is, without warranty.</span>
+        <span>Not affiliated with Apple Inc. or Raycast Technologies Ltd. Apple, macOS and Spotlight are trademarks of Apple Inc.; Raycast is a trademark of Raycast Technologies Ltd. Product names and logos are trademarks of their owners.</span>
+      </div>
+    </div>
+  </div>
+</footer>
+<nav class="actionbar" aria-label="Quick actions">
+  <a class="btn btn--primary" href="https://github.com/burinworks/slashlight/releases/latest">Download Slashlight</a>
+</nav>
+<script type="module" src="assets/system.js"></script>
+<script type="module" src="assets/motion/motion.js"></script>
+<script type="module" src="assets/layout/layout.js"></script>
+</body>
+</html>
